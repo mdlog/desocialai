@@ -2,12 +2,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Hash, TrendingUp, Users, Flame, Eye, ArrowUpRight, Sparkles, Star, Crown, Award, BarChart3 } from "lucide-react";
+import { HashtagTrendingSkeleton } from "@/components/ui/loading-skeletons";
 import type { TrendingHashtag } from "@shared/schema";
 
 interface TrendingHashtagsProps {
   hashtags: TrendingHashtag[];
   onHashtagClick?: (hashtag: string) => void;
   onFollowToggle?: (hashtagId: string, isFollowing: boolean) => void;
+  isLoading?: boolean;
 }
 
 // Helper function for minimalist trending rank styling
@@ -58,7 +60,11 @@ const formatNumber = (num: number): string => {
   return num.toString();
 };
 
-export function TrendingHashtags({ hashtags, onHashtagClick, onFollowToggle }: TrendingHashtagsProps) {
+export function TrendingHashtags({ hashtags, onHashtagClick, onFollowToggle, isLoading = false }: TrendingHashtagsProps) {
+  if (isLoading) {
+    return <HashtagTrendingSkeleton />;
+  }
+
   if (!hashtags.length) {
     return (
       <Card className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">

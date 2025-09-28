@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { ImageIcon, Database, Loader2, Wallet, X, Video } from "lucide-react";
 import { ContentGenerationAI } from "@/components/ai-content-generation";
+import { LoadingButton } from "@/components/ui/loading";
 
 // Helper function for formatting file sizes correctly
 function formatFileSize(bytes: number): string {
@@ -652,8 +653,9 @@ export function CreatePost() {
                     <div className="flex items-center space-x-2">
 
 
-                      <Button
+                      <LoadingButton
                         type="submit"
+                        loading={createPostMutation.isPending}
                         disabled={isDisabled}
                         title={
                           isOverLimit && !isUserVerified
@@ -671,12 +673,10 @@ export function CreatePost() {
                         {createPostMutation.isPending ? (
                           isSigningMetaMask ? (
                             <div className="flex items-center space-x-2">
-                              <Loader2 className="w-4 h-4 animate-spin" />
                               <span className="text-sm">Waiting for signature...</span>
                             </div>
                           ) : (
                             <div className="flex items-center space-x-3 w-full">
-                              <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between mb-1">
                                   <span className="text-xs">Uploading to 0G...</span>
@@ -692,7 +692,7 @@ export function CreatePost() {
                         ) : (
                           "Sign & Post"
                         )}
-                      </Button>
+                      </LoadingButton>
                     </div>
                   </div>
                 </div>

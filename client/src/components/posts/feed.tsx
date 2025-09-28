@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { LazyPostCard } from "./lazy-post-card";
 import { useWebSocket } from "@/hooks/use-websocket";
+import { LoadingFeed, LoadingState, RefreshButton } from "@/components/ui/loading";
 import type { PostWithAuthor } from "@shared/schema";
 
 export function Feed() {
@@ -14,7 +15,7 @@ export function Feed() {
   // Initialize WebSocket connection for real-time updates
   useWebSocket();
 
-  const { data: posts, error, refetch } = useQuery<PostWithAuthor[]>({
+  const { data: posts, error, refetch, isLoading, isFetching } = useQuery<PostWithAuthor[]>({
     queryKey: ["/api/posts/feed", limit, offset],
     queryFn: async () => {
       console.log(`🔄 Fetching feed: limit=${limit}, offset=${offset}`);
@@ -45,12 +46,17 @@ export function Feed() {
 
   if (error) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-12 space-y-4">
         <p className="text-og-slate-600 dark:text-og-slate-400">
           Failed to load posts. Please try again.
         </p>
+        <RefreshButton onRefresh={() => refetch()} />
       </div>
     );
+  }
+
+  if (isLoading) {
+    return <LoadingFeed count={5} />;
   }
 
   return (
@@ -79,14 +85,23 @@ export function Feed() {
             <LazyPostCard key={post.id} post={post} />
           ))}
 
-          <div className="text-center py-6">
+          <div className="text-center py-6 space-y-4">
             <Button
               onClick={loadMore}
               variant="outline"
               className="px-6 py-3 bg-white dark:bg-og-slate-800 border border-og-slate-200 dark:border-og-slate-700 rounded-xl hover:shadow-md transition-all"
+              disabled={isFetching}
             >
-              Load More Posts
+              {isFetching ? "Loading..." : "Load More Posts"}
             </Button>
+
+            {/* Refresh Button */}
+            <div className="flex justify-center">
+              <RefreshButton
+                refreshing={isFetching}
+                onRefresh={() => refetch()}
+              />
+            </div>
           </div>
         </>
       ) : (

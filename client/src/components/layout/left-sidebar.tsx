@@ -4,13 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EditProfileDialog } from "@/components/edit-profile-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { LoadingCard, LoadingSpinner } from "@/components/ui/loading";
 import { Link, useLocation } from "wouter";
 import { useMemo, memo } from "react";
 
 function LeftSidebarBase() {
   const [location] = useLocation();
 
-  const { data: currentUser, isError, refetch } = useQuery<{
+  const { data: currentUser, isError, refetch, isLoading: isLoadingUser } = useQuery<{
     id: string;
     displayName: string;
     username: string;
@@ -66,7 +67,7 @@ function LeftSidebarBase() {
     },
   });
 
-  const { data: chainStatus } = useQuery<{ network: string; blockHeight: number; gasPrice: string }>({
+  const { data: chainStatus, isLoading: isLoadingChain } = useQuery<{ network: string; blockHeight: number; gasPrice: string }>({
     queryKey: ["/api/web3/status"],
     refetchInterval: 10000,
   });
@@ -106,7 +107,9 @@ function LeftSidebarBase() {
         <Card className="modern-card">
           <CardContent className="p-6">
             <div className="text-center">
-              {currentUser ? (
+              {isLoadingUser ? (
+                <LoadingCard showAvatar={true} showContent={true} lines={2} />
+              ) : currentUser ? (
                 <>
                   <Avatar className="w-20 h-20 mx-auto mb-4 ring-4 ring-primary ring-opacity-20">
                     <AvatarImage
@@ -221,20 +224,37 @@ function LeftSidebarBase() {
               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
               <span>Network Status</span>
             </h4>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between py-2">
-                <span className="text-muted-foreground">Network:</span>
-                <span className="text-foreground font-mono">{chainStatus?.network || "0G Galileo"}</span>
+            {isLoadingChain ? (
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between py-2">
+                  <span className="text-muted-foreground">Network:</span>
+                  <LoadingSpinner size="sm" />
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-muted-foreground">Block:</span>
+                  <LoadingSpinner size="sm" />
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-muted-foreground">Gas:</span>
+                  <LoadingSpinner size="sm" />
+                </div>
               </div>
-              <div className="flex justify-between py-2">
-                <span className="text-muted-foreground">Block:</span>
-                <span className="text-foreground font-mono">{chainStatus?.blockHeight?.toLocaleString() || "5,610,000"}</span>
+            ) : (
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between py-2">
+                  <span className="text-muted-foreground">Network:</span>
+                  <span className="text-foreground font-mono">{chainStatus?.network || "0G Galileo"}</span>
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-muted-foreground">Block:</span>
+                  <span className="text-foreground font-mono">{chainStatus?.blockHeight?.toLocaleString() || "5,610,000"}</span>
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-muted-foreground">Gas:</span>
+                  <span className="text-foreground font-mono">{chainStatus?.gasPrice || "0.1 Gwei"}</span>
+                </div>
               </div>
-              <div className="flex justify-between py-2">
-                <span className="text-muted-foreground">Gas:</span>
-                <span className="text-foreground font-mono">{chainStatus?.gasPrice || "0.1 Gwei"}</span>
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -30,12 +30,7 @@ import {
     BarChart3,
     PieChart,
     Zap,
-    Lock,
-    Unlock,
-    Settings,
     QrCode,
-    Download,
-    Upload,
     Star,
     Award,
     Target,
@@ -397,42 +392,6 @@ export function WalletPage() {
                             </Button>
                         </div>
 
-                        {/* Security & Settings */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Shield className="w-5 h-5" />
-                                    Security & Settings
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                        <div className="flex items-center gap-2">
-                                            <Lock className="w-4 h-4" />
-                                            <span className="text-sm">Private Key</span>
-                                        </div>
-                                        <Button size="sm" variant="outline">
-                                            {showPrivateKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                        </Button>
-                                    </div>
-                                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                        <div className="flex items-center gap-2">
-                                            <Download className="w-4 h-4" />
-                                            <span className="text-sm">Backup Wallet</span>
-                                        </div>
-                                        <Button size="sm" variant="outline">Export</Button>
-                                    </div>
-                                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                        <div className="flex items-center gap-2">
-                                            <Settings className="w-4 h-4" />
-                                            <span className="text-sm">Wallet Settings</span>
-                                        </div>
-                                        <Button size="sm" variant="outline">Configure</Button>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
 
                         {/* Portfolio Stats */}
                         <Card>
