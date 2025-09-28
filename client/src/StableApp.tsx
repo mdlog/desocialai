@@ -70,7 +70,7 @@ function StableApp() {
                         <p style={{ margin: '0', opacity: 0.9 }}>Browse, search, filter collections</p>
                     </a>
 
-                    <a href="/explore" style={{
+                    <a href="/nft-gallery" style={{
                         background: 'linear-gradient(135deg, #10b981, #047857)',
                         color: 'white',
                         padding: '1.5rem',
@@ -124,12 +124,10 @@ function StableApp() {
                     </h3>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                         <a href="/" style={{ padding: '0.75rem', background: 'white', borderRadius: '6px', textDecoration: 'none', color: '#374151', border: '1px solid #e5e7eb' }}>🏠 Home</a>
-                        <a href="/explore" style={{ padding: '0.75rem', background: 'white', borderRadius: '6px', textDecoration: 'none', color: '#374151', border: '1px solid #e5e7eb' }}>🔍 Explore</a>
                         <a href="/nft-gallery" style={{ padding: '0.75rem', background: 'white', borderRadius: '6px', textDecoration: 'none', color: '#374151', border: '1px solid #e5e7eb' }}>🖼️ NFT Gallery</a>
                         <a href="/wallet" style={{ padding: '0.75rem', background: 'white', borderRadius: '6px', textDecoration: 'none', color: '#374151', border: '1px solid #e5e7eb' }}>💰 Wallet</a>
                         <a href="/profile" style={{ padding: '0.75rem', background: 'white', borderRadius: '6px', textDecoration: 'none', color: '#374151', border: '1px solid #e5e7eb' }}>👤 Profile</a>
                         <a href="/messages" style={{ padding: '0.75rem', background: 'white', borderRadius: '6px', textDecoration: 'none', color: '#374151', border: '1px solid #e5e7eb' }}>💬 Messages</a>
-                        <a href="/communities" style={{ padding: '0.75rem', background: 'white', borderRadius: '6px', textDecoration: 'none', color: '#374151', border: '1px solid #e5e7eb' }}>🏘️ Communities</a>
                         <a href="/bookmarks" style={{ padding: '0.75rem', background: 'white', borderRadius: '6px', textDecoration: 'none', color: '#374151', border: '1px solid #e5e7eb' }}>🔖 Bookmarks</a>
                         <a href="/settings" style={{ padding: '0.75rem', background: 'white', borderRadius: '6px', textDecoration: 'none', color: '#374151', border: '1px solid #e5e7eb' }}>⚙️ Settings</a>
                         <a href="/ai-recommendations" style={{ padding: '0.75rem', background: 'white', borderRadius: '6px', textDecoration: 'none', color: '#374151', border: '1px solid #e5e7eb' }}>🤖 AI Recommendations</a>

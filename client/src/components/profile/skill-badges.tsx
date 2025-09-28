@@ -2,14 +2,15 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { 
-  Code, 
-  Palette, 
-  TrendingUp, 
-  Shield, 
-  Gamepad2, 
-  Music, 
-  Camera, 
+import { SkillBadgesSkeleton } from "@/components/ui/loading-skeletons";
+import {
+  Code,
+  Palette,
+  TrendingUp,
+  Shield,
+  Gamepad2,
+  Music,
+  Camera,
   Rocket,
   Brain,
   Users,
@@ -35,15 +36,20 @@ interface SkillBadgesProps {
     skillBadges?: SkillBadge[];
   };
   isOwner?: boolean;
+  isLoading?: boolean;
 }
 
-export function SkillBadges({ user, isOwner = false }: SkillBadgesProps) {
+export function SkillBadges({ user, isOwner = false, isLoading = false }: SkillBadgesProps) {
+  if (isLoading) {
+    return <SkillBadgesSkeleton />;
+  }
+
   const badges = user.skillBadges || [];
 
   // Available badge categories with icons
   const badgeIcons = {
     'Developer': Code,
-    'Creator': Palette, 
+    'Creator': Palette,
     'Trader': TrendingUp,
     'Security': Shield,
     'Gaming': Gamepad2,
@@ -150,14 +156,14 @@ export function SkillBadges({ user, isOwner = false }: SkillBadgesProps) {
                   <div className={`w-12 h-12 mx-auto mb-3 rounded-full bg-gradient-to-r ${rarityColors[badge.rarity]} flex items-center justify-center shadow-lg`}>
                     <IconComponent className="w-6 h-6 text-white" />
                   </div>
-                  
+
                   {/* Badge Info */}
                   <div className="text-center space-y-1">
                     <h4 className="text-sm font-medium text-gray-900 dark:text-white line-clamp-2">
                       {badge.name}
                     </h4>
-                    <Badge 
-                      variant="secondary" 
+                    <Badge
+                      variant="secondary"
                       className={`text-xs bg-gradient-to-r ${rarityColors[badge.rarity]} text-white border-0`}
                     >
                       {badge.rarity}
@@ -193,8 +199,8 @@ export function SkillBadges({ user, isOwner = false }: SkillBadgesProps) {
               {isOwner ? "No badges earned yet" : "No badges to display"}
             </h3>
             <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-              {isOwner 
-                ? "Start completing challenges and verify your skills to earn your first badge!" 
+              {isOwner
+                ? "Start completing challenges and verify your skills to earn your first badge!"
                 : "This user hasn't earned any skill badges yet."
               }
             </p>

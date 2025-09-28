@@ -4206,5 +4206,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Direct Messaging Endpoints
+  app.get("/api/messages/conversations", async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Get all conversations for the user
+      const conversations = await storage.getConversations(userId);
+      res.json(conversations);
+    } catch (error: any) {
+      console.error("[MESSAGES] Error fetching conversations:", error);
+      res.status(500).json({ message: "Failed to fetch conversations" });
+    }
+  });
+
+  app.get("/api/messages/:conversationId", async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      const { conversationId } = req.params;
+
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Get messages for the conversation
+      const messages = await storage.getMessages(conversationId, userId);
+      res.json(messages);
+    } catch (error: any) {
+      console.error("[MESSAGES] Error fetching messages:", error);
+      res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+
+  app.post("/api/messages/send", async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      const { conversationId, content } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      if (!conversationId || !content) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      // Send message
+      const message = await storage.sendMessage(userId, conversationId, content);
+      res.json(message);
+    } catch (error: any) {
+      console.error("[MESSAGES] Error sending message:", error);
+      res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
+  app.post("/api/messages/:conversationId/read", async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      const { conversationId } = req.params;
+
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Mark messages as read
+      await storage.markMessagesAsRead(conversationId, userId);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[MESSAGES] Error marking messages as read:", error);
+      res.status(500).json({ message: "Failed to mark messages as read" });
+    }
+  });
+
+  app.post("/api/messages/start-conversation", async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      const { recipientId } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      if (!recipientId) {
+        return res.status(400).json({ message: "Missing recipient ID" });
+      }
+
+      // Start or get existing conversation
+      const conversation = await storage.startConversation(userId, recipientId);
+      res.json(conversation);
+    } catch (error: any) {
+      console.error("[MESSAGES] Error starting conversation:", error);
+      res.status(500).json({ message: "Failed to start conversation" });
+    }
+  });
+
   return httpServer;
 }

@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { ImageIcon, Database, Loader2, Wallet, X, Video } from "lucide-react";
 import { ContentGenerationAI } from "@/components/ai-content-generation";
-import { LoadingButton } from "@/components/ui/loading";
 
 // Helper function for formatting file sizes correctly
 function formatFileSize(bytes: number): string {
@@ -270,7 +270,28 @@ export function CreatePost() {
       setIsSigningMetaMask(false);
       setUploadStartTime(null);
 
-      // Invalidate all posts queries with broad matching to refresh the feed
+      // Immediately add the new post to the feed cache
+      if (data.post) {
+        // Update the main feed query (limit=10, offset=0)
+        queryClient.setQueryData(
+          ["/api/posts/feed", 10, 0],
+          (oldData: any) => {
+            if (!oldData) return [data.post];
+            return [data.post, ...oldData];
+          }
+        );
+
+        // Also update any other feed queries that might exist
+        queryClient.setQueriesData(
+          { queryKey: ["/api/posts/feed"] },
+          (oldData: any) => {
+            if (!oldData) return [data.post];
+            return [data.post, ...oldData];
+          }
+        );
+      }
+
+      // Invalidate all posts queries to ensure consistency
       queryClient.invalidateQueries({
         predicate: (query) => {
           const key = query.queryKey[0];
@@ -281,15 +302,11 @@ export function CreatePost() {
       // Invalidate user profile to update post count in sidebar
       queryClient.invalidateQueries({ queryKey: ["/api/users/me"] });
 
-      // Force immediate refetch of the current feed and profile with a slight delay to ensure backend processing
-      setTimeout(() => {
-        queryClient.refetchQueries({
-          predicate: (query) => {
-            const key = query.queryKey[0];
-            return typeof key === 'string' && (key === '/api/posts/feed' || key === '/api/users/me');
-          }
-        });
-      }, 100);
+      // Force immediate refetch of the feed to ensure we have the latest data
+      queryClient.refetchQueries({
+        queryKey: ["/api/posts/feed"],
+        type: 'active'
+      });
 
       // Show success message with 0G Storage information
       if (data.storageStatus === "pending") {
@@ -475,7 +492,17 @@ export function CreatePost() {
         <CardContent className="p-6">
           <form onSubmit={handleSubmit}>
             <div className="flex space-x-4">
-              <div className="w-10 h-10 avatar-gradient-1 rounded-full flex-shrink-0"></div>
+              <Avatar className="w-10 h-10 flex-shrink-0 ring-2 ring-primary/20">
+                <AvatarImage
+                  src={userData?.avatar ? `${window.location.origin}${userData.avatar}` : ""}
+                  alt={userData?.displayName || "User"}
+                  className="object-cover"
+                  loading="lazy"
+                />
+                <AvatarFallback className="gradient-brand text-white font-semibold text-sm">
+                  {(userData?.displayName || "U").slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
               <div className="flex-1">
                 <div className="relative">
                   <Textarea
@@ -653,46 +680,20 @@ export function CreatePost() {
                     <div className="flex items-center space-x-2">
 
 
-                      <LoadingButton
+                      <Button
                         type="submit"
-                        loading={createPostMutation.isPending}
                         disabled={isDisabled}
-                        title={
-                          isOverLimit && !isUserVerified
-                            ? `Post exceeds ${CHARACTER_LIMIT} character limit by ${characterCount - CHARACTER_LIMIT} characters`
-                            : !hasContentOrFile
-                              ? "Enter some content to post"
-                              : !isWalletConnected
-                                ? "Connect your wallet to post"
-                                : "Post to 0G Storage"
-                        }
-                        className={`bg-og-primary hover:bg-og-primary/90 text-white font-semibold transition-all ${createPostMutation.isPending ? 'px-4 min-w-[200px]' : 'px-6'
-                          } ${isOverLimit && !isUserVerified ? 'opacity-50 cursor-not-allowed' : ''
-                          }`}
+                        className="bg-og-primary hover:bg-og-primary/90 text-white font-semibold px-6 py-2"
                       >
                         {createPostMutation.isPending ? (
-                          isSigningMetaMask ? (
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm">Waiting for signature...</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center space-x-3 w-full">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className="text-xs">Uploading to 0G...</span>
-                                  <span className="text-xs font-mono">{Math.floor(uploadProgress)}%</span>
-                                </div>
-                                <Progress
-                                  value={uploadProgress}
-                                  className="h-2 bg-white/20 [&>div]:bg-white/80"
-                                />
-                              </div>
-                            </div>
-                          )
+                          <div className="flex items-center space-x-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span>Posting...</span>
+                          </div>
                         ) : (
                           "Sign & Post"
                         )}
-                      </LoadingButton>
+                      </Button>
                     </div>
                   </div>
                 </div>

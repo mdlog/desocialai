@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { ReputationSystemSkeleton } from "@/components/ui/loading-skeletons";
 import { Crown, Star, Zap, TrendingUp, Users, Heart } from "lucide-react";
 
 interface ReputationSystemProps {
@@ -11,9 +12,14 @@ interface ReputationSystemProps {
     followersCount?: number;
     walletAddress?: string;
   };
+  isLoading?: boolean;
 }
 
-export function ReputationSystem({ user }: ReputationSystemProps) {
+export function ReputationSystem({ user, isLoading = false }: ReputationSystemProps) {
+  if (isLoading) {
+    return <ReputationSystemSkeleton />;
+  }
+
   const reputation = user.reputationScore || 0;
   const posts = user.postsCount || 0;
   const followers = user.followersCount || 0;
@@ -35,14 +41,14 @@ export function ReputationSystem({ user }: ReputationSystemProps) {
   const getNextLevelProgress = (score: number) => {
     const levels = [0, 100, 500, 2000, 5000, 10000];
     const currentLevelIndex = levels.findIndex(level => score < level) - 1;
-    
+
     if (currentLevelIndex === -1) return { progress: 100, nextLevel: 10000 };
     if (currentLevelIndex === levels.length - 2) return { progress: 100, nextLevel: null };
-    
+
     const currentLevel = levels[currentLevelIndex] || 0;
     const nextLevel = levels[currentLevelIndex + 1];
     const progress = ((score - currentLevel) / (nextLevel - currentLevel)) * 100;
-    
+
     return { progress: Math.min(progress, 100), nextLevel };
   };
 
@@ -69,8 +75,8 @@ export function ReputationSystem({ user }: ReputationSystemProps) {
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 Reputation Score
               </h3>
-              <Badge 
-                variant="secondary" 
+              <Badge
+                variant="secondary"
                 className={`bg-gradient-to-r ${tier.color} text-white border-0`}
               >
                 {tier.name}

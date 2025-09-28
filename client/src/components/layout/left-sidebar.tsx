@@ -1,4 +1,4 @@
-import { Home, Compass, Users, Settings, Shield, MessageSquareText, Images, Wallet, User } from "lucide-react";
+import { Home, Settings, Shield, MessageSquareText, Images, Wallet, User } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -75,9 +75,7 @@ function LeftSidebarBase() {
   // Memoize expensive calculations
   const baseNavItems = useMemo(() => [
     { icon: Home, label: "Home", href: "/" },
-    { icon: Compass, label: "Explore", href: "/explore" },
     { icon: MessageSquareText, label: "Messages", href: "/messages" },
-    { icon: Users, label: "Communities", href: "/communities" },
     { icon: Images, label: "NFT Gallery", href: "/nft-gallery" },
     { icon: Wallet, label: "Wallet", href: "/wallet" },
     { icon: User, label: "Profile", href: "/profile" },

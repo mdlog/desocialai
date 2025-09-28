@@ -10,19 +10,20 @@ import { LazyPostCard } from "@/components/posts/lazy-post-card";
 import { useAuth } from "@/hooks/use-auth";
 import { EditProfileDialog } from "@/components/edit-profile-dialog";
 import { Header } from "@/components/layout/header";
+import { ProfileStatsSkeleton } from "@/components/ui/loading-skeletons";
 
 import { Footer } from "@/components/layout/footer";
 import { NFTAvatar } from "@/components/profile/nft-avatar";
 import { ReputationSystem } from "@/components/profile/reputation-system";
 import { SkillBadges } from "@/components/profile/skill-badges";
 import { VerifiedLinks } from "@/components/profile/verified-links";
-import { 
-  Calendar, 
-  MapPin, 
-  Link as LinkIcon, 
-  Users, 
-  MessageSquare, 
-  Heart, 
+import {
+  Calendar,
+  MapPin,
+  Link as LinkIcon,
+  Users,
+  MessageSquare,
+  Heart,
   Bookmark,
   Settings,
   UserPlus,
@@ -44,11 +45,11 @@ export function ProfilePage() {
   const { user: currentUser } = useAuth();
   const [isFollowing, setIsFollowing] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
-  
+
   // Extract username from params
   const username = params.username;
   const isOwnProfile = !username; // If no username in URL, it's own profile
-  
+
   // Fetch user profile data
   const { data: profileUser, isLoading: profileLoading } = useQuery({
     queryKey: ['users', 'profile', username || 'me'],
@@ -164,7 +165,7 @@ export function ProfilePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <Header />
-      
+
       {/* Hero Section with Cover */}
       <div className="relative h-64 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
         <div className="absolute inset-0 bg-black/20"></div>
@@ -173,22 +174,22 @@ export function ProfilePage() {
 
       {/* Main Profile Content */}
       <div className="relative -mt-32 container mx-auto px-4">
-        
+
         {/* Profile Card */}
         <Card className="backdrop-blur-sm bg-white/95 dark:bg-gray-900/95 border-0 shadow-2xl">
           <CardContent className="p-8">
-            
+
             {/* Profile Header */}
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8">
-              
+
               {/* Left Side - Avatar & Basic Info */}
               <div className="flex flex-col lg:flex-row lg:items-center gap-6">
-                <NFTAvatar 
-                  user={profileUser} 
-                  size="xl" 
+                <NFTAvatar
+                  user={profileUser}
+                  size="xl"
                   isOwner={isOwnProfile}
                 />
-                
+
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white" data-testid="profile-display-name">
@@ -199,17 +200,17 @@ export function ProfilePage() {
                       Pro
                     </Badge>
                   </div>
-                  
+
                   <p className="text-lg text-gray-600 dark:text-gray-300" data-testid="profile-username">
                     @{profileUser.username}
                   </p>
-                  
+
                   {profileUser.bio && (
                     <p className="text-gray-700 dark:text-gray-300 max-w-md leading-relaxed" data-testid="profile-bio">
                       {profileUser.bio}
                     </p>
                   )}
-                  
+
                   {/* Profile Metadata */}
                   <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
                     <div className="flex items-center gap-1">
@@ -221,7 +222,7 @@ export function ProfilePage() {
                       0G Network
                     </div>
                   </div>
-                  
+
                   {/* Wallet Info */}
                   <div className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-xs font-mono text-gray-600 dark:text-gray-400">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -233,7 +234,7 @@ export function ProfilePage() {
               {/* Right Side - Action Buttons */}
               <div className="flex gap-3">
                 {isOwnProfile ? (
-                  <Button 
+                  <Button
                     onClick={() => setShowEditDialog(true)}
                     className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
                     data-testid="button-edit-profile"
@@ -243,11 +244,11 @@ export function ProfilePage() {
                   </Button>
                 ) : (
                   <>
-                    <Button 
+                    <Button
                       variant={isFollowing ? "outline" : "default"}
                       onClick={handleFollow}
-                      className={isFollowing 
-                        ? "border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950" 
+                      className={isFollowing
+                        ? "border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
                         : "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
                       }
                       data-testid="button-follow"
@@ -276,46 +277,50 @@ export function ProfilePage() {
             <Separator className="my-8" />
 
             {/* Stats Section */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="text-center p-4 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
-                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400" data-testid="stat-posts">
-                  {stats?.postsCount || 0}
+            {!stats ? (
+              <ProfileStatsSkeleton />
+            ) : (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="text-center p-4 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400" data-testid="stat-posts">
+                    {stats?.postsCount || 0}
+                  </div>
+                  <div className="text-sm text-blue-700 dark:text-blue-300 font-medium">Posts</div>
                 </div>
-                <div className="text-sm text-blue-700 dark:text-blue-300 font-medium">Posts</div>
-              </div>
-              
-              <div className="text-center p-4 rounded-lg bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900">
-                <div className="text-2xl font-bold text-green-600 dark:text-green-400" data-testid="stat-followers">
-                  {stats?.followersCount || 0}
+
+                <div className="text-center p-4 rounded-lg bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900">
+                  <div className="text-2xl font-bold text-green-600 dark:text-green-400" data-testid="stat-followers">
+                    {stats?.followersCount || 0}
+                  </div>
+                  <div className="text-sm text-green-700 dark:text-green-300 font-medium">Followers</div>
                 </div>
-                <div className="text-sm text-green-700 dark:text-green-300 font-medium">Followers</div>
-              </div>
-              
-              <div className="text-center p-4 rounded-lg bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900">
-                <div className="text-2xl font-bold text-purple-600 dark:text-purple-400" data-testid="stat-following">
-                  {stats?.followingCount || 0}
+
+                <div className="text-center p-4 rounded-lg bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900">
+                  <div className="text-2xl font-bold text-purple-600 dark:text-purple-400" data-testid="stat-following">
+                    {stats?.followingCount || 0}
+                  </div>
+                  <div className="text-sm text-purple-700 dark:text-purple-300 font-medium">Following</div>
                 </div>
-                <div className="text-sm text-purple-700 dark:text-purple-300 font-medium">Following</div>
-              </div>
-              
-              <div className="text-center p-4 rounded-lg bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-950 dark:to-pink-900">
-                <div className="text-2xl font-bold text-pink-600 dark:text-pink-400" data-testid="stat-likes">
-                  {stats?.likesReceived || 0}
+
+                <div className="text-center p-4 rounded-lg bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-950 dark:to-pink-900">
+                  <div className="text-2xl font-bold text-pink-600 dark:text-pink-400" data-testid="stat-likes">
+                    {stats?.likesReceived || 0}
+                  </div>
+                  <div className="text-sm text-pink-700 dark:text-pink-300 font-medium">Likes</div>
                 </div>
-                <div className="text-sm text-pink-700 dark:text-pink-300 font-medium">Likes</div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
         {/* Advanced Profile Features */}
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <ReputationSystem user={profileUser} />
-          <SkillBadges user={profileUser} isOwner={isOwnProfile} />
+          <ReputationSystem user={profileUser} isLoading={profileLoading} />
+          <SkillBadges user={profileUser} isOwner={isOwnProfile} isLoading={profileLoading} />
         </div>
 
         <div className="mt-6">
-          <VerifiedLinks user={profileUser} isOwner={isOwnProfile} />
+          <VerifiedLinks user={profileUser} isOwner={isOwnProfile} isLoading={profileLoading} />
         </div>
 
         {/* Content Tabs */}
@@ -324,22 +329,22 @@ export function ProfilePage() {
             <Tabs defaultValue="posts" className="w-full">
               <div className="border-b border-gray-200 dark:border-gray-700">
                 <TabsList className="w-full justify-start bg-transparent p-0 h-auto">
-                  <TabsTrigger 
-                    value="posts" 
+                  <TabsTrigger
+                    value="posts"
                     className="px-6 py-4 text-base font-medium data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 data-[state=active]:shadow-none rounded-none"
                   >
                     <MessageSquare className="w-4 h-4 mr-2" />
                     Posts ({userPosts?.length || 0})
                   </TabsTrigger>
-                  <TabsTrigger 
-                    value="liked" 
+                  <TabsTrigger
+                    value="liked"
                     className="px-6 py-4 text-base font-medium data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 data-[state=active]:shadow-none rounded-none"
                   >
                     <Heart className="w-4 h-4 mr-2" />
                     Liked ({likedPosts?.length || 0})
                   </TabsTrigger>
-                  <TabsTrigger 
-                    value="media" 
+                  <TabsTrigger
+                    value="media"
                     className="px-6 py-4 text-base font-medium data-[state=active]:bg-transparent data-[state=active]:text-purple-600 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 data-[state=active]:shadow-none rounded-none"
                   >
                     <Trophy className="w-4 h-4 mr-2" />
@@ -461,8 +466,8 @@ export function ProfilePage() {
       </div>
 
       {/* Edit Profile Dialog */}
-      <EditProfileDialog 
-        open={showEditDialog} 
+      <EditProfileDialog
+        open={showEditDialog}
         onOpenChange={setShowEditDialog}
         user={profileUser}
         trigger={

@@ -213,3 +213,135 @@ export function AnalyticsDashboardSkeleton({ className }: { className?: string }
         </div>
     );
 }
+
+// Profile-specific skeleton components
+export function ProfileStatsSkeleton({ className }: { className?: string }) {
+    return (
+        <div className={cn("grid grid-cols-2 lg:grid-cols-4 gap-6", className)}>
+            {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="text-center p-4 rounded-lg bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
+                    <Skeleton className="h-8 w-12 mx-auto mb-2" />
+                    <Skeleton className="h-4 w-16 mx-auto" />
+                </div>
+            ))}
+        </div>
+    );
+}
+
+export function ReputationSystemSkeleton({ className }: { className?: string }) {
+    return (
+        <div className={cn("overflow-hidden border rounded-lg", className)}>
+            <div className="p-6 space-y-6">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <Skeleton className="w-12 h-12 rounded-full" />
+                        <div>
+                            <Skeleton className="h-5 w-32 mb-2" />
+                            <Skeleton className="h-6 w-20" />
+                        </div>
+                    </div>
+                    <div className="text-right">
+                        <Skeleton className="h-8 w-20 mb-1" />
+                        <Skeleton className="h-4 w-24" />
+                    </div>
+                </div>
+
+                {/* Progress */}
+                <div className="space-y-2">
+                    <div className="flex justify-between">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-4 w-20" />
+                    </div>
+                    <Skeleton className="h-2 w-full" />
+                </div>
+
+                {/* Breakdown */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                        {Array.from({ length: 2 }).map((_, i) => (
+                            <div key={i} className="flex justify-between">
+                                <Skeleton className="h-4 w-20" />
+                                <Skeleton className="h-4 w-12" />
+                            </div>
+                        ))}
+                    </div>
+                    <div className="space-y-3">
+                        {Array.from({ length: 2 }).map((_, i) => (
+                            <div key={i} className="flex justify-between">
+                                <Skeleton className="h-4 w-20" />
+                                <Skeleton className="h-4 w-12" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export function SkillBadgesSkeleton({ className }: { className?: string }) {
+    return (
+        <div className={cn("border rounded-lg", className)}>
+            <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <Skeleton className="h-6 w-24 mb-2" />
+                        <Skeleton className="h-4 w-48" />
+                    </div>
+                    <Skeleton className="h-8 w-20" />
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                            <Skeleton className="w-12 h-12 rounded-full mx-auto mb-3" />
+                            <div className="space-y-2 text-center">
+                                <Skeleton className="h-4 w-20 mx-auto" />
+                                <Skeleton className="h-5 w-16 mx-auto" />
+                                <Skeleton className="h-3 w-12 mx-auto" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export function VerifiedLinksSkeleton({ className }: { className?: string }) {
+    return (
+        <div className={cn("border rounded-lg", className)}>
+            <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <Skeleton className="h-6 w-28 mb-2" />
+                        <Skeleton className="h-4 w-56" />
+                    </div>
+                    <Skeleton className="h-8 w-20" />
+                </div>
+
+                <div className="space-y-3">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                            <div className="flex items-center gap-3">
+                                <Skeleton className="w-10 h-10 rounded-full" />
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Skeleton className="h-4 w-20" />
+                                        <Skeleton className="h-5 w-16" />
+                                    </div>
+                                    <Skeleton className="h-3 w-24" />
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Skeleton className="h-6 w-16" />
+                                <Skeleton className="h-8 w-8" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}

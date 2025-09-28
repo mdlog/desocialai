@@ -146,9 +146,9 @@ export function NFTGalleryPage() {
     ];
 
     const mockCollections = [
-        { id: '1', name: 'Cyber Punk Collection', count: 1000, floorPrice: 2.1 },
-        { id: '2', name: 'DeSocial AI Collection', count: 500, floorPrice: 1.5 },
-        { id: '3', name: 'Blockchain Warriors', count: 2500, floorPrice: 0.8 }
+        { id: '1', name: 'Cyber Punk', count: 1000, floorPrice: 2.1 },
+        { id: '2', name: 'DeSocial AI', count: 500, floorPrice: 1.5 },
+        { id: '3', name: 'Blockchain', count: 2500, floorPrice: 0.8 }
     ];
 
     const displayNFTs = nfts.length > 0 ? nfts : mockNFTs;
@@ -175,116 +175,151 @@ export function NFTGalleryPage() {
     };
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-slate-900 dark:via-slate-800 dark:to-blue-900/20">
             <Header />
 
-            <div className="container mx-auto px-4 py-6">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="container mx-auto px-4 py-8">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     <div className="lg:col-span-3">
                         <LeftSidebar />
                     </div>
 
-                    <main className="lg:col-span-6 space-y-6">
+                    <main className="lg:col-span-6 space-y-8">
                         {/* Header */}
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-3">
-                                <Images className="w-8 h-8 text-blue-500" />
-                                <h1 className="text-3xl font-bold">NFT Gallery</h1>
-                                <Badge variant="secondary" className="ml-auto">
-                                    {displayNFTs.length} NFTs
-                                </Badge>
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg">
+                                        <Images className="w-8 h-8 text-white" />
+                                    </div>
+                                    <div>
+                                        <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                                            NFT Gallery
+                                        </h1>
+                                        <p className="text-muted-foreground mt-1">
+                                            Discover and explore unique digital collectibles
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <Badge variant="secondary" className="px-4 py-2 text-sm font-medium">
+                                        {displayNFTs.length} NFTs
+                                    </Badge>
+                                </div>
                             </div>
 
                             {/* Search and Filters */}
-                            <div className="flex flex-col sm:flex-row gap-4">
-                                <div className="relative flex-1">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                                    <Input
-                                        placeholder="Search NFTs, collections, or artists..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="pl-10"
-                                    />
-                                </div>
+                            <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200/50 dark:border-slate-700/50 shadow-sm">
+                                <div className="flex flex-col sm:flex-row gap-4">
+                                    <div className="relative flex-1">
+                                        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+                                        <Input
+                                            placeholder="Search NFTs, collections, or artists..."
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            className="pl-12 h-12 border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50/50 dark:bg-slate-700/50 focus:ring-2 focus:ring-blue-500/20"
+                                        />
+                                    </div>
 
-                                <div className="flex gap-2">
-                                    <Button
-                                        variant={viewMode === "grid" ? "default" : "outline"}
-                                        size="sm"
-                                        onClick={() => setViewMode("grid")}
-                                    >
-                                        <Grid3X3 className="w-4 h-4" />
-                                    </Button>
-                                    <Button
-                                        variant={viewMode === "list" ? "default" : "outline"}
-                                        size="sm"
-                                        onClick={() => setViewMode("list")}
-                                    >
-                                        <List className="w-4 h-4" />
-                                    </Button>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            variant={viewMode === "grid" ? "default" : "outline"}
+                                            size="sm"
+                                            onClick={() => setViewMode("grid")}
+                                            className="h-12 px-4 rounded-xl"
+                                        >
+                                            <Grid3X3 className="w-4 h-4 mr-2" />
+                                            Grid
+                                        </Button>
+                                        <Button
+                                            variant={viewMode === "list" ? "default" : "outline"}
+                                            size="sm"
+                                            onClick={() => setViewMode("list")}
+                                            className="h-12 px-4 rounded-xl"
+                                        >
+                                            <List className="w-4 h-4 mr-2" />
+                                            List
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
 
                             {/* Collections Filter */}
-                            <Tabs value={selectedCollection} onValueChange={setSelectedCollection}>
-                                <TabsList className="grid w-full grid-cols-4">
-                                    <TabsTrigger value="all">All</TabsTrigger>
-                                    {displayCollections.slice(0, 3).map((collection) => (
-                                        <TabsTrigger key={collection.id} value={collection.id}>
-                                            {collection.name}
+                            <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm rounded-2xl p-4 border border-slate-200/50 dark:border-slate-700/50">
+                                <Tabs value={selectedCollection} onValueChange={setSelectedCollection}>
+                                    <TabsList className="inline-flex w-full bg-slate-100 dark:bg-slate-700 rounded-xl p-1 overflow-x-auto">
+                                        <TabsTrigger
+                                            value="all"
+                                            className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-600 whitespace-nowrap px-3 py-2 text-sm"
+                                        >
+                                            All
                                         </TabsTrigger>
-                                    ))}
-                                </TabsList>
-                            </Tabs>
+                                        {displayCollections.slice(0, 3).map((collection) => (
+                                            <TabsTrigger
+                                                key={collection.id}
+                                                value={collection.id}
+                                                className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-600 whitespace-nowrap px-3 py-2 text-sm"
+                                            >
+                                                {collection.name.length > 12 ? `${collection.name.substring(0, 12)}...` : collection.name}
+                                            </TabsTrigger>
+                                        ))}
+                                    </TabsList>
+                                </Tabs>
+                            </div>
                         </div>
 
                         {/* NFT Grid/List */}
                         <div className={viewMode === "grid"
-                            ? "grid grid-cols-1 sm:grid-cols-2 gap-6"
+                            ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
                             : "space-y-4"
                         }>
                             {displayNFTs.map((nft) => (
-                                <Card key={nft.id} className="group hover:shadow-lg transition-all duration-300">
+                                <Card key={nft.id} className="group hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl overflow-hidden">
                                     <CardHeader className="p-0">
-                                        <div className="relative overflow-hidden rounded-t-lg">
+                                        <div className="relative overflow-hidden">
                                             <img
                                                 src={nft.image}
                                                 alt={nft.name}
-                                                className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
+                                                className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
                                                 onError={(e) => {
                                                     (e.target as HTMLImageElement).src = '/favicon.png';
                                                 }}
                                             />
 
-                                            {/* Overlay Actions */}
-                                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-2">
-                                                <Button size="sm" variant="secondary" onClick={() => handleLike(nft.id)}>
-                                                    <Heart className={`w-4 h-4 ${nft.isLiked ? 'fill-red-500 text-red-500' : ''}`} />
-                                                </Button>
-                                                <Button size="sm" variant="secondary" onClick={() => handleShare(nft.id)}>
-                                                    <Share2 className="w-4 h-4" />
-                                                </Button>
-                                                <Button size="sm" variant="secondary">
-                                                    <Download className="w-4 h-4" />
-                                                </Button>
-                                                <Button size="sm" variant="secondary">
-                                                    <ExternalLink className="w-4 h-4" />
-                                                </Button>
+                                            {/* Overlay Actions - Simplified */}
+                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                                                <div className="flex items-center gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="secondary"
+                                                        onClick={() => handleLike(nft.id)}
+                                                        className="bg-white/20 backdrop-blur-sm border-white/30 hover:bg-white/30 text-white h-8 w-8 p-0"
+                                                    >
+                                                        <Heart className={`w-4 h-4 ${nft.isLiked ? 'fill-red-400 text-red-400' : ''}`} />
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="secondary"
+                                                        onClick={() => handleShare(nft.id)}
+                                                        className="bg-white/20 backdrop-blur-sm border-white/30 hover:bg-white/30 text-white h-8 w-8 p-0"
+                                                    >
+                                                        <Share2 className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
                                             </div>
 
-                                            {/* Rarity Badge */}
+                                            {/* Rarity Badge - Simplified */}
                                             <div className="absolute top-2 left-2">
-                                                <Badge className={getRarityColor(nft.rarity)}>
-                                                    <Crown className="w-3 h-3 mr-1" />
+                                                <Badge className={`${getRarityColor(nft.rarity)} text-xs px-2 py-1`}>
                                                     {nft.rarity}
                                                 </Badge>
                                             </div>
 
-                                            {/* Owned Badge */}
+                                            {/* Owned Badge - Simplified */}
                                             {nft.isOwned && (
                                                 <div className="absolute top-2 right-2">
-                                                    <Badge variant="default" className="bg-green-500">
-                                                        Owned
+                                                    <Badge className="bg-green-500 text-white text-xs px-2 py-1">
+                                                        ✓
                                                     </Badge>
                                                 </div>
                                             )}
@@ -292,48 +327,28 @@ export function NFTGalleryPage() {
                                     </CardHeader>
 
                                     <CardContent className="p-4 space-y-3">
-                                        <div className="flex items-start justify-between">
-                                            <div className="space-y-1">
-                                                <h3 className="font-semibold text-lg">{nft.name}</h3>
-                                                <p className="text-sm text-gray-500">{nft.collection}</p>
-                                            </div>
+                                        <div className="space-y-1">
+                                            <h3 className="font-semibold text-lg text-slate-900 dark:text-white truncate">{nft.name}</h3>
+                                            <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{nft.collection}</p>
+                                        </div>
+
+                                        {/* Price and Stats - Simplified */}
+                                        <div className="flex items-center justify-between">
                                             {nft.price && (
                                                 <div className="text-right">
-                                                    <p className="text-sm font-semibold">{nft.price} {nft.currency}</p>
+                                                    <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{nft.price} {nft.currency}</p>
                                                 </div>
                                             )}
-                                        </div>
-
-                                        <p className="text-sm text-gray-600 line-clamp-2">{nft.description}</p>
-
-                                        {/* Stats */}
-                                        <div className="flex items-center gap-4 text-sm text-gray-500">
-                                            <div className="flex items-center gap-1">
-                                                <Heart className="w-4 h-4" />
-                                                {nft.likes}
+                                            <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                                                <div className="flex items-center gap-1">
+                                                    <Heart className="w-3 h-3" />
+                                                    <span>{nft.likes}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <Eye className="w-3 h-3" />
+                                                    <span>{nft.views}</span>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-1">
-                                                <Eye className="w-4 h-4" />
-                                                {nft.views}
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                                <Zap className="w-4 h-4" />
-                                                #{nft.tokenId}
-                                            </div>
-                                        </div>
-
-                                        {/* Attributes */}
-                                        <div className="flex flex-wrap gap-1">
-                                            {nft.attributes.slice(0, 3).map((attr, index) => (
-                                                <Badge key={index} variant="outline" className="text-xs">
-                                                    {attr.trait_type}: {attr.value}
-                                                </Badge>
-                                            ))}
-                                            {nft.attributes.length > 3 && (
-                                                <Badge variant="outline" className="text-xs">
-                                                    +{nft.attributes.length - 3} more
-                                                </Badge>
-                                            )}
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -341,8 +356,11 @@ export function NFTGalleryPage() {
                         </div>
 
                         {isLoading && (
-                            <div className="flex items-center justify-center py-12">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                            <div className="flex items-center justify-center py-16">
+                                <div className="flex flex-col items-center gap-4">
+                                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600"></div>
+                                    <p className="text-slate-500 dark:text-slate-400 font-medium">Loading NFTs...</p>
+                                </div>
                             </div>
                         )}
                     </main>

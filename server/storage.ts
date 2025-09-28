@@ -124,6 +124,13 @@ export interface IStorage {
   markNotificationAsRead(notificationId: string, userId: string): Promise<void>;
   markAllNotificationsAsRead(userId: string): Promise<void>;
   getAllUsers(): Promise<User[]>;
+
+  // Direct Messages
+  getConversations(userId: string): Promise<any[]>;
+  getMessages(conversationId: string, userId: string): Promise<any[]>;
+  sendMessage(senderId: string, conversationId: string, content: string): Promise<any>;
+  markMessagesAsRead(conversationId: string, userId: string): Promise<void>;
+  startConversation(userId: string, recipientId: string): Promise<any>;
 }
 
 export class MemStorage implements IStorage {
@@ -1783,6 +1790,622 @@ export class DatabaseStorage implements IStorage {
 
   async getAllUsers(): Promise<User[]> {
     return await db.select().from(users);
+  }
+
+  // Direct Messages Implementation
+  async getConversations(userId: string): Promise<any[]> {
+    try {
+      // For now, return mock data since we don't have a conversations table yet
+      // In a real implementation, you would query a conversations table
+      return [
+        {
+          id: 'conv1',
+          participant: {
+            id: 'user2',
+            displayName: 'Alice Johnson',
+            username: 'alice',
+            avatar: '/api/objects/avatar/avatar_1758135047272_lkfo1ry38.jpg',
+            isOnline: true
+          },
+          lastMessage: {
+            content: 'Hey! How are you doing?',
+            timestamp: new Date(Date.now() - 1000 * 60 * 5), // 5 minutes ago
+            senderId: 'user2'
+          },
+          unreadCount: 2,
+          updatedAt: new Date(Date.now() - 1000 * 60 * 5)
+        },
+        {
+          id: 'conv2',
+          participant: {
+            id: 'user3',
+            displayName: 'Bob Smith',
+            username: 'bob',
+            avatar: '/api/objects/avatar/default-avatar.jpg',
+            isOnline: false
+          },
+          lastMessage: {
+            content: 'Thanks for the help!',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
+            senderId: 'user3'
+          },
+          unreadCount: 0,
+          updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 2)
+        },
+        {
+          id: 'conv3',
+          participant: {
+            id: 'user4',
+            displayName: 'Sarah Chen',
+            username: 'sarah',
+            avatar: '/api/objects/avatar/default-avatar.jpg',
+            isOnline: true
+          },
+          lastMessage: {
+            content: 'The DeFi project looks amazing! 🚀',
+            timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
+            senderId: 'user4'
+          },
+          unreadCount: 1,
+          updatedAt: new Date(Date.now() - 1000 * 60 * 30)
+        },
+        {
+          id: 'conv4',
+          participant: {
+            id: 'user5',
+            displayName: 'Mike Rodriguez',
+            username: 'mike',
+            avatar: '/api/objects/avatar/default-avatar.jpg',
+            isOnline: false
+          },
+          lastMessage: {
+            content: 'Can we schedule a call for tomorrow?',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4), // 4 hours ago
+            senderId: userId
+          },
+          unreadCount: 0,
+          updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 4)
+        },
+        {
+          id: 'conv5',
+          participant: {
+            id: 'user6',
+            displayName: 'Emma Wilson',
+            username: 'emma',
+            avatar: '/api/objects/avatar/default-avatar.jpg',
+            isOnline: true
+          },
+          lastMessage: {
+            content: 'Just saw your latest post about Web3! Really insightful 👏',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 6), // 6 hours ago
+            senderId: 'user6'
+          },
+          unreadCount: 3,
+          updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 6)
+        },
+        {
+          id: 'conv6',
+          participant: {
+            id: 'user7',
+            displayName: 'David Kim',
+            username: 'david',
+            avatar: '/api/objects/avatar/default-avatar.jpg',
+            isOnline: false
+          },
+          lastMessage: {
+            content: 'The NFT collection is ready for launch!',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12), // 12 hours ago
+            senderId: 'user7'
+          },
+          unreadCount: 0,
+          updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 12)
+        },
+        {
+          id: 'conv7',
+          participant: {
+            id: 'user8',
+            displayName: 'Lisa Thompson',
+            username: 'lisa',
+            avatar: '/api/objects/avatar/default-avatar.jpg',
+            isOnline: true
+          },
+          lastMessage: {
+            content: 'Thanks for the collaboration opportunity!',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
+            senderId: userId
+          },
+          unreadCount: 0,
+          updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24)
+        },
+        {
+          id: 'conv8',
+          participant: {
+            id: 'user9',
+            displayName: 'Alex Johnson',
+            username: 'alex',
+            avatar: '/api/objects/avatar/default-avatar.jpg',
+            isOnline: false
+          },
+          lastMessage: {
+            content: 'The smart contract audit is complete ✅',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 48), // 2 days ago
+            senderId: 'user9'
+          },
+          unreadCount: 0,
+          updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 48)
+        },
+        {
+          id: 'conv9',
+          participant: {
+            id: 'user10',
+            displayName: 'Maria Garcia',
+            username: 'maria',
+            avatar: '/api/objects/avatar/default-avatar.jpg',
+            isOnline: true
+          },
+          lastMessage: {
+            content: 'Looking forward to the DAO meeting next week!',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 72), // 3 days ago
+            senderId: 'user10'
+          },
+          unreadCount: 1,
+          updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 72)
+        },
+        {
+          id: 'conv10',
+          participant: {
+            id: 'user11',
+            displayName: 'John Anderson',
+            username: 'john',
+            avatar: '/api/objects/avatar/default-avatar.jpg',
+            isOnline: false
+          },
+          lastMessage: {
+            content: 'The yield farming strategy is working perfectly!',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 96), // 4 days ago
+            senderId: 'user11'
+          },
+          unreadCount: 0,
+          updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 96)
+        }
+      ];
+    } catch (error) {
+      console.error('[Get Conversations Error]', error);
+      return [];
+    }
+  }
+
+  async getMessages(conversationId: string, userId: string): Promise<any[]> {
+    try {
+      // For now, return mock data since we don't have a messages table yet
+      // In a real implementation, you would query a messages table
+
+      // Different conversation histories based on conversationId
+      const conversationMessages: { [key: string]: any[] } = {
+        'conv1': [ // Alice Johnson
+          {
+            id: 'msg1',
+            senderId: 'user2',
+            receiverId: userId,
+            content: 'Hey! How are you doing?',
+            timestamp: new Date(Date.now() - 1000 * 60 * 10),
+            read: true,
+            sender: {
+              id: 'user2',
+              displayName: 'Alice Johnson',
+              username: 'alice',
+              avatar: '/api/objects/avatar/avatar_1758135047272_lkfo1ry38.jpg'
+            }
+          },
+          {
+            id: 'msg2',
+            senderId: userId,
+            receiverId: 'user2',
+            content: 'I\'m doing great! Thanks for asking. How about you?',
+            timestamp: new Date(Date.now() - 1000 * 60 * 8),
+            read: true,
+            sender: {
+              id: userId,
+              displayName: 'You',
+              username: 'current_user',
+              avatar: '/api/objects/avatar/default-avatar.jpg'
+            }
+          },
+          {
+            id: 'msg3',
+            senderId: 'user2',
+            receiverId: userId,
+            content: 'I\'m doing well too! Just working on some new projects.',
+            timestamp: new Date(Date.now() - 1000 * 60 * 5),
+            read: false,
+            sender: {
+              id: 'user2',
+              displayName: 'Alice Johnson',
+              username: 'alice',
+              avatar: '/api/objects/avatar/avatar_1758135047272_lkfo1ry38.jpg'
+            }
+          }
+        ],
+        'conv2': [ // Bob Smith
+          {
+            id: 'msg4',
+            senderId: userId,
+            receiverId: 'user3',
+            content: 'Hi Bob! I saw your post about the new DeFi protocol. Looks interesting!',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3),
+            read: true,
+            sender: {
+              id: userId,
+              displayName: 'You',
+              username: 'current_user',
+              avatar: '/api/objects/avatar/default-avatar.jpg'
+            }
+          },
+          {
+            id: 'msg5',
+            senderId: 'user3',
+            receiverId: userId,
+            content: 'Thanks! Yes, it\'s a revolutionary approach to yield farming. Would you like to collaborate on it?',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2.5),
+            read: true,
+            sender: {
+              id: 'user3',
+              displayName: 'Bob Smith',
+              username: 'bob',
+              avatar: '/api/objects/avatar/default-avatar.jpg'
+            }
+          },
+          {
+            id: 'msg6',
+            senderId: userId,
+            receiverId: 'user3',
+            content: 'Absolutely! I\'d love to contribute to the smart contract development.',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2.2),
+            read: true,
+            sender: {
+              id: userId,
+              displayName: 'You',
+              username: 'current_user',
+              avatar: '/api/objects/avatar/default-avatar.jpg'
+            }
+          },
+          {
+            id: 'msg7',
+            senderId: 'user3',
+            receiverId: userId,
+            content: 'Perfect! I\'ll send you the technical specifications tomorrow. Thanks for the help!',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
+            read: true,
+            sender: {
+              id: 'user3',
+              displayName: 'Bob Smith',
+              username: 'bob',
+              avatar: '/api/objects/avatar/default-avatar.jpg'
+            }
+          }
+        ],
+        'conv3': [ // Sarah Chen
+          {
+            id: 'msg8',
+            senderId: 'user4',
+            receiverId: userId,
+            content: 'The DeFi project looks amazing! 🚀',
+            timestamp: new Date(Date.now() - 1000 * 60 * 30),
+            read: false,
+            sender: {
+              id: 'user4',
+              displayName: 'Sarah Chen',
+              username: 'sarah',
+              avatar: '/api/objects/avatar/default-avatar.jpg'
+            }
+          }
+        ],
+        'conv4': [ // Mike Rodriguez
+          {
+            id: 'msg9',
+            senderId: userId,
+            receiverId: 'user5',
+            content: 'Hi Mike! I wanted to discuss the partnership proposal.',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5),
+            read: true,
+            sender: {
+              id: userId,
+              displayName: 'You',
+              username: 'current_user',
+              avatar: '/api/objects/avatar/default-avatar.jpg'
+            }
+          },
+          {
+            id: 'msg10',
+            senderId: 'user5',
+            receiverId: userId,
+            content: 'Sure! I\'m very interested. What did you have in mind?',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4.5),
+            read: true,
+            sender: {
+              id: 'user5',
+              displayName: 'Mike Rodriguez',
+              username: 'mike',
+              avatar: '/api/objects/avatar/default-avatar.jpg'
+            }
+          },
+          {
+            id: 'msg11',
+            senderId: userId,
+            receiverId: 'user5',
+            content: 'Can we schedule a call for tomorrow?',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4),
+            read: true,
+            sender: {
+              id: userId,
+              displayName: 'You',
+              username: 'current_user',
+              avatar: '/api/objects/avatar/default-avatar.jpg'
+            }
+          }
+        ],
+        'conv5': [ // Emma Wilson
+          {
+            id: 'msg12',
+            senderId: 'user6',
+            receiverId: userId,
+            content: 'Just saw your latest post about Web3! Really insightful 👏',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 6.5),
+            read: false,
+            sender: {
+              id: 'user6',
+              displayName: 'Emma Wilson',
+              username: 'emma',
+              avatar: '/api/objects/avatar/default-avatar.jpg'
+            }
+          },
+          {
+            id: 'msg13',
+            senderId: 'user6',
+            receiverId: userId,
+            content: 'I especially liked the part about decentralized identity. Do you have any resources you could share?',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 6.2),
+            read: false,
+            sender: {
+              id: 'user6',
+              displayName: 'Emma Wilson',
+              username: 'emma',
+              avatar: '/api/objects/avatar/default-avatar.jpg'
+            }
+          },
+          {
+            id: 'msg14',
+            senderId: 'user6',
+            receiverId: userId,
+            content: 'Also, would you be interested in speaking at our Web3 conference next month?',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 6),
+            read: false,
+            sender: {
+              id: 'user6',
+              displayName: 'Emma Wilson',
+              username: 'emma',
+              avatar: '/api/objects/avatar/default-avatar.jpg'
+            }
+          }
+        ],
+        'conv6': [ // David Kim
+          {
+            id: 'msg15',
+            senderId: userId,
+            receiverId: 'user7',
+            content: 'Hey David! How\'s the NFT project coming along?',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 13),
+            read: true,
+            sender: {
+              id: userId,
+              displayName: 'You',
+              username: 'current_user',
+              avatar: '/api/objects/avatar/default-avatar.jpg'
+            }
+          },
+          {
+            id: 'msg16',
+            senderId: 'user7',
+            receiverId: userId,
+            content: 'Great progress! We\'ve completed the artwork and smart contracts.',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12.5),
+            read: true,
+            sender: {
+              id: 'user7',
+              displayName: 'David Kim',
+              username: 'david',
+              avatar: '/api/objects/avatar/default-avatar.jpg'
+            }
+          },
+          {
+            id: 'msg17',
+            senderId: 'user7',
+            receiverId: userId,
+            content: 'The NFT collection is ready for launch!',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12),
+            read: true,
+            sender: {
+              id: 'user7',
+              displayName: 'David Kim',
+              username: 'david',
+              avatar: '/api/objects/avatar/default-avatar.jpg'
+            }
+          }
+        ],
+        'conv7': [ // Lisa Thompson
+          {
+            id: 'msg18',
+            senderId: userId,
+            receiverId: 'user8',
+            content: 'Hi Lisa! I wanted to reach out about a potential collaboration.',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 25),
+            read: true,
+            sender: {
+              id: userId,
+              displayName: 'You',
+              username: 'current_user',
+              avatar: '/api/objects/avatar/default-avatar.jpg'
+            }
+          },
+          {
+            id: 'msg19',
+            senderId: 'user8',
+            receiverId: userId,
+            content: 'Hi! I\'d love to hear more about it. What kind of collaboration are you thinking?',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24.5),
+            read: true,
+            sender: {
+              id: 'user8',
+              displayName: 'Lisa Thompson',
+              username: 'lisa',
+              avatar: '/api/objects/avatar/default-avatar.jpg'
+            }
+          },
+          {
+            id: 'msg20',
+            senderId: userId,
+            receiverId: 'user8',
+            content: 'I\'m working on a DAO governance platform and would love your expertise in community building.',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24.2),
+            read: true,
+            sender: {
+              id: userId,
+              displayName: 'You',
+              username: 'current_user',
+              avatar: '/api/objects/avatar/default-avatar.jpg'
+            }
+          },
+          {
+            id: 'msg21',
+            senderId: 'user8',
+            receiverId: userId,
+            content: 'Thanks for the collaboration opportunity!',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24),
+            read: true,
+            sender: {
+              id: 'user8',
+              displayName: 'Lisa Thompson',
+              username: 'lisa',
+              avatar: '/api/objects/avatar/default-avatar.jpg'
+            }
+          }
+        ],
+        'conv8': [ // Alex Johnson
+          {
+            id: 'msg22',
+            senderId: 'user9',
+            receiverId: userId,
+            content: 'The smart contract audit is complete ✅',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 48),
+            read: true,
+            sender: {
+              id: 'user9',
+              displayName: 'Alex Johnson',
+              username: 'alex',
+              avatar: '/api/objects/avatar/default-avatar.jpg'
+            }
+          }
+        ],
+        'conv9': [ // Maria Garcia
+          {
+            id: 'msg23',
+            senderId: 'user10',
+            receiverId: userId,
+            content: 'Looking forward to the DAO meeting next week!',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 72),
+            read: false,
+            sender: {
+              id: 'user10',
+              displayName: 'Maria Garcia',
+              username: 'maria',
+              avatar: '/api/objects/avatar/default-avatar.jpg'
+            }
+          }
+        ],
+        'conv10': [ // John Anderson
+          {
+            id: 'msg24',
+            senderId: 'user11',
+            receiverId: userId,
+            content: 'The yield farming strategy is working perfectly!',
+            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 96),
+            read: true,
+            sender: {
+              id: 'user11',
+              displayName: 'John Anderson',
+              username: 'john',
+              avatar: '/api/objects/avatar/default-avatar.jpg'
+            }
+          }
+        ]
+      };
+
+      return conversationMessages[conversationId] || [];
+    } catch (error) {
+      console.error('[Get Messages Error]', error);
+      return [];
+    }
+  }
+
+  async sendMessage(senderId: string, conversationId: string, content: string): Promise<any> {
+    try {
+      // For now, return mock data since we don't have a messages table yet
+      // In a real implementation, you would insert into a messages table
+      const message = {
+        id: `msg_${Date.now()}`,
+        senderId,
+        conversationId,
+        content,
+        timestamp: new Date(),
+        read: false,
+        sender: {
+          id: senderId,
+          displayName: 'You',
+          username: 'current_user',
+          avatar: '/api/objects/avatar/default-avatar.jpg'
+        }
+      };
+
+      return message;
+    } catch (error) {
+      console.error('[Send Message Error]', error);
+      throw error;
+    }
+  }
+
+  async markMessagesAsRead(conversationId: string, userId: string): Promise<void> {
+    try {
+      // For now, just log since we don't have a messages table yet
+      // In a real implementation, you would update the read status in the messages table
+      console.log(`Marking messages as read for conversation ${conversationId} by user ${userId}`);
+    } catch (error) {
+      console.error('[Mark Messages Read Error]', error);
+    }
+  }
+
+  async startConversation(userId: string, recipientId: string): Promise<any> {
+    try {
+      // For now, return mock data since we don't have a conversations table yet
+      // In a real implementation, you would create or find a conversation
+      const conversation = {
+        id: `conv_${Date.now()}`,
+        participant: {
+          id: recipientId,
+          displayName: 'New User',
+          username: 'newuser',
+          avatar: '/api/objects/avatar/default-avatar.jpg',
+          isOnline: false
+        },
+        lastMessage: null,
+        unreadCount: 0,
+        updatedAt: new Date()
+      };
+
+      return conversation;
+    } catch (error) {
+      console.error('[Start Conversation Error]', error);
+      throw error;
+    }
   }
 }
 

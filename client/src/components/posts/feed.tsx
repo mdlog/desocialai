@@ -32,12 +32,12 @@ export function Feed() {
       return data;
     },
     staleTime: 0, // Always consider data stale for immediate refresh
-    gcTime: 0, // Don't cache for immediate updates
+    gcTime: 30000, // Keep data in cache for 30 seconds
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
-    // Remove aggressive polling since WebSocket will handle real-time updates
-    refetchInterval: false,
+    // Add polling for immediate updates
+    refetchInterval: 5000, // Refetch every 5 seconds
   });
 
   const loadMore = () => {
