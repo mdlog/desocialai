@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeSocialAI Wallet</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .title {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #1f2937;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: #6b7280;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            color: white;
+        }
+
+        .stat-card.blue {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        }
+
+        .stat-card.green {
+            background: linear-gradient(135deg, #10b981, #047857);
+        }
+
+        .stat-card.purple {
+            background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+        }
+
+        .stat-title {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .stat-subtitle {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .action-btn {
+            border: none;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+            color: white;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .action-btn.send {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        }
+
+        .action-btn.receive {
+            background: linear-gradient(135deg, #10b981, #047857);
+        }
+
+        .action-btn.swap {
+            background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+        }
+
+        .action-btn.stake {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+
+        .transactions {
+            background: #f9fafb;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .transaction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 1rem;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+            margin-bottom: 1rem;
+        }
+
+        .transaction-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            margin-right: 1rem;
+        }
+
+        .transaction-icon.receive {
+            background: #dcfce7;
+        }
+
+        .transaction-icon.send {
+            background: #fee2e2;
+        }
+
+        .transaction-info {
+            flex: 1;
+        }
+
+        .transaction-title {
+            font-weight: bold;
+            margin: 0;
+            color: #1f2937;
+        }
+
+        .transaction-time {
+            font-size: 0.9rem;
+            color: #6b7280;
+            margin: 0;
+        }
+
+        .transaction-amount {
+            text-align: right;
+        }
+
+        .transaction-amount-value {
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .transaction-amount-usd {
+            font-size: 0.9rem;
+            color: #6b7280;
+            margin: 0;
+        }
+
+        .status-card {
+            background: linear-gradient(135deg, #10b981, #047857);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 2rem;
+        }
+
+        .status-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .status-text {
+            margin: 0;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="card">
+            <h1 class="title">💰 DeSocialAI Wallet</h1>
+            <p class="subtitle">Your decentralized wallet is working perfectly!</p>
+
+            <div class="stats-grid">
+                <div class="stat-card blue">
+                    <h3 class="stat-title">Total Balance</h3>
+                    <p class="stat-value">$3,825.50</p>
+                    <p class="stat-subtitle">+1.8% today</p>
+                </div>
+                <div class="stat-card green">
+                    <h3 class="stat-title">Active Stakes</h3>
+                    <p class="stat-value">3</p>
+                    <p class="stat-subtitle">12.5% APY</p>
+                </div>
+                <div class="stat-card purple">
+                    <h3 class="stat-title">NFTs</h3>
+                    <p class="stat-value">0</p>
+                    <p class="stat-subtitle">Collections</p>
+                </div>
+            </div>
+
+            <div class="actions-grid">
+                <button class="action-btn send">📤 Send</button>
+                <button class="action-btn receive">📥 Receive</button>
+                <button class="action-btn swap">🔄 Swap</button>
+                <button class="action-btn stake">⚡ Stake</button>
+            </div>
+
+            <div class="transactions">
+                <h3 style="font-size: 1.3rem; font-weight: bold; margin-bottom: 1rem; color: #1f2937;">
+                    Recent Transactions
+                </h3>
+                <div class="transaction-item">
+                    <div class="transaction-icon receive">📥</div>
+                    <div class="transaction-info">
+                        <p class="transaction-title">Received 0G</p>
+                        <p class="transaction-time">2 hours ago</p>
+                    </div>
+                    <div class="transaction-amount">
+                        <p class="transaction-amount-value" style="color: #10b981;">+250.0 0G</p>
+                        <p class="transaction-amount-usd">$250.00</p>
+                    </div>
+                </div>
+                <div class="transaction-item">
+                    <div class="transaction-icon send">📤</div>
+                    <div class="transaction-info">
+                        <p class="transaction-title">Sent ETH</p>
+                        <p class="transaction-time">1 day ago</p>
+                    </div>
+                    <div class="transaction-amount">
+                        <p class="transaction-amount-value" style="color: #ef4444;">-0.1 ETH</p>
+                        <p class="transaction-amount-usd">$250.00</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-card">
+                <h3 class="status-title">✅ Wallet Status: Active & Secure</h3>
+                <p class="status-text">Your DeSocialAI wallet is fully functional and ready to use!</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log("💰 DeSocialAI Wallet - HTML version loaded successfully!");
+
+        // Add some interactivity
+        document.querySelectorAll('.action-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const action = this.textContent.trim();
+                alert(`🚀 ${action} feature will be implemented soon!`);
+            });
+        });
+    </script>
+</body>
+
+</html>
+

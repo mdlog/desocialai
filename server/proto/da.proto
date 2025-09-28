@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package da;
+
+service DataAvailabilityService {
+  rpc SubmitBlob(SubmitBlobRequest) returns (SubmitBlobResponse);
+  rpc GetBlob(GetBlobRequest) returns (GetBlobResponse);
+}
+
+message SubmitBlobRequest {
+  bytes data = 1;
+}
+
+message SubmitBlobResponse {
+  string blobId = 1;
+  string commitment = 2;
+}
+
+message GetBlobRequest {
+  string blobId = 1;
+}
+
+message GetBlobResponse {
+  bytes data = 1;
+}
