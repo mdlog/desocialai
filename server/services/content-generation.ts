@@ -36,32 +36,9 @@ class ContentGenerationService {
   async generatePost(request: ContentGenerationRequest): Promise<GeneratedContent> {
     const { content, tone = 'professional', platform = 'general', userId } = request;
     
+    // Try OpenAI first (more reliable)
     try {
-      // Try 0G Compute Network first (user preference)
-      const response = await this.tryZGCompute({
-        prompt: this.buildPostPrompt(content || '', tone, platform),
-        maxTokens: 300,
-        temperature: 0.7
-      });
-      
-      if (response.success) {
-        return {
-          success: true,
-          content: response.content,
-          metadata: {
-            confidence: 0.9,
-            tone,
-            suggestions: this.extractSuggestions(response.content)
-          },
-          source: '0G-Compute'
-        };
-      }
-    } catch (error) {
-      console.log('[Content Gen] 0G Compute unavailable, using OpenAI');
-    }
-
-    // Fallback to OpenAI
-    try {
+      console.log('[Content Gen] Attempting OpenAI generation...');
       const completion = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
@@ -91,9 +68,36 @@ class ContentGenerationService {
         source: 'OpenAI'
       };
     } catch (error) {
-      console.error('[Content Gen] Post generation failed:', error);
-      return this.fallbackPostGeneration(content || '', tone, platform);
+      console.log('[Content Gen] OpenAI failed, trying 0G Compute...', error);
     }
+
+    // Fallback to 0G Compute
+    try {
+      const response = await this.tryZGCompute({
+        prompt: this.buildPostPrompt(content || '', tone, platform),
+        maxTokens: 300,
+        temperature: 0.7
+      });
+      
+      if (response.success) {
+        return {
+          success: true,
+          content: response.content,
+          metadata: {
+            confidence: 0.9,
+            tone,
+            suggestions: this.extractSuggestions(response.content)
+          },
+          source: '0G-Compute'
+        };
+      }
+    } catch (error) {
+      console.log('[Content Gen] 0G Compute unavailable, using fallback');
+    }
+
+    // Final fallback to simulation
+    console.log('[Content Gen] Using fallback simulation');
+    return this.fallbackPostGeneration(content || '', tone, platform);
   }
 
   /**
@@ -336,25 +340,18 @@ Requirements:
   // Helper methods for 0G Compute integration
   private async tryZGCompute(params: { prompt: string; maxTokens: number; temperature: number }): Promise<{ success: boolean; content: string }> {
     try {
-      // Use generateRecommendations with adapted parameters
-      // Convert our prompt into a context format that the 0G service expects
-      const mockContext = [{ content: params.prompt, type: 'content_generation' }];
-      const response = await zgComputeService.generateRecommendations('content-gen-user', mockContext);
-      
-      // Extract content from response
-      if (response && response.length > 0) {
-        const firstResponse = response[0];
-        return {
-          success: true,
-          content: firstResponse.description || firstResponse.title || JSON.stringify(firstResponse)
-        };
-      }
+      // Use the new generateContent method from 0G Compute service
+      const response = await zgComputeService.generateContent(params.prompt, {
+        maxTokens: params.maxTokens,
+        temperature: params.temperature
+      });
       
       return {
-        success: false,
-        content: ''
+        success: response.success,
+        content: response.content
       };
     } catch (error) {
+      console.error('[Content Gen] 0G Compute error:', error);
       return {
         success: false,
         content: ''

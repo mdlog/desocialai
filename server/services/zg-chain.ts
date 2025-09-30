@@ -142,9 +142,9 @@ export class ZGChainService {
     const gasPrice = await this.getGasPrice();
 
     return {
-      chainId: 16601,
-      networkName: "0G-Galileo-Testnet",
-      rpcUrl: "https://rpc.ankr.com/0g_galileo_testnet_evm",
+      chainId: 16602,
+      networkName: "Galileo (Testnet)",
+      rpcUrl: "https://evmrpc-testnet.0g.ai",
       blockExplorer: "https://chainscan-galileo.0g.ai",
       blockHeight,
       gasPrice,

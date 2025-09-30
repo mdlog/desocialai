@@ -17,7 +17,9 @@ import {
     Download,
     Eye,
     Crown,
-    Zap
+    Zap,
+    ArrowLeft,
+    ArrowRight
 } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
@@ -51,20 +53,27 @@ export function NFTGalleryPage() {
     const [selectedCollection, setSelectedCollection] = useState("all");
     const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
     const [sortBy, setSortBy] = useState("recent");
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(12);
 
-    const { data: nfts = [], isLoading } = useQuery({
-        queryKey: ['/api/nft-gallery', { search: searchQuery, collection: selectedCollection, sort: sortBy }],
+    const { data: nftData, isLoading } = useQuery({
+        queryKey: ['/api/nft-gallery', { search: searchQuery, collection: selectedCollection, sort: sortBy, page: currentPage, limit: itemsPerPage }],
         queryFn: async () => {
             const params = new URLSearchParams();
             if (searchQuery) params.append('search', searchQuery);
             if (selectedCollection !== 'all') params.append('collection', selectedCollection);
             if (sortBy) params.append('sort', sortBy);
+            params.append('page', currentPage.toString());
+            params.append('limit', itemsPerPage.toString());
 
             const response = await fetch(`/api/nft-gallery?${params}`);
             if (!response.ok) throw new Error('Failed to fetch NFTs');
             return response.json();
         },
     });
+
+    const nfts = nftData?.items || [];
+    const pagination = nftData?.pagination || { total: 0, totalPages: 0, hasNext: false, hasPrev: false };
 
     const { data: collections = [] } = useQuery({
         queryKey: ['/api/nft-gallery/collections'],
@@ -164,6 +173,17 @@ export function NFTGalleryPage() {
         console.log('Sharing NFT:', nftId);
     };
 
+    // Reset page when filters change
+    const handleSearchChange = (value: string) => {
+        setSearchQuery(value);
+        setCurrentPage(1);
+    };
+
+    const handleCollectionChange = (value: string) => {
+        setSelectedCollection(value);
+        setCurrentPage(1);
+    };
+
     const getRarityColor = (rarity: string) => {
         switch (rarity.toLowerCase()) {
             case 'legendary': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
@@ -203,8 +223,13 @@ export function NFTGalleryPage() {
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <Badge variant="secondary" className="px-4 py-2 text-sm font-medium">
-                                        {displayNFTs.length} NFTs
+                                        {pagination.total} NFTs
                                     </Badge>
+                                    {pagination.totalPages > 1 && (
+                                        <Badge variant="outline" className="px-4 py-2 text-sm font-medium">
+                                            Page {pagination.page} of {pagination.totalPages}
+                                        </Badge>
+                                    )}
                                 </div>
                             </div>
 
@@ -216,7 +241,7 @@ export function NFTGalleryPage() {
                                         <Input
                                             placeholder="Search NFTs, collections, or artists..."
                                             value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            onChange={(e) => handleSearchChange(e.target.value)}
                                             className="pl-12 h-12 border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50/50 dark:bg-slate-700/50 focus:ring-2 focus:ring-blue-500/20"
                                         />
                                     </div>
@@ -245,22 +270,86 @@ export function NFTGalleryPage() {
                             </div>
 
                             {/* Collections Filter */}
-                            <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm rounded-2xl p-4 border border-slate-200/50 dark:border-slate-700/50">
-                                <Tabs value={selectedCollection} onValueChange={setSelectedCollection}>
-                                    <TabsList className="inline-flex w-full bg-slate-100 dark:bg-slate-700 rounded-xl p-1 overflow-x-auto">
+                            <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200/60 dark:border-slate-700/60 shadow-sm">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Collections</h3>
+                                    <Badge variant="outline" className="text-xs">
+                                        {displayCollections.length} collections
+                                    </Badge>
+                                </div>
+
+                                {/* Collection Cards */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                                    <Card
+                                        className={`cursor-pointer transition-all duration-200 hover:shadow-md ${selectedCollection === 'all'
+                                                ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                                : 'hover:bg-gray-50 dark:hover:bg-slate-700/50'
+                                            }`}
+                                        onClick={() => handleCollectionChange('all')}
+                                    >
+                                        <CardContent className="p-4">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <h4 className="font-semibold text-sm">All Collections</h4>
+                                                    <p className="text-xs text-gray-500">
+                                                        {pagination.total} total NFTs
+                                                    </p>
+                                                </div>
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                                                    <Images className="w-5 h-5 text-white" />
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+
+                                    {displayCollections.map((collection: any) => (
+                                        <Card
+                                            key={collection.id}
+                                            className={`cursor-pointer transition-all duration-200 hover:shadow-md ${selectedCollection === collection.id
+                                                    ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                                    : 'hover:bg-gray-50 dark:hover:bg-slate-700/50'
+                                                }`}
+                                            onClick={() => handleCollectionChange(collection.id)}
+                                        >
+                                            <CardContent className="p-4">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="font-semibold text-sm truncate">{collection.name}</h4>
+                                                        <p className="text-xs text-gray-500">
+                                                            {collection.count} NFTs
+                                                        </p>
+                                                        {collection.floorPrice && (
+                                                            <p className="text-xs text-green-600 font-medium">
+                                                                {collection.floorPrice} ETH floor
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center ml-2">
+                                                        <Crown className="w-5 h-5 text-white" />
+                                                    </div>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+
+                                {/* Quick Filter Tabs */}
+                                <Tabs value={selectedCollection} onValueChange={handleCollectionChange}>
+                                    <TabsList className="grid w-full bg-slate-50 dark:bg-slate-700/50 rounded-xl p-1 h-12"
+                                        style={{ gridTemplateColumns: `repeat(${Math.min(displayCollections.length + 1, 4)}, 1fr)` }}>
                                         <TabsTrigger
                                             value="all"
-                                            className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-600 whitespace-nowrap px-3 py-2 text-sm"
+                                            className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-600 data-[state=active]:border data-[state=active]:border-blue-200 dark:data-[state=active]:border-blue-800 whitespace-nowrap px-3 py-2 text-xs font-medium transition-all duration-200"
                                         >
                                             All
                                         </TabsTrigger>
-                                        {displayCollections.slice(0, 3).map((collection) => (
+                                        {displayCollections.slice(0, 3).map((collection: any) => (
                                             <TabsTrigger
                                                 key={collection.id}
                                                 value={collection.id}
-                                                className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-600 whitespace-nowrap px-3 py-2 text-sm"
+                                                className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-600 data-[state=active]:border data-[state=active]:border-blue-200 dark:data-[state=active]:border-blue-800 whitespace-nowrap px-3 py-2 text-xs font-medium transition-all duration-200"
                                             >
-                                                {collection.name.length > 12 ? `${collection.name.substring(0, 12)}...` : collection.name}
+                                                {collection.name.split(' ')[0]}
                                             </TabsTrigger>
                                         ))}
                                     </TabsList>
@@ -273,7 +362,7 @@ export function NFTGalleryPage() {
                             ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
                             : "space-y-4"
                         }>
-                            {displayNFTs.map((nft) => (
+                            {displayNFTs.map((nft: any) => (
                                 <Card key={nft.id} className="group hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl overflow-hidden">
                                     <CardHeader className="p-0">
                                         <div className="relative overflow-hidden">
@@ -361,6 +450,48 @@ export function NFTGalleryPage() {
                                     <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600"></div>
                                     <p className="text-slate-500 dark:text-slate-400 font-medium">Loading NFTs...</p>
                                 </div>
+                            </div>
+                        )}
+
+                        {/* Pagination Controls */}
+                        {!isLoading && pagination.totalPages > 1 && (
+                            <div className="flex items-center justify-center gap-4 py-8">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={!pagination.hasPrev}
+                                    className="flex items-center gap-2"
+                                >
+                                    <ArrowLeft className="w-4 h-4" />
+                                    Previous
+                                </Button>
+
+                                <div className="flex items-center gap-2">
+                                    {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                                        const pageNum = i + 1;
+                                        return (
+                                            <Button
+                                                key={pageNum}
+                                                variant={currentPage === pageNum ? "default" : "outline"}
+                                                size="sm"
+                                                onClick={() => setCurrentPage(pageNum)}
+                                                className="w-10 h-10"
+                                            >
+                                                {pageNum}
+                                            </Button>
+                                        );
+                                    })}
+                                </div>
+
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setCurrentPage(prev => Math.min(pagination.totalPages, prev + 1))}
+                                    disabled={!pagination.hasNext}
+                                    className="flex items-center gap-2"
+                                >
+                                    Next
+                                    <ArrowRight className="w-4 h-4" />
+                                </Button>
                             </div>
                         )}
                     </main>

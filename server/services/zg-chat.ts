@@ -41,7 +41,7 @@ export interface ChatResponse {
 // Configuration from environment variables
 const {
   ZG_PRIVATE_KEY,
-  ZG_RPC_URL = "https://rpc.ankr.com/0g_galileo_testnet_evm",
+  ZG_RPC_URL = "https://evmrpc-testnet.0g.ai",
   ZG_PROVIDER_ADDRESS,
   ZG_MIN_BALANCE = "10.0",
   ZG_TOPUP_AMOUNT = "20.0",

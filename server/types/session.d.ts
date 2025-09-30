@@ -8,6 +8,7 @@ interface AIFeedStatus {
 
 declare module "express-session" {
   interface SessionData {
+    userId?: string;
     walletConnection?: {
       connected: boolean;
       address: string | null;

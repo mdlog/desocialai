@@ -1,13 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Database, 
-  Cpu, 
-  Shield, 
-  Activity, 
+import {
+  Database,
+  Cpu,
+  Shield,
+  Activity,
   HardDrive,
-  CheckCircle
+  CheckCircle,
+  AlertCircle
 } from "lucide-react";
 
 interface ZGStorageStats {
@@ -22,6 +23,10 @@ interface ZGComputeStats {
   activeUsers: number;
   computeCapacity: string;
   averageResponseTime: number;
+  mode?: string;
+  status?: string;
+  error?: string;
+  note?: string;
 }
 
 interface ZGDAStats {
@@ -90,14 +95,23 @@ export function ZGInfrastructureStatus() {
           <Cpu className="w-3 h-3 text-orange-500" />
           Compute:
         </span>
-        <span className="font-medium">{computeStats?.totalInstances || '...'} instances</span>
+        <span className="font-medium">
+          {computeStats?.mode === 'error' ? 'Offline' :
+            computeStats?.mode === 'simulation' ? 'Simulation' :
+              computeStats?.totalInstances || '...'}
+          {computeStats?.mode !== 'error' && computeStats?.mode !== 'simulation' && ' instances'}
+        </span>
       </div>
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-1">
           <Activity className="w-3 h-3 text-orange-500" />
-          Response:
+          Status:
         </span>
-        <span className="font-medium">{computeStats?.averageResponseTime || '...'} ms</span>
+        <span className="font-medium">
+          {computeStats?.mode === 'error' ? 'Error' :
+            computeStats?.mode === 'simulation' ? 'Simulation' :
+              computeStats?.mode === 'real' ? 'Real' : '...'}
+        </span>
       </div>
 
       {/* DA Stats */}
@@ -180,23 +194,52 @@ export function ZGInfrastructureStatusCards() {
               <Cpu className="w-4 h-4 text-og-secondary" />
               <h3 className="text-sm font-medium">0G Compute</h3>
               <Badge variant="outline" className="ml-auto text-xs">
-                <Activity className="w-3 h-3 mr-1 text-blue-500" />
-                Active
+                {computeStats?.mode === 'error' ? (
+                  <>
+                    <AlertCircle className="w-3 h-3 mr-1 text-red-500" />
+                    Error
+                  </>
+                ) : computeStats?.mode === 'simulation' ? (
+                  <>
+                    <Activity className="w-3 h-3 mr-1 text-yellow-500" />
+                    Simulation
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-3 h-3 mr-1 text-green-500" />
+                    Active
+                  </>
+                )}
               </Badge>
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="text-center">
-              <div className="text-lg font-bold text-og-secondary">{computeStats?.totalInstances || '...'}</div>
-              <div className="text-xs text-og-slate-600 dark:text-og-slate-400">AI Instances</div>
+              <div className="text-lg font-bold text-og-secondary">
+                {computeStats?.mode === 'error' ? 'Offline' :
+                  computeStats?.mode === 'simulation' ? 'Simulation' :
+                    computeStats?.totalInstances || '...'}
+              </div>
+              <div className="text-xs text-og-slate-600 dark:text-og-slate-400">
+                {computeStats?.mode === 'error' ? 'Connection Failed' :
+                  computeStats?.mode === 'simulation' ? 'Development Mode' :
+                    'AI Instances'}
+              </div>
             </div>
             <div className="flex justify-between text-xs">
-              <span>Users:</span>
-              <span className="font-medium">{computeStats?.activeUsers || '...'}</span>
+              <span>Status:</span>
+              <span className="font-medium">
+                {computeStats?.mode === 'error' ? 'Error' :
+                  computeStats?.mode === 'simulation' ? 'Simulation' :
+                    computeStats?.mode === 'real' ? 'Real' : '...'}
+              </span>
             </div>
             <div className="flex justify-between text-xs">
               <span>Capacity:</span>
-              <span className="font-medium">{computeStats?.computeCapacity || '...'}</span>
+              <span className="font-medium">
+                {computeStats?.mode === 'error' ? 'N/A' :
+                  computeStats?.computeCapacity || '...'}
+              </span>
             </div>
           </CardContent>
         </Card>

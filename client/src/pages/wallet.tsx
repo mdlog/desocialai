@@ -106,16 +106,36 @@ export function WalletPage() {
         queryKey: ['/api/wallet/transactions'],
         queryFn: async () => {
             const response = await fetch('/api/wallet/transactions');
-            if (!response.ok) throw new Error('Failed to fetch transactions');
+            if (!response.ok) return [];
             return response.json();
         },
+        refetchInterval: 30000,
     });
 
     const { data: tokens = [], isLoading: tokensLoading } = useQuery({
         queryKey: ['/api/wallet/tokens'],
         queryFn: async () => {
             const response = await fetch('/api/wallet/tokens');
-            if (!response.ok) throw new Error('Failed to fetch tokens');
+            if (!response.ok) return [];
+            return response.json();
+        },
+    });
+
+    const { data: defiPositions = [] } = useQuery({
+        queryKey: ['/api/wallet/defi'],
+        queryFn: async () => {
+            const response = await fetch('/api/wallet/defi');
+            if (!response.ok) return [];
+            return response.json();
+        },
+        refetchInterval: 30000,
+    });
+
+    const { data: ownedNFTs = [], isLoading: ownedNftsLoading } = useQuery({
+        queryKey: ['/api/wallet/nfts'],
+        queryFn: async () => {
+            const response = await fetch('/api/wallet/nfts');
+            if (!response.ok) return [];
             return response.json();
         },
     });
@@ -124,8 +144,8 @@ export function WalletPage() {
     const mockWalletInfo = {
         address: "0xC4189365C29D8A1A78A58193851D42C72B4A5238",
         balance: "0.000 0G",
-        network: "0G Galileo Testnet",
-        chainId: 16601
+        network: "Galileo (Testnet)",
+        chainId: 16602
     };
 
     const mockTokens: Token[] = [
@@ -188,38 +208,7 @@ export function WalletPage() {
         activeStakes: 3
     };
 
-    const mockDeFiPositions: DeFiPosition[] = [
-        {
-            id: '1',
-            protocol: '0G Staking',
-            type: 'staking',
-            asset: '0G',
-            amount: '500.0',
-            apy: 12.5,
-            rewards: '15.2 0G',
-            status: 'active'
-        },
-        {
-            id: '2',
-            protocol: 'Uniswap V3',
-            type: 'pool',
-            asset: 'ETH/USDC',
-            amount: '0.1 ETH + 250 USDC',
-            apy: 8.3,
-            rewards: '2.1 ETH',
-            status: 'active'
-        },
-        {
-            id: '3',
-            protocol: 'Aave',
-            type: 'lending',
-            asset: 'USDC',
-            amount: '200.0',
-            apy: 4.2,
-            rewards: '0.8 USDC',
-            status: 'active'
-        }
-    ];
+    const mockDeFiPositions: DeFiPosition[] = [];
 
     const mockTransactions: Transaction[] = [
         {
@@ -269,6 +258,7 @@ export function WalletPage() {
     const displayWalletInfo = walletInfo || mockWalletInfo;
     const displayTokens = tokens.length > 0 ? tokens : mockTokens;
     const displayTransactions = transactions.length > 0 ? transactions : mockTransactions;
+    const displayDeFi = (defiPositions as DeFiPosition[]).length > 0 ? defiPositions as DeFiPosition[] : mockDeFiPositions;
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
@@ -277,7 +267,13 @@ export function WalletPage() {
 
     const totalValue = displayTokens.reduce((sum, token) => {
         const value = parseFloat(token.usdValue.replace(/[$,]/g, ''));
-        return sum + value;
+        return sum + (Number.isFinite(value) ? value : 0);
+    }, 0);
+
+    // Total native token (0G) amount for real on-chain portfolio
+    const totalOG = displayTokens.reduce((sum, token) => {
+        const bal = parseFloat(token.balance.replace(/[,]/g, ''));
+        return sum + (Number.isFinite(bal) ? bal : 0);
     }, 0);
 
     const getTransactionIcon = (type: string) => {
@@ -362,7 +358,7 @@ export function WalletPage() {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <p className="text-sm text-gray-500">Total Balance</p>
-                                        <p className="text-2xl font-bold">${totalValue.toFixed(2)}</p>
+                                        <p className="text-2xl font-bold">{walletLoading ? '—' : (displayWalletInfo.balance || '—')}</p>
                                     </div>
                                     <div>
                                         <p className="text-sm text-gray-500">Network</p>
@@ -404,11 +400,11 @@ export function WalletPage() {
                             <CardContent>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                     <div className="text-center">
-                                        <p className="text-sm text-gray-500">Total Value</p>
-                                        <p className="text-2xl font-bold">${totalValue.toFixed(2)}</p>
+                                        <p className="text-sm text-gray-500">Total Balance</p>
+                                        <p className="text-2xl font-bold">{walletLoading ? '—' : `${totalOG.toFixed(6)} 0G`}</p>
                                         <div className="flex items-center justify-center gap-1 text-sm">
                                             <TrendingUp className="w-3 h-3 text-green-500" />
-                                            <span className="text-green-500">+{mockPortfolioStats.change24h}%</span>
+                                            <span className="text-green-500">{totalValue > 0 ? `+$${totalValue.toFixed(2)}` : '+0.00%'}</span>
                                         </div>
                                     </div>
                                     <div className="text-center">
@@ -534,7 +530,7 @@ export function WalletPage() {
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-3">
-                                            {mockDeFiPositions.map((position) => (
+                                            {displayDeFi.map((position) => (
                                                 <div key={position.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                                     <div>
                                                         <p className="font-semibold">{position.protocol}</p>
@@ -542,8 +538,8 @@ export function WalletPage() {
                                                         <p className="text-xs text-gray-400">{position.amount}</p>
                                                     </div>
                                                     <div className="text-right">
-                                                        <p className="text-sm font-semibold text-green-600">+{position.apy}% APY</p>
-                                                        <p className="text-xs text-gray-500">{position.rewards} rewards</p>
+                                                        {position.apy !== undefined && <p className="text-sm font-semibold text-green-600">+{position.apy}% APY</p>}
+                                                        {position.rewards && <p className="text-xs text-gray-500">{position.rewards} rewards</p>}
                                                         <Badge variant={position.status === 'active' ? 'default' : 'secondary'}>
                                                             {position.status}
                                                         </Badge>
@@ -589,8 +585,9 @@ export function WalletPage() {
                                         <CardContent>
                                             <div className="space-y-3">
                                                 {displayTokens.map((token) => {
-                                                    const value = parseFloat(token.usdValue.replace(/[$,]/g, ''));
-                                                    const percentage = (value / totalValue) * 100;
+                                                    const valueOG = parseFloat(token.balance.replace(/[,]/g, ''));
+                                                    const denom = totalOG > 0 ? totalOG : 1;
+                                                    const percentage = Math.max(0, Math.min(100, (valueOG / denom) * 100));
                                                     return (
                                                         <div key={token.symbol} className="flex items-center justify-between">
                                                             <div className="flex items-center gap-2">
@@ -643,70 +640,113 @@ export function WalletPage() {
 
                             {/* NFTs Tab */}
                             <TabsContent value="nfts" className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle className="flex items-center gap-2">
-                                                <Star className="w-5 h-5" />
-                                                Your NFT Collection
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="p-8 text-center">
-                                            <div className="space-y-4">
-                                                <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                                                    <Star className="w-8 h-8 text-white" />
-                                                </div>
-                                                <div>
-                                                    <h3 className="text-lg font-semibold">No NFTs Found</h3>
-                                                    <p className="text-gray-500">Your NFT collection will appear here</p>
-                                                </div>
-                                                <Button className="bg-gradient-to-r from-purple-500 to-pink-500">
-                                                    <Plus className="w-4 h-4 mr-2" />
-                                                    Browse NFTs
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Star className="w-5 h-5" />
+                                            Your NFT Collection
+                                            <Badge variant="secondary" className="ml-2">
+                                                {Array.isArray(ownedNFTs) ? (ownedNFTs as any[]).length : 0}
+                                            </Badge>
+                                            <div className="ml-auto flex items-center gap-2">
+                                                {Array.isArray(ownedNFTs) && (ownedNFTs as any[]).length > 8 && (
+                                                    <span className="text-xs text-gray-500">
+                                                        Showing 8 of {(ownedNFTs as any[]).length}
+                                                    </span>
+                                                )}
+                                                <Button size="sm" variant="outline" asChild>
+                                                    <a href="/nft-gallery">View all</a>
                                                 </Button>
                                             </div>
-                                        </CardContent>
-                                    </Card>
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="p-4">
+                                        {ownedNftsLoading && (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                                {Array.from({ length: 6 }).map((_, i) => (
+                                                    <div key={i} className="animate-pulse">
+                                                        <div className="w-full h-32 rounded-lg bg-gray-200" />
+                                                        <div className="h-3 bg-gray-200 rounded mt-3 w-3/4" />
+                                                        <div className="h-3 bg-gray-100 rounded mt-2 w-1/2" />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
 
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle className="flex items-center gap-2">
-                                                <Award className="w-5 h-5" />
-                                                NFT Stats
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="space-y-4">
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                                    <p className="text-2xl font-bold">0</p>
-                                                    <p className="text-sm text-gray-500">Total NFTs</p>
+                                        {!ownedNftsLoading && Array.isArray(ownedNFTs) && ownedNFTs.length === 0 && (
+                                            <div className="p-8 text-center">
+                                                <div className="w-14 h-14 mx-auto rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mb-3">
+                                                    <Star className="w-7 h-7 text-white" />
                                                 </div>
-                                                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                                    <p className="text-2xl font-bold">$0</p>
-                                                    <p className="text-sm text-gray-500">Total Value</p>
-                                                </div>
-                                                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                                    <p className="text-2xl font-bold">0</p>
-                                                    <p className="text-sm text-gray-500">Collections</p>
-                                                </div>
-                                                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                                    <p className="text-2xl font-bold">0</p>
-                                                    <p className="text-sm text-gray-500">Listed</p>
-                                                </div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Button variant="outline" className="w-full">
-                                                    <QrCode className="w-4 h-4 mr-2" />
-                                                    Import NFTs
-                                                </Button>
-                                                <Button variant="outline" className="w-full">
-                                                    <ExternalLink className="w-4 h-4 mr-2" />
-                                                    View on Marketplace
+                                                <h3 className="text-lg font-semibold">No NFTs Found</h3>
+                                                <p className="text-gray-500 text-sm">Your NFT collection will appear here.</p>
+                                                <Button className="mt-4 bg-gradient-to-r from-purple-500 to-pink-500" asChild>
+                                                    <a href="/nft-gallery">
+                                                        <Plus className="w-4 h-4 mr-2" /> Explore NFTs
+                                                    </a>
                                                 </Button>
                                             </div>
-                                        </CardContent>
-                                    </Card>
-                                </div>
+                                        )}
+
+                                        {!ownedNftsLoading && Array.isArray(ownedNFTs) && ownedNFTs.length > 0 && (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                                {(ownedNFTs as any[]).slice(0, 8).map((nft: any) => (
+                                                    <div key={nft.id} className="group border rounded-xl overflow-hidden bg-white hover:shadow-md transition">
+                                                        <div className="relative">
+                                                            <img src={nft.image} alt={nft.name} className="w-full h-40 object-cover" />
+                                                            <div className="absolute top-2 right-2">
+                                                                <Badge variant="secondary" className="text-[10px]">Owned</Badge>
+                                                            </div>
+                                                        </div>
+                                                        <div className="p-3">
+                                                            <p className="font-medium truncate">{nft.name}</p>
+                                                            <p className="text-xs text-gray-500 truncate">{nft.collection}</p>
+                                                            <div className="flex items-center justify-between mt-3">
+                                                                <Button size="sm" variant="outline" asChild>
+                                                                    <a href={nft.image} target="_blank" rel="noreferrer">
+                                                                        <ExternalLink className="w-4 h-4 mr-1" /> View
+                                                                    </a>
+                                                                </Button>
+                                                                <Button size="sm" variant="ghost" asChild>
+                                                                    <a href="/nft-gallery">Details</a>
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Award className="w-5 h-5" />
+                                            NFT Stats
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                            <div className="text-center p-3 bg-gray-50 rounded-lg">
+                                                <p className="text-2xl font-bold">{Array.isArray(ownedNFTs) ? ownedNFTs.length : 0}</p>
+                                                <p className="text-sm text-gray-500">Total NFTs</p>
+                                            </div>
+                                            <div className="text-center p-3 bg-gray-50 rounded-lg">
+                                                <p className="text-2xl font-bold">$0</p>
+                                                <p className="text-sm text-gray-500">Total Value</p>
+                                            </div>
+                                            <div className="text-center p-3 bg-gray-50 rounded-lg">
+                                                <p className="text-2xl font-bold">{Array.isArray(ownedNFTs) ? new Set((ownedNFTs as any[]).map((n: any) => n.collection)).size : 0}</p>
+                                                <p className="text-sm text-gray-500">Collections</p>
+                                            </div>
+                                            <div className="text-center p-3 bg-gray-50 rounded-lg">
+                                                <p className="text-2xl font-bold">0</p>
+                                                <p className="text-sm text-gray-500">Listed</p>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
                             </TabsContent>
                         </Tabs>
                     </main>
