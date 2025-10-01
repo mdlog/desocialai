@@ -179,7 +179,7 @@ class ZGComputeRealService {
 
     try {
       console.log('[0G Compute] Generating content using real 0G Network');
-      
+
       // Use official provider for llama-3.3-70b-instruct
       const providerAddress = OFFICIAL_PROVIDERS['llama-3.3-70b-instruct'];
 

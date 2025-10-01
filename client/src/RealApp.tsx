@@ -6,11 +6,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { RainbowKitProviderWrapper } from "@/providers/rainbowkit-provider";
-
-// Disable hot reload for this component
-if (typeof window !== 'undefined' && window.__vite_plugin_react_preamble_installed__) {
-    window.__vite_plugin_react_preamble_installed__ = true;
-}
 import Home from "./pages/home";
 import { ProfilePage } from "./pages/profile";
 import { AIRecommendationsPage } from "./pages/ai-recommendations";

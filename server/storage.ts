@@ -1,7 +1,7 @@
-import { type User, type Post, type Follow, type Like, type Comment, type Repost, type InsertUser, type InsertPost, type InsertFollow, type InsertLike, type InsertComment, type InsertRepost, type PostWithAuthor, type UserProfile, type UpdateUserProfile, type Share, type CommentLike, type Bookmark, type Collection, type InsertShare, type InsertCommentLike, type InsertBookmark, type InsertCollection, users, posts, follows, likes, comments, reposts, shares, commentLikes, bookmarks, collections, notifications } from "@shared/schema";
+import { type User, type Post, type Follow, type Like, type Comment, type Repost, type InsertUser, type InsertPost, type InsertFollow, type InsertLike, type InsertComment, type InsertRepost, type PostWithAuthor, type UserProfile, type UpdateUserProfile, type Share, type CommentLike, type Bookmark, type Collection, type InsertShare, type InsertCommentLike, type InsertBookmark, type InsertCollection, users, posts, follows, likes, comments, reposts, shares, commentLikes, bookmarks, collections, notifications, conversations, messages } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { eq, desc, and, sql, isNull } from "drizzle-orm";
+import { eq, desc, and, sql, isNull, or } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -1227,8 +1227,24 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getPostsByUser(userId: string, limit?: number, offset?: number): Promise<Post[]> {
-    return this.memStorage.getPostsByUser(userId, limit, offset);
+  async getPostsByUser(userId: string, limit = 10, offset = 0): Promise<Post[]> {
+    console.log(`[DEBUG] DatabaseStorage.getPostsByUser called with userId=${userId}, limit=${limit}, offset=${offset}`);
+
+    // First check if there are any posts at all
+    const allPosts = await db.select().from(posts).limit(5);
+    console.log(`[DEBUG] Total posts in database: ${allPosts.length}`);
+    if (allPosts.length > 0) {
+      console.log(`[DEBUG] Sample post authorId: ${allPosts[0].authorId}`);
+    }
+
+    const result = await db.select()
+      .from(posts)
+      .where(eq(posts.authorId, userId))
+      .orderBy(desc(posts.createdAt))
+      .limit(limit)
+      .offset(offset);
+    console.log(`[DEBUG] DatabaseStorage.getPostsByUser returning ${result.length} posts for user ${userId}`);
+    return result;
   }
 
   async getPersonalizedFeed(userId: string, limit?: number, offset?: number): Promise<PostWithAuthor[]> {
@@ -1795,180 +1811,126 @@ export class DatabaseStorage implements IStorage {
   // Direct Messages Implementation
   async getConversations(userId: string): Promise<any[]> {
     try {
-      // For now, return mock data since we don't have a conversations table yet
-      // In a real implementation, you would query a conversations table
-      return [
-        {
-          id: 'conv1',
-          participant: {
-            id: 'user2',
-            displayName: 'Alice Johnson',
-            username: 'alice',
-            avatar: '/api/objects/avatar/avatar_1758135047272_lkfo1ry38.jpg',
-            isOnline: true
-          },
-          lastMessage: {
-            content: 'Hey! How are you doing?',
-            timestamp: new Date(Date.now() - 1000 * 60 * 5), // 5 minutes ago
-            senderId: 'user2'
-          },
-          unreadCount: 2,
-          updatedAt: new Date(Date.now() - 1000 * 60 * 5)
-        },
-        {
-          id: 'conv2',
-          participant: {
-            id: 'user3',
-            displayName: 'Bob Smith',
-            username: 'bob',
-            avatar: '/api/objects/avatar/default-avatar.jpg',
-            isOnline: false
-          },
-          lastMessage: {
-            content: 'Thanks for the help!',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-            senderId: 'user3'
-          },
-          unreadCount: 0,
-          updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 2)
-        },
-        {
-          id: 'conv3',
-          participant: {
-            id: 'user4',
-            displayName: 'Sarah Chen',
-            username: 'sarah',
-            avatar: '/api/objects/avatar/default-avatar.jpg',
-            isOnline: true
-          },
-          lastMessage: {
-            content: 'The DeFi project looks amazing! 🚀',
-            timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
-            senderId: 'user4'
-          },
-          unreadCount: 1,
-          updatedAt: new Date(Date.now() - 1000 * 60 * 30)
-        },
-        {
-          id: 'conv4',
-          participant: {
-            id: 'user5',
-            displayName: 'Mike Rodriguez',
-            username: 'mike',
-            avatar: '/api/objects/avatar/default-avatar.jpg',
-            isOnline: false
-          },
-          lastMessage: {
-            content: 'Can we schedule a call for tomorrow?',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4), // 4 hours ago
-            senderId: userId
-          },
-          unreadCount: 0,
-          updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 4)
-        },
-        {
-          id: 'conv5',
-          participant: {
-            id: 'user6',
-            displayName: 'Emma Wilson',
-            username: 'emma',
-            avatar: '/api/objects/avatar/default-avatar.jpg',
-            isOnline: true
-          },
-          lastMessage: {
-            content: 'Just saw your latest post about Web3! Really insightful 👏',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 6), // 6 hours ago
-            senderId: 'user6'
-          },
-          unreadCount: 3,
-          updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 6)
-        },
-        {
-          id: 'conv6',
-          participant: {
-            id: 'user7',
-            displayName: 'David Kim',
-            username: 'david',
-            avatar: '/api/objects/avatar/default-avatar.jpg',
-            isOnline: false
-          },
-          lastMessage: {
-            content: 'The NFT collection is ready for launch!',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12), // 12 hours ago
-            senderId: 'user7'
-          },
-          unreadCount: 0,
-          updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 12)
-        },
-        {
-          id: 'conv7',
-          participant: {
-            id: 'user8',
-            displayName: 'Lisa Thompson',
-            username: 'lisa',
-            avatar: '/api/objects/avatar/default-avatar.jpg',
-            isOnline: true
-          },
-          lastMessage: {
-            content: 'Thanks for the collaboration opportunity!',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-            senderId: userId
-          },
-          unreadCount: 0,
-          updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24)
-        },
-        {
-          id: 'conv8',
-          participant: {
-            id: 'user9',
-            displayName: 'Alex Johnson',
-            username: 'alex',
-            avatar: '/api/objects/avatar/default-avatar.jpg',
-            isOnline: false
-          },
-          lastMessage: {
-            content: 'The smart contract audit is complete ✅',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 48), // 2 days ago
-            senderId: 'user9'
-          },
-          unreadCount: 0,
-          updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 48)
-        },
-        {
-          id: 'conv9',
-          participant: {
-            id: 'user10',
-            displayName: 'Maria Garcia',
-            username: 'maria',
-            avatar: '/api/objects/avatar/default-avatar.jpg',
-            isOnline: true
-          },
-          lastMessage: {
-            content: 'Looking forward to the DAO meeting next week!',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 72), // 3 days ago
-            senderId: 'user10'
-          },
-          unreadCount: 1,
-          updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 72)
-        },
-        {
-          id: 'conv10',
-          participant: {
-            id: 'user11',
-            displayName: 'John Anderson',
-            username: 'john',
-            avatar: '/api/objects/avatar/default-avatar.jpg',
-            isOnline: false
-          },
-          lastMessage: {
-            content: 'The yield farming strategy is working perfectly!',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 96), // 4 days ago
-            senderId: 'user11'
-          },
-          unreadCount: 0,
-          updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 96)
-        }
-      ];
+      console.log(`[Get Conversations] Fetching conversations for user ${userId}`);
+
+      // First, let's check if conversations table exists and has data
+      console.log(`[Get Conversations] Checking conversations table...`);
+      const allConversations = await db.select().from(conversations);
+      console.log(`[Get Conversations] Total conversations in database: ${allConversations.length}`);
+
+      // Get conversations where user is either participant1 or participant2
+      console.log(`[Get Conversations] Querying conversations for user ${userId}...`);
+      const userConversations = await db.select({
+        id: conversations.id,
+        participant1Id: conversations.participant1Id,
+        participant2Id: conversations.participant2Id,
+        lastMessageId: conversations.lastMessageId,
+        unreadCount1: conversations.unreadCount1,
+        unreadCount2: conversations.unreadCount2,
+        createdAt: conversations.createdAt,
+        updatedAt: conversations.updatedAt
+      })
+        .from(conversations)
+        .where(
+          or(
+            eq(conversations.participant1Id, userId),
+            eq(conversations.participant2Id, userId)
+          )
+        )
+        .orderBy(desc(conversations.updatedAt));
+
+      console.log(`[Get Conversations] Found ${userConversations.length} conversations for user ${userId}`);
+      console.log(`[Get Conversations] Raw conversations data:`, JSON.stringify(userConversations, null, 2));
+
+      // For each conversation, get participant info and last message
+      const conversationsWithDetails = await Promise.all(
+        userConversations.map(async (conv) => {
+          // Get the other participant (not the current user)
+          const otherParticipantId = conv.participant1Id === userId ? conv.participant2Id : conv.participant1Id;
+          console.log(`[Get Conversations] Current user: ${userId}, Participant1: ${conv.participant1Id}, Participant2: ${conv.participant2Id}, Other: ${otherParticipantId}`);
+
+          // Get participant user info
+          console.log(`[Get Conversations] Looking for participant: ${otherParticipantId}`);
+          let participant = null;
+          try {
+            const participantResult = await db.select({
+              id: users.id,
+              displayName: users.displayName,
+              username: users.username,
+              avatar: users.avatar,
+              isOnline: users.isOnline
+            }).from(users).where(eq(users.id, otherParticipantId));
+            participant = participantResult[0] || null;
+            console.log(`[Get Conversations] Found participant:`, participant);
+          } catch (error) {
+            console.error(`[Get Conversations] Error fetching participant ${otherParticipantId}:`, error);
+            participant = null;
+          }
+
+          // Debug: Check if participant exists in users table
+          if (!participant) {
+            console.log(`[Get Conversations] Participant ${otherParticipantId} not found in users table`);
+            // Let's try to find all users to debug
+            try {
+              const allUsers = await db.select({
+                id: users.id,
+                displayName: users.displayName,
+                username: users.username
+              }).from(users).limit(10);
+              console.log(`[Get Conversations] Available users:`, allUsers);
+            } catch (debugError) {
+              console.error(`[Get Conversations] Error fetching all users:`, debugError);
+            }
+
+            // Skip this conversation if participant not found
+            console.log(`[Get Conversations] Skipping conversation ${conv.id} - participant not found`);
+            return null;
+          }
+
+          // Get last message if exists
+          let lastMessage = null;
+          if (conv.lastMessageId) {
+            const [message] = await db.select({
+              id: messages.id,
+              content: messages.encryptedContent, // Note: this is encrypted
+              timestamp: messages.createdAt,
+              senderId: messages.senderId,
+              read: messages.read
+            }).from(messages).where(eq(messages.id, conv.lastMessageId));
+            lastMessage = message;
+          }
+
+          // Determine unread count for current user
+          const unreadCount = conv.participant1Id === userId ? conv.unreadCount1 : conv.unreadCount2;
+
+          return {
+            id: conv.id,
+            participant: participant || {
+              id: otherParticipantId,
+              displayName: 'Unknown User',
+              username: 'unknown',
+              avatar: null,
+              isOnline: false
+            },
+            lastMessage: lastMessage ? {
+              content: '[Encrypted Message]', // Show placeholder for encrypted content
+              timestamp: lastMessage.timestamp,
+              senderId: lastMessage.senderId,
+              read: lastMessage.read
+            } : null,
+            unreadCount: unreadCount || 0,
+            createdAt: conv.createdAt,
+            updatedAt: conv.updatedAt
+          };
+        })
+      );
+
+      // Filter out null conversations (where participant not found)
+      const validConversations = conversationsWithDetails.filter(conv => conv !== null);
+
+      console.log(`[Get Conversations] Returning ${validConversations.length} valid conversations with details`);
+      console.log(`[Get Conversations] Conversations data:`, JSON.stringify(validConversations, null, 2));
+      return validConversations;
     } catch (error) {
       console.error('[Get Conversations Error]', error);
       return [];
@@ -1977,370 +1939,9 @@ export class DatabaseStorage implements IStorage {
 
   async getMessages(conversationId: string, userId: string): Promise<any[]> {
     try {
-      // For now, return mock data since we don't have a messages table yet
+      // Return empty array - messages will be fetched from DM storage service
       // In a real implementation, you would query a messages table
-
-      // Different conversation histories based on conversationId
-      const conversationMessages: { [key: string]: any[] } = {
-        'conv1': [ // Alice Johnson
-          {
-            id: 'msg1',
-            senderId: 'user2',
-            receiverId: userId,
-            content: 'Hey! How are you doing?',
-            timestamp: new Date(Date.now() - 1000 * 60 * 10),
-            read: true,
-            sender: {
-              id: 'user2',
-              displayName: 'Alice Johnson',
-              username: 'alice',
-              avatar: '/api/objects/avatar/avatar_1758135047272_lkfo1ry38.jpg'
-            }
-          },
-          {
-            id: 'msg2',
-            senderId: userId,
-            receiverId: 'user2',
-            content: 'I\'m doing great! Thanks for asking. How about you?',
-            timestamp: new Date(Date.now() - 1000 * 60 * 8),
-            read: true,
-            sender: {
-              id: userId,
-              displayName: 'You',
-              username: 'current_user',
-              avatar: '/api/objects/avatar/default-avatar.jpg'
-            }
-          },
-          {
-            id: 'msg3',
-            senderId: 'user2',
-            receiverId: userId,
-            content: 'I\'m doing well too! Just working on some new projects.',
-            timestamp: new Date(Date.now() - 1000 * 60 * 5),
-            read: false,
-            sender: {
-              id: 'user2',
-              displayName: 'Alice Johnson',
-              username: 'alice',
-              avatar: '/api/objects/avatar/avatar_1758135047272_lkfo1ry38.jpg'
-            }
-          }
-        ],
-        'conv2': [ // Bob Smith
-          {
-            id: 'msg4',
-            senderId: userId,
-            receiverId: 'user3',
-            content: 'Hi Bob! I saw your post about the new DeFi protocol. Looks interesting!',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3),
-            read: true,
-            sender: {
-              id: userId,
-              displayName: 'You',
-              username: 'current_user',
-              avatar: '/api/objects/avatar/default-avatar.jpg'
-            }
-          },
-          {
-            id: 'msg5',
-            senderId: 'user3',
-            receiverId: userId,
-            content: 'Thanks! Yes, it\'s a revolutionary approach to yield farming. Would you like to collaborate on it?',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2.5),
-            read: true,
-            sender: {
-              id: 'user3',
-              displayName: 'Bob Smith',
-              username: 'bob',
-              avatar: '/api/objects/avatar/default-avatar.jpg'
-            }
-          },
-          {
-            id: 'msg6',
-            senderId: userId,
-            receiverId: 'user3',
-            content: 'Absolutely! I\'d love to contribute to the smart contract development.',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2.2),
-            read: true,
-            sender: {
-              id: userId,
-              displayName: 'You',
-              username: 'current_user',
-              avatar: '/api/objects/avatar/default-avatar.jpg'
-            }
-          },
-          {
-            id: 'msg7',
-            senderId: 'user3',
-            receiverId: userId,
-            content: 'Perfect! I\'ll send you the technical specifications tomorrow. Thanks for the help!',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-            read: true,
-            sender: {
-              id: 'user3',
-              displayName: 'Bob Smith',
-              username: 'bob',
-              avatar: '/api/objects/avatar/default-avatar.jpg'
-            }
-          }
-        ],
-        'conv3': [ // Sarah Chen
-          {
-            id: 'msg8',
-            senderId: 'user4',
-            receiverId: userId,
-            content: 'The DeFi project looks amazing! 🚀',
-            timestamp: new Date(Date.now() - 1000 * 60 * 30),
-            read: false,
-            sender: {
-              id: 'user4',
-              displayName: 'Sarah Chen',
-              username: 'sarah',
-              avatar: '/api/objects/avatar/default-avatar.jpg'
-            }
-          }
-        ],
-        'conv4': [ // Mike Rodriguez
-          {
-            id: 'msg9',
-            senderId: userId,
-            receiverId: 'user5',
-            content: 'Hi Mike! I wanted to discuss the partnership proposal.',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5),
-            read: true,
-            sender: {
-              id: userId,
-              displayName: 'You',
-              username: 'current_user',
-              avatar: '/api/objects/avatar/default-avatar.jpg'
-            }
-          },
-          {
-            id: 'msg10',
-            senderId: 'user5',
-            receiverId: userId,
-            content: 'Sure! I\'m very interested. What did you have in mind?',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4.5),
-            read: true,
-            sender: {
-              id: 'user5',
-              displayName: 'Mike Rodriguez',
-              username: 'mike',
-              avatar: '/api/objects/avatar/default-avatar.jpg'
-            }
-          },
-          {
-            id: 'msg11',
-            senderId: userId,
-            receiverId: 'user5',
-            content: 'Can we schedule a call for tomorrow?',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4),
-            read: true,
-            sender: {
-              id: userId,
-              displayName: 'You',
-              username: 'current_user',
-              avatar: '/api/objects/avatar/default-avatar.jpg'
-            }
-          }
-        ],
-        'conv5': [ // Emma Wilson
-          {
-            id: 'msg12',
-            senderId: 'user6',
-            receiverId: userId,
-            content: 'Just saw your latest post about Web3! Really insightful 👏',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 6.5),
-            read: false,
-            sender: {
-              id: 'user6',
-              displayName: 'Emma Wilson',
-              username: 'emma',
-              avatar: '/api/objects/avatar/default-avatar.jpg'
-            }
-          },
-          {
-            id: 'msg13',
-            senderId: 'user6',
-            receiverId: userId,
-            content: 'I especially liked the part about decentralized identity. Do you have any resources you could share?',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 6.2),
-            read: false,
-            sender: {
-              id: 'user6',
-              displayName: 'Emma Wilson',
-              username: 'emma',
-              avatar: '/api/objects/avatar/default-avatar.jpg'
-            }
-          },
-          {
-            id: 'msg14',
-            senderId: 'user6',
-            receiverId: userId,
-            content: 'Also, would you be interested in speaking at our Web3 conference next month?',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 6),
-            read: false,
-            sender: {
-              id: 'user6',
-              displayName: 'Emma Wilson',
-              username: 'emma',
-              avatar: '/api/objects/avatar/default-avatar.jpg'
-            }
-          }
-        ],
-        'conv6': [ // David Kim
-          {
-            id: 'msg15',
-            senderId: userId,
-            receiverId: 'user7',
-            content: 'Hey David! How\'s the NFT project coming along?',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 13),
-            read: true,
-            sender: {
-              id: userId,
-              displayName: 'You',
-              username: 'current_user',
-              avatar: '/api/objects/avatar/default-avatar.jpg'
-            }
-          },
-          {
-            id: 'msg16',
-            senderId: 'user7',
-            receiverId: userId,
-            content: 'Great progress! We\'ve completed the artwork and smart contracts.',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12.5),
-            read: true,
-            sender: {
-              id: 'user7',
-              displayName: 'David Kim',
-              username: 'david',
-              avatar: '/api/objects/avatar/default-avatar.jpg'
-            }
-          },
-          {
-            id: 'msg17',
-            senderId: 'user7',
-            receiverId: userId,
-            content: 'The NFT collection is ready for launch!',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12),
-            read: true,
-            sender: {
-              id: 'user7',
-              displayName: 'David Kim',
-              username: 'david',
-              avatar: '/api/objects/avatar/default-avatar.jpg'
-            }
-          }
-        ],
-        'conv7': [ // Lisa Thompson
-          {
-            id: 'msg18',
-            senderId: userId,
-            receiverId: 'user8',
-            content: 'Hi Lisa! I wanted to reach out about a potential collaboration.',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 25),
-            read: true,
-            sender: {
-              id: userId,
-              displayName: 'You',
-              username: 'current_user',
-              avatar: '/api/objects/avatar/default-avatar.jpg'
-            }
-          },
-          {
-            id: 'msg19',
-            senderId: 'user8',
-            receiverId: userId,
-            content: 'Hi! I\'d love to hear more about it. What kind of collaboration are you thinking?',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24.5),
-            read: true,
-            sender: {
-              id: 'user8',
-              displayName: 'Lisa Thompson',
-              username: 'lisa',
-              avatar: '/api/objects/avatar/default-avatar.jpg'
-            }
-          },
-          {
-            id: 'msg20',
-            senderId: userId,
-            receiverId: 'user8',
-            content: 'I\'m working on a DAO governance platform and would love your expertise in community building.',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24.2),
-            read: true,
-            sender: {
-              id: userId,
-              displayName: 'You',
-              username: 'current_user',
-              avatar: '/api/objects/avatar/default-avatar.jpg'
-            }
-          },
-          {
-            id: 'msg21',
-            senderId: 'user8',
-            receiverId: userId,
-            content: 'Thanks for the collaboration opportunity!',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24),
-            read: true,
-            sender: {
-              id: 'user8',
-              displayName: 'Lisa Thompson',
-              username: 'lisa',
-              avatar: '/api/objects/avatar/default-avatar.jpg'
-            }
-          }
-        ],
-        'conv8': [ // Alex Johnson
-          {
-            id: 'msg22',
-            senderId: 'user9',
-            receiverId: userId,
-            content: 'The smart contract audit is complete ✅',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 48),
-            read: true,
-            sender: {
-              id: 'user9',
-              displayName: 'Alex Johnson',
-              username: 'alex',
-              avatar: '/api/objects/avatar/default-avatar.jpg'
-            }
-          }
-        ],
-        'conv9': [ // Maria Garcia
-          {
-            id: 'msg23',
-            senderId: 'user10',
-            receiverId: userId,
-            content: 'Looking forward to the DAO meeting next week!',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 72),
-            read: false,
-            sender: {
-              id: 'user10',
-              displayName: 'Maria Garcia',
-              username: 'maria',
-              avatar: '/api/objects/avatar/default-avatar.jpg'
-            }
-          }
-        ],
-        'conv10': [ // John Anderson
-          {
-            id: 'msg24',
-            senderId: 'user11',
-            receiverId: userId,
-            content: 'The yield farming strategy is working perfectly!',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 96),
-            read: true,
-            sender: {
-              id: 'user11',
-              displayName: 'John Anderson',
-              username: 'john',
-              avatar: '/api/objects/avatar/default-avatar.jpg'
-            }
-          }
-        ]
-      };
-
-      return conversationMessages[conversationId] || [];
+      console.log(`[Get Messages] No messages found for conversation ${conversationId}`);
     } catch (error) {
       console.error('[Get Messages Error]', error);
       return [];
@@ -2358,12 +1959,6 @@ export class DatabaseStorage implements IStorage {
         content,
         timestamp: new Date(),
         read: false,
-        sender: {
-          id: senderId,
-          displayName: 'You',
-          username: 'current_user',
-          avatar: '/api/objects/avatar/default-avatar.jpg'
-        }
       };
 
       return message;
@@ -2379,21 +1974,29 @@ export class DatabaseStorage implements IStorage {
       // In a real implementation, you would update the read status in the messages table
       console.log(`Marking messages as read for conversation ${conversationId} by user ${userId}`);
     } catch (error) {
-      console.error('[Mark Messages Read Error]', error);
+      console.error('[Mark Messages As Read Error]', error);
+      throw error;
     }
   }
 
   async startConversation(userId: string, recipientId: string): Promise<any> {
     try {
-      // For now, return mock data since we don't have a conversations table yet
-      // In a real implementation, you would create or find a conversation
+      // Generate consistent conversation ID for the two users
+      const conversationId = `conv_${[userId, recipientId].sort().join('_')}`;
+
+      // Get recipient user info
+      const recipientUser = await this.getUser(recipientId);
+
+      // For now, return conversation data
+      // In a real implementation, you would create or find a conversation in database
       const conversation = {
-        id: `conv_${Date.now()}`,
+        id: conversationId,
+        conversationId: conversationId, // Also include as conversationId for compatibility
         participant: {
           id: recipientId,
-          displayName: 'New User',
-          username: 'newuser',
-          avatar: '/api/objects/avatar/default-avatar.jpg',
+          displayName: recipientUser?.displayName || 'Unknown User',
+          username: recipientUser?.username || 'unknown',
+          avatar: recipientUser?.avatar || '/api/objects/avatar/default-avatar.jpg',
           isOnline: false
         },
         lastMessage: null,
@@ -2401,6 +2004,7 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date()
       };
 
+      console.log(`[Start Conversation] Created conversation ${conversationId} between ${userId} and ${recipientId}`);
       return conversation;
     } catch (error) {
       console.error('[Start Conversation Error]', error);

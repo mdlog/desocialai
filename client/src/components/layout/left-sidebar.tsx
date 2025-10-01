@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EditProfileDialog } from "@/components/edit-profile-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LoadingCard, LoadingSpinner } from "@/components/ui/loading";
+import { Badge } from "@/components/ui/badge";
 import { Link, useLocation } from "wouter";
 import { useMemo, memo } from "react";
 
@@ -72,19 +73,41 @@ function LeftSidebarBase() {
     refetchInterval: 10000,
   });
 
+  // Query for unread message count
+  const { data: unreadMessageCount = 0 } = useQuery<number>({
+    queryKey: ['/api/messages/unread-count'],
+    queryFn: async () => {
+      const response = await fetch('/api/messages/unread-count', {
+        credentials: 'include',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      if (!response.ok) {
+        return 0;
+      }
+      const data = await response.json();
+      return data.count || 0;
+    },
+    enabled: !!currentUser,
+    refetchInterval: 5000, // Check every 5 seconds
+    retry: 1,
+  });
+
   // Memoize expensive calculations
   const baseNavItems = useMemo(() => [
     { icon: Home, label: "Home", href: "/" },
-    { icon: MessageSquareText, label: "Messages", href: "/messages" },
+    { icon: MessageSquareText, label: "Messages", href: "/messages", unreadCount: unreadMessageCount },
     { icon: Images, label: "NFT Gallery", href: "/nft-gallery" },
     { icon: Wallet, label: "Wallet", href: "/wallet" },
     { icon: User, label: "Profile", href: "/profile" },
     { icon: Settings, label: "Settings", href: "/settings" },
-  ], []);
+  ], [unreadMessageCount]);
 
   // Check if current user is admin - memoized
   const isAdmin = useMemo(() =>
-    currentUser?.walletAddress?.toLowerCase() === "0x4c6165286739696849fb3e77a16b0639d762c5b6",
+    currentUser?.walletAddress?.toLowerCase() === "0x3e4d881819768fab30c5a79f3a9a7e69f0a935a4",
     [currentUser?.walletAddress]
   );
 
@@ -205,7 +228,17 @@ function LeftSidebarBase() {
                         }`}
                       data-testid={`nav-${item.href.replace('/', '') || 'home'}`}
                     >
-                      <Icon className="w-5 h-5" />
+                      <div className="relative">
+                        <Icon className="w-5 h-5" />
+                        {item.unreadCount && item.unreadCount > 0 && (
+                          <Badge
+                            variant="destructive"
+                            className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs font-bold"
+                          >
+                            {item.unreadCount > 99 ? '99+' : item.unreadCount}
+                          </Badge>
+                        )}
+                      </div>
                       <span className="font-medium">{item.label}</span>
                     </Button>
                   </Link>

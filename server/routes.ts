@@ -5,7 +5,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import fs from "fs";
 import path from "path";
 import { storage } from "./storage";
-import { insertUserSchema, insertPostSchema, insertFollowSchema, insertLikeSchema, insertCommentSchema, insertRepostSchema, updateUserProfileSchema, insertCommunitySchema, insertBookmarkSchema, insertCollectionSchema, insertTipSchema, insertHashtagSchema, insertShareSchema, insertCommentLikeSchema, type Notification, users, posts, likes, comments, follows } from "@shared/schema";
+import { insertUserSchema, insertPostSchema, insertFollowSchema, insertLikeSchema, insertCommentSchema, insertRepostSchema, updateUserProfileSchema, insertCommunitySchema, insertBookmarkSchema, insertCollectionSchema, insertTipSchema, insertHashtagSchema, insertShareSchema, insertCommentLikeSchema, insertConversationSchema, insertMessageSchema, type Notification, type Conversation, type Message, users, posts, likes, comments, follows, conversations, messages } from "@shared/schema";
 import { eq, desc, gte, isNotNull, and, sql } from "drizzle-orm";
 import { db } from "./db";
 import { z } from "zod";
@@ -18,6 +18,7 @@ import { zgChatService } from "./services/zg-chat";
 import { ZGChatServiceImproved } from "./services/zg-chat-improved.js";
 import { zgChatServiceFixed } from "./services/zg-chat-fixed.js";
 import { zgChatServiceAuthentic } from "./services/zg-chat-authentic.js";
+import { dmStorageService } from "./services/dm-storage";
 import { zgDAService } from "./services/zg-da";
 import { zgChainService } from "./services/zg-chain";
 import { ethers, verifyMessage } from "ethers";
@@ -152,6 +153,14 @@ function broadcastToAll(message: any) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Debug middleware to log all requests
+  app.use((req, res, next) => {
+    if (req.path.includes('/api/posts/user/')) {
+      console.log(`[ROUTES DEBUG] Incoming request: ${req.method} ${req.path}`);
+    }
+    next();
+  });
+
   // Configure multer for file uploads
   const upload = multer({
     storage: multer.memoryStorage(),
@@ -310,12 +319,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/posts/user/:userId", async (req, res) => {
     try {
+      console.log(`[ROUTES DEBUG] GET /api/posts/user/${req.params.userId} called`);
       const limit = parseInt(req.query.limit as string) || 10;
       const offset = parseInt(req.query.offset as string) || 0;
+      console.log(`[ROUTES DEBUG] Calling storage.getPostsByUser with userId=${req.params.userId}, limit=${limit}, offset=${offset}`);
       const posts = await storage.getPostsByUser(req.params.userId, limit, offset);
+      console.log(`[ROUTES DEBUG] Returning ${posts.length} posts`);
       res.json(posts);
     } catch (error: any) {
+      console.error(`[ROUTES ERROR] Error in /api/posts/user/:userId:`, error);
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get user by ID
+  app.get("/api/users/:userId", async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const user = await storage.getUser(userId);
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json({
+        id: user.id,
+        displayName: user.displayName,
+        username: user.username,
+        avatar: user.avatar,
+        bio: user.bio,
+        email: user.email,
+        reputationScore: user.reputationScore,
+        isPremium: user.isPremium,
+        isVerified: user.isVerified,
+        postsCount: user.postsCount,
+        followersCount: user.followersCount,
+        followingCount: user.followingCount,
+        createdAt: user.createdAt
+      });
+    } catch (error: any) {
+      console.error('[Users] Error fetching user:', error);
+      res.status(500).json({ message: "Failed to fetch user" });
     }
   });
 
@@ -4409,9 +4453,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin access check middleware
   function checkAdminAccess(req: any, res: any, next: any) {
     const walletConnection = getWalletConnection(req);
-    const adminWallet = "0x4C6165286739696849Fb3e77A16b0639D762c5B6";
+    // Admin wallet configuration
+    const adminWallets = [
+      "0x3e4d881819768fab30c5a79F3A9A7e69f0a935a4"  // Server wallet admin
+    ];
 
-    console.log("[ADMIN ACCESS] Checking wallet:", walletConnection.address, "vs expected:", adminWallet);
+    console.log("[ADMIN ACCESS] Checking wallet:", walletConnection.address, "vs admin wallets:", adminWallets);
 
     if (!walletConnection.connected || !walletConnection.address) {
       console.log("[ADMIN ACCESS] ❌ No wallet connected");
@@ -4420,13 +4467,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
 
-    if (walletConnection.address.toLowerCase() !== adminWallet.toLowerCase()) {
+    // Check if connected wallet is in admin list
+    const isAdmin = adminWallets.some(adminWallet =>
+      walletConnection.address.toLowerCase() === adminWallet.toLowerCase()
+    );
+
+    if (!isAdmin) {
       console.log("[ADMIN ACCESS] ❌ Unauthorized wallet:", walletConnection.address);
       return res.status(403).json({
         message: "Admin access denied - unauthorized wallet address",
         details: {
           connectedWallet: walletConnection.address,
-          expectedWallet: adminWallet
+          adminWallets: adminWallets
         }
       });
     }
@@ -4599,13 +4651,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Direct Messaging Endpoints
   app.get("/api/messages/conversations", async (req, res) => {
     try {
-      const userId = req.session.userId;
-      if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+      console.log('[API] GET /api/messages/conversations called');
+      console.log('[API] Request headers:', req.headers);
+      console.log('[API] Session data:', req.session);
+      const walletConnection = req.session.walletConnection;
+      console.log('[API] Wallet connection:', walletConnection?.connected, walletConnection?.address);
+      if (!walletConnection?.connected || !walletConnection?.address) {
+        console.log('[API] No wallet connection, returning 401');
+        return res.status(401).json({ message: "Wallet connection required" });
+      }
+
+      // Get user by wallet address
+      const user = await storage.getUserByWalletAddress(walletConnection.address);
+      console.log('[API] User found:', user?.id, user?.displayName);
+      if (!user) {
+        console.log('[API] User not found, returning 404');
+        return res.status(404).json({ message: "User not found" });
       }
 
       // Get all conversations for the user
-      const conversations = await storage.getConversations(userId);
+      console.log('[API] Getting conversations for user:', user.id);
+      const conversations = await storage.getConversations(user.id);
+      console.log('[API] Conversations found:', conversations.length);
+      console.log('[API] Returning conversations:', conversations);
       res.json(conversations);
     } catch (error: any) {
       console.error("[MESSAGES] Error fetching conversations:", error);
@@ -4613,18 +4681,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/messages/:conversationId", async (req, res) => {
+  // Get unread message count
+  app.get("/api/messages/unread-count", async (req, res) => {
     try {
-      const userId = req.session.userId;
-      const { conversationId } = req.params;
-
-      if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+      const walletConnection = req.session.walletConnection;
+      if (!walletConnection?.connected || !walletConnection?.address) {
+        return res.status(401).json({ message: "Wallet connection required" });
       }
 
-      // Get messages for the conversation
-      const messages = await storage.getMessages(conversationId, userId);
-      res.json(messages);
+      // Get user by wallet address
+      const user = await storage.getUserByWalletAddress(walletConnection.address);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Get unread message count from DM storage service
+      const unreadCount = await dmStorageService.getUnreadMessageCount(user.id);
+
+      res.json({ count: unreadCount });
+    } catch (error: any) {
+      console.error("[MESSAGES] Error fetching unread count:", error);
+      res.status(500).json({ message: "Failed to fetch unread count" });
+    }
+  });
+
+  app.get("/api/messages/:conversationId", async (req, res) => {
+    try {
+      const walletConnection = req.session.walletConnection;
+      const { conversationId } = req.params;
+
+      if (!walletConnection?.connected || !walletConnection?.address) {
+        return res.status(401).json({ message: "Wallet connection required" });
+      }
+
+      // Get user by wallet address
+      const user = await storage.getUserByWalletAddress(walletConnection.address);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const userId = user.id;
+
+      // Get encrypted messages from 0G Storage
+      const { dmStorageService } = await import('./services/dm-storage');
+      const { e2eEncryptionService } = await import('./services/e2e-encryption');
+
+      const encryptedMessages = await dmStorageService.getConversationMessages(conversationId, 50, 0);
+
+      // Decrypt messages for the current user
+      const decryptedMessages = await Promise.all(encryptedMessages.map(async (msg) => {
+        try {
+          // Use the same key derivation as encryption for consistency
+          // In production, this should be derived from actual user keys
+          const userKey = 'demo_sender_key'; // Same as senderKey used during encryption
+          const otherUserPublicKey = 'demo_receiver_key'; // Same as receiverPublicKey used during encryption
+
+          const decryptedResult = e2eEncryptionService.decryptMessage(
+            msg.encryptedContent,
+            userKey,
+            otherUserPublicKey,
+            msg.iv,
+            msg.tag
+          );
+
+          // Get sender information for avatar and display name
+          const sender = await storage.getUser(msg.senderId);
+          const receiver = await storage.getUser(msg.receiverId);
+
+          return {
+            id: msg.id,
+            senderId: msg.senderId,
+            receiverId: msg.receiverId,
+            content: decryptedResult.success ? decryptedResult.decryptedData : '[Encrypted]',
+            timestamp: msg.timestamp,
+            read: msg.read,
+            messageType: msg.messageType,
+            sender: {
+              id: sender?.id || msg.senderId,
+              displayName: sender?.displayName || 'Unknown User',
+              username: sender?.username || 'unknown',
+              avatar: sender?.avatar || '/api/objects/avatar/default-avatar.jpg'
+            },
+            receiver: {
+              id: receiver?.id || msg.receiverId,
+              displayName: receiver?.displayName || 'Unknown User',
+              username: receiver?.username || 'unknown',
+              avatar: receiver?.avatar || '/api/objects/avatar/default-avatar.jpg'
+            }
+          };
+        } catch (error) {
+          console.error(`[DM] Error decrypting message ${msg.id}:`, error);
+          return {
+            id: msg.id,
+            senderId: msg.senderId,
+            receiverId: msg.receiverId,
+            content: '[Decryption Failed]',
+            timestamp: msg.timestamp,
+            read: msg.read,
+            messageType: msg.messageType,
+            sender: {
+              id: msg.senderId,
+              displayName: 'Unknown User',
+              username: 'unknown',
+              avatar: '/api/objects/avatar/default-avatar.jpg'
+            },
+            receiver: {
+              id: msg.receiverId,
+              displayName: 'Unknown User',
+              username: 'unknown',
+              avatar: '/api/objects/avatar/default-avatar.jpg'
+            }
+          };
+        }
+      }));
+
+      res.json(decryptedMessages);
     } catch (error: any) {
       console.error("[MESSAGES] Error fetching messages:", error);
       res.status(500).json({ message: "Failed to fetch messages" });
@@ -4633,20 +4804,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/messages/send", async (req, res) => {
     try {
-      const userId = req.session.userId;
-      const { conversationId, content } = req.body;
+      console.log('[API] POST /api/messages/send called');
+      const walletConnection = req.session.walletConnection;
+      const { conversationId, content, receiverId } = req.body;
+      console.log('[API] Send message request body:', { conversationId, content, receiverId });
 
-      if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+      if (!walletConnection?.connected || !walletConnection?.address) {
+        return res.status(401).json({ message: "Wallet connection required" });
       }
 
-      if (!conversationId || !content) {
-        return res.status(400).json({ message: "Missing required fields" });
+      // Get user by wallet address
+      const user = await storage.getUserByWalletAddress(walletConnection.address);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
       }
 
-      // Send message
-      const message = await storage.sendMessage(userId, conversationId, content);
-      res.json(message);
+      const userId = user.id;
+
+      if (!receiverId || !content) {
+        return res.status(400).json({ message: "Missing required fields: receiverId and content" });
+      }
+
+      console.log(`[DM] Request body:`, { conversationId, content, receiverId });
+
+      // Get user's encryption key (simplified for demo)
+      const senderKey = 'demo_sender_key'; // Simplified for demo consistency
+
+      // For demo purposes, we'll use a simple key derivation
+      // In production, this should be derived from user's wallet private key
+      const receiverPublicKey = 'demo_receiver_key'; // Simplified for demo consistency
+
+      console.log(`[DM] Sending encrypted message from ${userId} to user ${receiverId}`);
+
+      // Encrypt the message content
+      const { e2eEncryptionService } = await import('./services/e2e-encryption');
+      const { dmStorageService } = await import('./services/dm-storage');
+
+      const encryptedResult = e2eEncryptionService.encryptMessage(content, senderKey, receiverPublicKey);
+
+      // Create or get conversation between users
+      console.log(`[DM] Creating/getting conversation between ${userId} and ${receiverId}`);
+      console.log(`[DM] User IDs check: userId=${userId}, receiverId=${receiverId}, areEqual=${userId === receiverId}`);
+      const actualConversationId = await dmStorageService.createOrGetConversation(userId, receiverId);
+      console.log(`[DM] Conversation ID: ${actualConversationId}`);
+
+      // Store encrypted message in database
+      const messageData = {
+        senderId: userId,
+        receiverId: receiverId,
+        conversationId: actualConversationId,
+        encryptedContent: encryptedResult.encryptedMessage,
+        iv: encryptedResult.iv,
+        tag: encryptedResult.tag,
+        timestamp: new Date(),
+        read: false,
+        messageType: 'text' as const
+      };
+
+      const storedMessage = await dmStorageService.storeMessage(messageData);
+
+      console.log(`[DM] Message ${storedMessage.id} sent and stored in database`);
+
+      res.json({
+        success: true,
+        messageId: storedMessage.id,
+        timestamp: storedMessage.timestamp
+      });
     } catch (error: any) {
       console.error("[MESSAGES] Error sending message:", error);
       res.status(500).json({ message: "Failed to send message" });
@@ -4655,15 +4878,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/messages/:conversationId/read", async (req, res) => {
     try {
-      const userId = req.session.userId;
+      const walletConnection = req.session.walletConnection;
       const { conversationId } = req.params;
 
-      if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+      if (!walletConnection?.connected || !walletConnection?.address) {
+        return res.status(401).json({ message: "Wallet connection required" });
       }
 
-      // Mark messages as read
-      await storage.markMessagesAsRead(conversationId, userId);
+      // Get user by wallet address
+      const user = await storage.getUserByWalletAddress(walletConnection.address);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const userId = user.id;
+
+      // Mark messages as read using DM storage service
+      await dmStorageService.markMessagesAsRead(conversationId, userId);
       res.json({ success: true });
     } catch (error: any) {
       console.error("[MESSAGES] Error marking messages as read:", error);
@@ -4673,23 +4904,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/messages/start-conversation", async (req, res) => {
     try {
-      const userId = req.session.userId;
+      const walletConnection = req.session.walletConnection;
       const { recipientId } = req.body;
 
-      if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+      if (!walletConnection?.connected || !walletConnection?.address) {
+        return res.status(401).json({ message: "Wallet connection required" });
       }
+
+      // Get user by wallet address
+      const user = await storage.getUserByWalletAddress(walletConnection.address);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const userId = user.id;
 
       if (!recipientId) {
         return res.status(400).json({ message: "Missing recipient ID" });
       }
 
-      // Start or get existing conversation
-      const conversation = await storage.startConversation(userId, recipientId);
-      res.json(conversation);
+      // Start or get existing conversation using DM storage service
+      const { dmStorageService } = await import('./services/dm-storage');
+      const conversationId = await dmStorageService.createOrGetConversation(userId, recipientId);
+
+      console.log(`[API] Start conversation result: conversationId=${conversationId}`);
+      res.json({ conversationId });
     } catch (error: any) {
       console.error("[MESSAGES] Error starting conversation:", error);
       res.status(500).json({ message: "Failed to start conversation" });
+    }
+  });
+
+
+  // Temporary debug endpoint to check conversations
+  app.get("/api/debug/conversations", async (req, res) => {
+    try {
+      console.log('[DEBUG] Checking conversations in database...');
+      
+      const { db } = await import('./db');
+      const { conversations, messages, users } = await import('@shared/schema');
+      
+      // Check all conversations
+      const allConversations = await db.select().from(conversations);
+      console.log(`[DEBUG] Total conversations: ${allConversations.length}`);
+      
+      // Check all messages
+      const allMessages = await db.select().from(messages);
+      console.log(`[DEBUG] Total messages: ${allMessages.length}`);
+      
+      // Check all users
+      const allUsers = await db.select().from(users);
+      console.log(`[DEBUG] Total users: ${allUsers.length}`);
+      
+      res.json({
+        conversations: allConversations,
+        messages: allMessages,
+        users: allUsers.map(u => ({ id: u.id, displayName: u.displayName, username: u.username }))
+      });
+    } catch (error: any) {
+      console.error('[DEBUG] Error checking conversations:', error);
+      res.status(500).json({ error: error.message });
     }
   });
 

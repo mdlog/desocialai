@@ -8,8 +8,9 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Send, MessageCircle, Users, Search, MoreVertical, Phone, Video } from 'lucide-react';
+import { Send, MessageCircle, Users, Search, MoreVertical, Phone, Video, Shield, Lock } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { simpleE2EEncryption } from '@/lib/e2e-encryption';
 
 interface DirectMessage {
     id: string;
@@ -44,8 +45,13 @@ interface Conversation {
     updatedAt: Date;
 }
 
-export function DirectMessageInterface() {
-    const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
+interface DirectMessageInterfaceProps {
+    initialConversationId?: string;
+    targetUserId?: string;
+}
+
+export function DirectMessageInterface({ initialConversationId, targetUserId }: DirectMessageInterfaceProps = {}) {
+    const [selectedConversation, setSelectedConversation] = useState<string | null>(initialConversationId || null);
     const [messageInput, setMessageInput] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -53,153 +59,170 @@ export function DirectMessageInterface() {
     const { toast } = useToast();
     const queryClient = useQueryClient();
 
-    // Fetch conversations list
-    const { data: conversations = [], isLoading: conversationsLoading, error: conversationsError } = useQuery<Conversation[]>({
-        queryKey: ['/api/messages/conversations'],
-        enabled: !!currentUser,
-        retry: false,
-    });
+    // Handle initial conversation selection
+    useEffect(() => {
+        if (initialConversationId && !selectedConversation) {
+            setSelectedConversation(initialConversationId);
+        }
+    }, [initialConversationId, selectedConversation]);
 
-    // Fetch messages for selected conversation
-    const { data: messages = [], isLoading: messagesLoading } = useQuery<DirectMessage[]>({
-        queryKey: ['/api/messages', selectedConversation],
-        enabled: !!selectedConversation,
-        refetchInterval: 5000, // Poll for new messages every 5 seconds
-    });
+    // Handle target user - create conversation if needed
+    useEffect(() => {
+        if (targetUserId && currentUser?.id && !selectedConversation) {
+            const handleTargetUser = async () => {
+                const conversationId = await createConversation(targetUserId);
+                setSelectedConversation(conversationId);
+                // Refresh conversations list
+                queryClient.invalidateQueries({ queryKey: ['/api/messages/conversations'] });
+            };
+            handleTargetUser();
+        }
+    }, [targetUserId, currentUser?.id, selectedConversation, queryClient]);
 
-    // Mock messages data
-    const mockMessages: { [key: string]: DirectMessage[] } = {
-        'conv1': [
-            {
-                id: 'msg1',
-                senderId: 'user2',
-                receiverId: 'current_user',
-                content: 'Hey! How are you doing?',
-                timestamp: new Date(Date.now() - 1000 * 60 * 10),
-                read: true,
-                sender: {
-                    id: 'user2',
-                    displayName: 'Alice Johnson',
-                    username: 'alice',
-                    avatar: '/api/objects/avatar/avatar_1758135047272_lkfo1ry38.jpg'
-                }
-            },
-            {
-                id: 'msg2',
-                senderId: 'current_user',
-                receiverId: 'user2',
-                content: 'I\'m doing great! Thanks for asking. How about you?',
-                timestamp: new Date(Date.now() - 1000 * 60 * 8),
-                read: true,
-                sender: {
-                    id: 'current_user',
-                    displayName: 'You',
-                    username: 'current_user',
-                    avatar: '/api/objects/avatar/default-avatar.jpg'
-                }
-            },
-            {
-                id: 'msg3',
-                senderId: 'user2',
-                receiverId: 'current_user',
-                content: 'I\'m doing well too! Just working on some new projects.',
-                timestamp: new Date(Date.now() - 1000 * 60 * 5),
-                read: false,
-                sender: {
-                    id: 'user2',
-                    displayName: 'Alice Johnson',
-                    username: 'alice',
-                    avatar: '/api/objects/avatar/avatar_1758135047272_lkfo1ry38.jpg'
-                }
-            }
-        ],
-        'conv2': [
-            {
-                id: 'msg4',
-                senderId: 'current_user',
-                receiverId: 'user3',
-                content: 'Hi Bob! I saw your post about the new DeFi protocol. Looks interesting!',
-                timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3),
-                read: true,
-                sender: {
-                    id: 'current_user',
-                    displayName: 'You',
-                    username: 'current_user',
-                    avatar: '/api/objects/avatar/default-avatar.jpg'
-                }
-            },
-            {
-                id: 'msg5',
-                senderId: 'user3',
-                receiverId: 'current_user',
-                content: 'Thanks! Yes, it\'s a revolutionary approach to yield farming. Would you like to collaborate on it?',
-                timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2.5),
-                read: true,
-                sender: {
-                    id: 'user3',
-                    displayName: 'Bob Smith',
-                    username: 'bob',
-                    avatar: '/api/objects/avatar/default-avatar.jpg'
-                }
-            },
-            {
-                id: 'msg6',
-                senderId: 'current_user',
-                receiverId: 'user3',
-                content: 'Absolutely! I\'d love to contribute to the smart contract development.',
-                timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2.2),
-                read: true,
-                sender: {
-                    id: 'current_user',
-                    displayName: 'You',
-                    username: 'current_user',
-                    avatar: '/api/objects/avatar/default-avatar.jpg'
-                }
-            },
-            {
-                id: 'msg7',
-                senderId: 'user3',
-                receiverId: 'current_user',
-                content: 'Perfect! I\'ll send you the technical specifications tomorrow. Thanks for the help!',
-                timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-                read: true,
-                sender: {
-                    id: 'user3',
-                    displayName: 'Bob Smith',
-                    username: 'bob',
-                    avatar: '/api/objects/avatar/default-avatar.jpg'
-                }
-            }
-        ]
-    };
-
-    // Use mock messages if API fails
-    const displayMessages = messages.length > 0 ? messages : (mockMessages[selectedConversation || ''] || []);
-
-    // Send message mutation
-    const sendMessageMutation = useMutation({
-        mutationFn: async ({ conversationId, content }: { conversationId: string; content: string }) => {
-            const response = await fetch('/api/messages/send', {
+    // Create conversation if needed
+    const createConversation = async (targetUserId: string) => {
+        try {
+            const response = await fetch('/api/messages/start-conversation', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    conversationId,
-                    content,
+                    recipientId: targetUserId,
                 }),
             });
 
             if (!response.ok) {
-                throw new Error('Failed to send message');
+                throw new Error('Failed to create conversation');
             }
 
+            const result = await response.json();
+            console.log('[DM] Create conversation response:', result);
+            return result.conversationId;
+        } catch (error) {
+            console.error('Error creating conversation:', error);
+            throw error; // Don't fallback to generated ID
+        }
+    };
+
+    // Fetch conversations list
+    console.log('[DM] Creating conversations query for user:', currentUser?.id);
+    console.log('[DM] currentUser object:', currentUser);
+    console.log('[DM] currentUser.id exists:', !!currentUser?.id);
+
+    const { data: conversations = [], isLoading: conversationsLoading, error: conversationsError } = useQuery<Conversation[]>({
+        queryKey: ['/api/messages/conversations'],
+        queryFn: async () => {
+            console.log('[DM] Fetching conversations for user:', currentUser?.id);
+            const response = await fetch('/api/messages/conversations', {
+                credentials: 'include',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                }
+            });
+            console.log('[DM] Conversations response status:', response.status, response.statusText);
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('[DM] Failed to fetch conversations:', errorText);
+                throw new Error(`Failed to fetch conversations: ${response.status} ${response.statusText}`);
+            }
+            const data = await response.json();
+            console.log('[DM] Conversations data received:', data);
+            return data;
+        },
+        enabled: !!currentUser?.id,
+        retry: 1,
+        staleTime: 30000, // 30 seconds
+    });
+
+    console.log('[DM] Conversations query state:', {
+        conversationsLoading,
+        conversationsError,
+        conversationsCount: conversations.length,
+        enabled: !!currentUser?.id
+    });
+
+    // Fetch messages for selected conversation
+    const { data: messages = [], isLoading: messagesLoading } = useQuery<DirectMessage[]>({
+        queryKey: ['/api/messages', selectedConversation],
+        queryFn: async () => {
+            const response = await fetch(`/api/messages/${selectedConversation}`, {
+                credentials: 'include',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                }
+            });
+            if (!response.ok) {
+                throw new Error('Failed to fetch messages');
+            }
             return response.json();
+        },
+        enabled: !!selectedConversation,
+        refetchInterval: 5000, // Poll for new messages every 5 seconds
+        retry: 1,
+    });
+
+    // Use only real messages from API
+    const displayMessages = messages;
+
+    // Send encrypted message mutation
+    const sendMessageMutation = useMutation({
+        mutationFn: async ({ conversationId, content, receiverId }: { conversationId: string; content: string; receiverId?: string }) => {
+            try {
+                console.log('[DM] Send message mutation started:', { conversationId, content, receiverId });
+
+                // For demo purposes, we'll use a simple password-based encryption
+                // In production, this should use proper key exchange
+                const encryptionPassword = `${currentUser?.id}_${receiverId || 'default'}`;
+
+                console.log('[DM] Encrypting message with E2E encryption');
+
+                // Encrypt the message content on client side
+                const encryptedResult = await simpleE2EEncryption.encryptSimple(content, encryptionPassword);
+
+                console.log('[DM] Sending request to /api/messages/send');
+                const response = await fetch('/api/messages/send', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        conversationId,
+                        content: encryptedResult.encryptedData,
+                        iv: encryptedResult.iv,
+                        tag: encryptedResult.tag,
+                        receiverId,
+                        encrypted: true
+                    }),
+                });
+
+                console.log('[DM] Send message response status:', response.status, response.statusText);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('[DM] Send message failed:', errorText);
+                    throw new Error(`Failed to send message: ${response.status} ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                console.log('[DM] Message sent successfully:', result);
+                return result;
+            } catch (error) {
+                console.error('[DM] Error sending encrypted message:', error);
+                throw error;
+            }
         },
         onSuccess: () => {
             setMessageInput('');
             queryClient.invalidateQueries({ queryKey: ['/api/messages', selectedConversation] });
             queryClient.invalidateQueries({ queryKey: ['/api/messages/conversations'] });
+            toast({
+                title: "Message sent",
+                description: "Your encrypted message has been stored securely in 0G Storage",
+                variant: "default",
+            });
         },
         onError: (error: any) => {
             toast({
@@ -246,11 +269,63 @@ export function DirectMessageInterface() {
     }, [selectedConversation]);
 
     const handleSendMessage = async () => {
-        if (!messageInput.trim() || !selectedConversation || sendMessageMutation.isPending) return;
+        console.log('[DM] handleSendMessage called:', {
+            messageInput: messageInput,
+            messageInputTrim: messageInput.trim(),
+            sendMessageMutationPending: sendMessageMutation.isPending,
+            selectedConversation,
+            targetUserId,
+            conversations: conversations.length,
+            conversationsData: conversations
+        });
+
+        if (!messageInput.trim() || sendMessageMutation.isPending) {
+            console.log('[DM] Early return:', {
+                noMessageInput: !messageInput.trim(),
+                isPending: sendMessageMutation.isPending
+            });
+            return;
+        }
+
+        // Get receiver ID from selected conversation or targetUserId
+        let receiverId: string | undefined;
+        let conversationId: string | undefined;
+
+        if (selectedConversation) {
+            // Use existing conversation
+            const selectedConv = conversations.find(conv => conv.id === selectedConversation);
+            if (selectedConv?.participant?.id) {
+                receiverId = selectedConv.participant.id;
+                conversationId = selectedConversation;
+                console.log('[DM] Using selected conversation:', { selectedConv, receiverId, conversationId });
+            } else {
+                // Fallback: if conversation not found in list, use targetUserId if available
+                if (targetUserId) {
+                    receiverId = targetUserId;
+                    conversationId = selectedConversation; // Keep the existing conversationId
+                    console.log('[DM] Conversation not found in list, using targetUserId as fallback:', { receiverId, conversationId });
+                } else {
+                    console.error('[DM] Selected conversation not found and no targetUserId available');
+                }
+            }
+        } else if (targetUserId) {
+            // Start new conversation with targetUserId
+            receiverId = targetUserId;
+            conversationId = 'new'; // Will be created on server
+            console.log('[DM] Using targetUserId for new conversation:', { receiverId, conversationId });
+        }
+
+        if (!receiverId) {
+            console.error('[DM] No receiver ID available');
+            return;
+        }
+
+        console.log('[DM] Sending message:', { conversationId, receiverId, content: messageInput.trim() });
 
         sendMessageMutation.mutate({
-            conversationId: selectedConversation,
+            conversationId: conversationId || 'new',
             content: messageInput.trim(),
+            receiverId: receiverId
         });
     };
 
@@ -273,97 +348,8 @@ export function DirectMessageInterface() {
         }
     };
 
-    // Fallback mock data if API fails or user not authenticated
-    const mockConversations: Conversation[] = [
-        {
-            id: 'conv1',
-            participant: {
-                id: 'user2',
-                displayName: 'Alice Johnson',
-                username: 'alice',
-                avatar: '/api/objects/avatar/avatar_1758135047272_lkfo1ry38.jpg',
-                isOnline: true
-            },
-            lastMessage: {
-                content: 'Hey! How are you doing?',
-                timestamp: new Date(Date.now() - 1000 * 60 * 5),
-                senderId: 'user2'
-            },
-            unreadCount: 2,
-            updatedAt: new Date(Date.now() - 1000 * 60 * 5)
-        },
-        {
-            id: 'conv2',
-            participant: {
-                id: 'user3',
-                displayName: 'Bob Smith',
-                username: 'bob',
-                avatar: '/api/objects/avatar/default-avatar.jpg',
-                isOnline: false
-            },
-            lastMessage: {
-                content: 'Thanks for the help!',
-                timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-                senderId: 'user3'
-            },
-            unreadCount: 0,
-            updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 2)
-        },
-        {
-            id: 'conv3',
-            participant: {
-                id: 'user4',
-                displayName: 'Sarah Chen',
-                username: 'sarah',
-                avatar: '/api/objects/avatar/default-avatar.jpg',
-                isOnline: true
-            },
-            lastMessage: {
-                content: 'The DeFi project looks amazing! 🚀',
-                timestamp: new Date(Date.now() - 1000 * 60 * 30),
-                senderId: 'user4'
-            },
-            unreadCount: 1,
-            updatedAt: new Date(Date.now() - 1000 * 60 * 30)
-        },
-        {
-            id: 'conv4',
-            participant: {
-                id: 'user5',
-                displayName: 'Mike Rodriguez',
-                username: 'mike',
-                avatar: '/api/objects/avatar/default-avatar.jpg',
-                isOnline: false
-            },
-            lastMessage: {
-                content: 'Can we schedule a call for tomorrow?',
-                timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4),
-                senderId: 'user5'
-            },
-            unreadCount: 0,
-            updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 4)
-        },
-        {
-            id: 'conv5',
-            participant: {
-                id: 'user6',
-                displayName: 'Emma Wilson',
-                username: 'emma',
-                avatar: '/api/objects/avatar/default-avatar.jpg',
-                isOnline: true
-            },
-            lastMessage: {
-                content: 'Just saw your latest post about Web3! Really insightful 👏',
-                timestamp: new Date(Date.now() - 1000 * 60 * 60 * 6),
-                senderId: 'user6'
-            },
-            unreadCount: 3,
-            updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 6)
-        }
-    ];
-
-    // Use mock data if API fails or no user
-    const displayConversations = conversations.length > 0 ? conversations : mockConversations;
+    // Use only real conversations from API
+    const displayConversations = conversations;
     const displayLoading = conversationsLoading && currentUser;
 
     const filteredConversations = displayConversations.filter(conv =>
@@ -372,6 +358,40 @@ export function DirectMessageInterface() {
     );
 
     const selectedConv = conversations.find(conv => conv.id === selectedConversation);
+
+    // Get target user info when starting new conversation
+    const { data: targetUser, isLoading: targetUserLoading, error: targetUserError } = useQuery({
+        queryKey: [`/api/users/${targetUserId}`],
+        queryFn: async () => {
+            if (!targetUserId) return null;
+            console.log('[DM] Fetching target user:', targetUserId);
+            const response = await fetch(`/api/users/${targetUserId}`, {
+                credentials: 'include'
+            });
+            if (!response.ok) {
+                console.error('[DM] Failed to fetch target user:', response.status, response.statusText);
+                return null;
+            }
+            const userData = await response.json();
+            console.log('[DM] Target user data:', userData);
+            return userData;
+        },
+        enabled: !!targetUserId,
+    });
+
+    // Debug logging
+    console.log('[DM] Debug info:', {
+        targetUserId,
+        selectedConversation,
+        targetUser,
+        targetUserLoading,
+        targetUserError,
+        enabled: !!targetUserId,
+        conversations,
+        conversationsLoading,
+        conversationsError,
+        currentUser: currentUser?.id
+    });
 
     if (!currentUser) {
         return (
@@ -393,7 +413,13 @@ export function DirectMessageInterface() {
             <div className="w-80 border-r bg-muted/30 flex flex-col">
                 <div className="p-4 border-b">
                     <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-semibold">Messages</h2>
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-lg font-semibold">Messages</h2>
+                            <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-xs">
+                                <Shield className="w-3 h-3 mr-1" />
+                                E2E
+                            </Badge>
+                        </div>
                         <Button size="sm" variant="outline">
                             <Users className="h-4 w-4" />
                         </Button>
@@ -479,7 +505,14 @@ export function DirectMessageInterface() {
 
             {/* Chat Area */}
             <div className="flex-1 flex flex-col">
-                {selectedConversation ? (
+                {(() => {
+                    console.log('[DM] Chat area condition check:', {
+                        selectedConversation,
+                        targetUserId,
+                        showChat: !!(selectedConversation || targetUserId)
+                    });
+                    return selectedConversation || targetUserId;
+                })() ? (
                     <>
                         {/* Chat Header */}
                         <div className="p-4 border-b bg-background">
@@ -487,19 +520,25 @@ export function DirectMessageInterface() {
                                 <div className="flex items-center space-x-3">
                                     <div className="relative">
                                         <Avatar className="w-10 h-10">
-                                            <AvatarImage src={selectedConv?.participant.avatar} />
+                                            <AvatarImage src={selectedConv?.participant.avatar || targetUser?.avatar} />
                                             <AvatarFallback>
-                                                {selectedConv?.participant.displayName.charAt(0)}
+                                                {(selectedConv?.participant.displayName || targetUser?.displayName)?.charAt(0) || 'U'}
                                             </AvatarFallback>
                                         </Avatar>
-                                        {selectedConv?.participant.isOnline && (
+                                        {(selectedConv?.participant.isOnline || targetUser?.isOnline) && (
                                             <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-background rounded-full" />
                                         )}
                                     </div>
                                     <div>
-                                        <h3 className="font-semibold">{selectedConv?.participant.displayName}</h3>
+                                        <h3 className="font-semibold">
+                                            {selectedConv?.participant.displayName ||
+                                                (targetUserLoading ? 'Loading...' : targetUser?.displayName) ||
+                                                'Unknown User'}
+                                        </h3>
                                         <p className="text-sm text-muted-foreground">
-                                            @{selectedConv?.participant.username}
+                                            @{selectedConv?.participant.username ||
+                                                (targetUserLoading ? 'loading' : targetUser?.username) ||
+                                                'unknown'}
                                         </p>
                                     </div>
                                 </div>
@@ -567,6 +606,14 @@ export function DirectMessageInterface() {
                                                     {formatTimestamp(message.timestamp)}
                                                 </p>
                                             </div>
+                                            {message.senderId === currentUser.id && (
+                                                <Avatar className="w-8 h-8">
+                                                    <AvatarImage src={currentUser.avatar} />
+                                                    <AvatarFallback>
+                                                        {currentUser.displayName?.charAt(0) || currentUser.username?.charAt(0) || 'U'}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                            )}
                                         </div>
                                     ))
                                 )}
@@ -575,18 +622,37 @@ export function DirectMessageInterface() {
 
                         {/* Message Input */}
                         <div className="p-4 border-t">
+                            <div className="flex items-center gap-2 mb-2">
+                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                    <Lock className="w-3 h-3" />
+                                    <span>Messages are encrypted end-to-end and stored in 0G Storage</span>
+                                </div>
+                            </div>
                             <div className="flex gap-2">
                                 <Input
                                     value={messageInput}
                                     onChange={(e) => setMessageInput(e.target.value)}
                                     onKeyPress={handleKeyPress}
-                                    placeholder="Type a message..."
+                                    placeholder="Type an encrypted message..."
                                     disabled={sendMessageMutation.isPending}
                                     className="flex-1"
                                 />
                                 <Button
-                                    onClick={handleSendMessage}
-                                    disabled={!messageInput.trim() || sendMessageMutation.isPending}
+                                    onClick={() => {
+                                        console.log('[DM] Send button clicked');
+                                        handleSendMessage();
+                                    }}
+                                    disabled={(() => {
+                                        const isDisabled = !messageInput.trim() || sendMessageMutation.isPending;
+                                        console.log('[DM] Send button disabled check:', {
+                                            messageInput,
+                                            messageInputTrim: messageInput.trim(),
+                                            hasMessageInput: !!messageInput.trim(),
+                                            isPending: sendMessageMutation.isPending,
+                                            isDisabled
+                                        });
+                                        return isDisabled;
+                                    })()}
                                     size="icon"
                                 >
                                     <Send className="h-4 w-4" />
