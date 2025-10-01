@@ -10,6 +10,7 @@ export interface EncryptionResult {
 export interface DecryptionResult {
     decryptedData: string;
     success: boolean;
+    error?: string;
 }
 
 export class E2EEncryptionService {
@@ -40,7 +41,8 @@ export class E2EEncryptionService {
     encrypt(data: string, key: string): EncryptionResult {
         try {
             const iv = randomBytes(this.ivLength);
-            const keyBuffer = Buffer.from(key, 'hex');
+            // Handle key as string (not hex) since we're using demo key
+            const keyBuffer = typeof key === 'string' ? Buffer.from(key, 'utf8') : Buffer.from(key, 'hex');
 
             // Ensure key is exactly 32 bytes for AES-256
             const derivedKey = keyBuffer.length === 32 ? keyBuffer : createHash('sha256').update(keyBuffer).digest();
@@ -68,7 +70,8 @@ export class E2EEncryptionService {
      */
     decrypt(encryptedData: string, key: string, iv: string, tag: string): DecryptionResult {
         try {
-            const keyBuffer = Buffer.from(key, 'hex');
+            // Handle key as string (not hex) since we're using demo key
+            const keyBuffer = typeof key === 'string' ? Buffer.from(key, 'utf8') : Buffer.from(key, 'hex');
             const ivBuffer = Buffer.from(iv, 'hex');
             const tagBuffer = Buffer.from(tag, 'hex');
 
@@ -89,7 +92,8 @@ export class E2EEncryptionService {
             console.error('[E2E Encryption] Error decrypting data:', error);
             return {
                 decryptedData: '',
-                success: false
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error'
             };
         }
     }

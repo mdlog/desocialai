@@ -149,6 +149,7 @@ export function DirectMessageInterface({ initialConversationId, targetUserId }: 
     const { data: messages = [], isLoading: messagesLoading } = useQuery<DirectMessage[]>({
         queryKey: ['/api/messages', selectedConversation],
         queryFn: async () => {
+            console.log('[DM] Fetching messages for conversation:', selectedConversation);
             const response = await fetch(`/api/messages/${selectedConversation}`, {
                 credentials: 'include',
                 headers: {
@@ -159,7 +160,10 @@ export function DirectMessageInterface({ initialConversationId, targetUserId }: 
             if (!response.ok) {
                 throw new Error('Failed to fetch messages');
             }
-            return response.json();
+            const data = await response.json();
+            console.log('[DM] Messages API response:', data);
+            console.log('[DM] First message content:', data[0]?.content);
+            return data;
         },
         enabled: !!selectedConversation,
         refetchInterval: 5000, // Poll for new messages every 5 seconds
@@ -329,7 +333,7 @@ export function DirectMessageInterface({ initialConversationId, targetUserId }: 
             content: messageInput.trim(),
             receiverId: receiverId
         });
-        
+
         // Reset textarea height after sending
         setTimeout(() => {
             if (textareaRef.current) {
@@ -518,7 +522,7 @@ export function DirectMessageInterface({ initialConversationId, targetUserId }: 
                                                         </Badge>
                                                     )}
                                                 </div>
-                                                <p className="text-xs text-muted-foreground truncate">
+                                                <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
                                                     {conversation.lastMessage?.content || 'No messages yet'}
                                                 </p>
                                             </div>
@@ -609,41 +613,50 @@ export function DirectMessageInterface({ initialConversationId, targetUserId }: 
                                         </p>
                                     </div>
                                 ) : (
-                                    displayMessages.map((message) => (
-                                        <div
-                                            key={message.id}
-                                            className={`flex gap-3 ${message.senderId === currentUser.id ? 'justify-end' : 'justify-start'
-                                                }`}
-                                        >
-                                            {message.senderId !== currentUser.id && (
-                                                <Avatar className="w-8 h-8">
-                                                    <AvatarImage src={message.sender?.avatar} />
-                                                    <AvatarFallback>
-                                                        {message.sender?.displayName.charAt(0)}
-                                                    </AvatarFallback>
-                                                </Avatar>
-                                            )}
+                                    displayMessages.map((message) => {
+                                        console.log('[DM Frontend] Rendering message:', {
+                                            id: message.id,
+                                            content: message.content,
+                                            contentType: typeof message.content,
+                                            contentLength: message.content?.length
+                                        });
+
+                                        return (
                                             <div
-                                                className={`max-w-[70%] rounded-lg px-3 py-2 ${message.senderId === currentUser.id
-                                                    ? 'bg-primary text-primary-foreground'
-                                                    : 'bg-muted'
+                                                key={message.id}
+                                                className={`flex gap-3 ${message.senderId === currentUser.id ? 'justify-end' : 'justify-start'
                                                     }`}
                                             >
-                                                <p className="text-sm break-words whitespace-pre-wrap overflow-wrap-anywhere">{message.content}</p>
-                                                <p className="text-xs opacity-70 mt-1">
-                                                    {formatTimestamp(message.timestamp)}
-                                                </p>
+                                                {message.senderId !== currentUser.id && (
+                                                    <Avatar className="w-8 h-8">
+                                                        <AvatarImage src={message.sender?.avatar} />
+                                                        <AvatarFallback>
+                                                            {message.sender?.displayName.charAt(0)}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                )}
+                                                <div
+                                                    className={`max-w-[70%] rounded-lg px-3 py-2 ${message.senderId === currentUser.id
+                                                        ? 'bg-primary text-primary-foreground'
+                                                        : 'bg-muted'
+                                                        }`}
+                                                >
+                                                    <p className="text-sm break-words whitespace-pre-wrap overflow-wrap-anywhere leading-relaxed">{message.content}</p>
+                                                    <p className="text-xs opacity-70 mt-1">
+                                                        {formatTimestamp(message.timestamp)}
+                                                    </p>
+                                                </div>
+                                                {message.senderId === currentUser.id && (
+                                                    <Avatar className="w-8 h-8">
+                                                        <AvatarImage src={currentUser.avatar} />
+                                                        <AvatarFallback>
+                                                            {currentUser.displayName?.charAt(0) || currentUser.username?.charAt(0) || 'U'}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                )}
                                             </div>
-                                            {message.senderId === currentUser.id && (
-                                                <Avatar className="w-8 h-8">
-                                                    <AvatarImage src={currentUser.avatar} />
-                                                    <AvatarFallback>
-                                                        {currentUser.displayName?.charAt(0) || currentUser.username?.charAt(0) || 'U'}
-                                                    </AvatarFallback>
-                                                </Avatar>
-                                            )}
-                                        </div>
-                                    ))
+                                        );
+                                    })
                                 )}
                             </div>
                         </ScrollArea>

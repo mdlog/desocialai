@@ -240,6 +240,12 @@ export function CreatePost() {
           console.error('[FRONTEND ERROR] Error type:', typeof apiError);
           console.error('[FRONTEND ERROR] Error message:', apiError.message);
           console.error('[FRONTEND ERROR] Error stack:', apiError.stack);
+
+          // Handle specific network errors
+          if (apiError.message?.includes('fetch') || apiError.message?.includes('NetworkError')) {
+            throw new Error('Network error: Please check your internet connection and try again');
+          }
+
           throw apiError; // Re-throw to be caught by outer catch
         }
 
@@ -255,9 +261,23 @@ export function CreatePost() {
       } catch (error: any) {
         // Reset signing state if signature fails or is cancelled
         setIsSigningMetaMask(false);
+
+        console.error('[FRONTEND ERROR] Post creation failed:', error);
+
         if (error.code === 4001) {
           throw new Error("Signature cancelled by user");
         }
+
+        // Handle network errors specifically
+        if (error.message?.includes('NetworkError') || error.message?.includes('fetch')) {
+          throw new Error('Network error: Unable to connect to server. Please check your internet connection and try again.');
+        }
+
+        // Handle timeout errors
+        if (error.message?.includes('timeout')) {
+          throw new Error('Request timeout: The server took too long to respond. Please try again.');
+        }
+
         throw error;
       }
     },
@@ -270,42 +290,47 @@ export function CreatePost() {
       setIsSigningMetaMask(false);
       setUploadStartTime(null);
 
-      // Immediately add the new post to the feed cache
+      // Optimistically update the feed cache with the new post
       if (data.post) {
-        // Update the main feed query (limit=10, offset=0)
+        // Update infinite query cache for feed
         queryClient.setQueryData(
-          ["/api/posts/feed", 10, 0],
+          ["/api/posts/feed", 10],
           (oldData: any) => {
-            if (!oldData) return [data.post];
-            return [data.post, ...oldData];
+            if (!oldData) {
+              return {
+                pages: [[data.post]],
+                pageParams: [0]
+              };
+            }
+            return {
+              ...oldData,
+              pages: [
+                [data.post, ...oldData.pages[0]], // Add new post to first page
+                ...oldData.pages.slice(1)
+              ]
+            };
           }
         );
 
-        // Also update any other feed queries that might exist
-        queryClient.setQueriesData(
-          { queryKey: ["/api/posts/feed"] },
+        // Update user profile to increment post count
+        queryClient.setQueryData(
+          ["/api/users/me"],
           (oldData: any) => {
-            if (!oldData) return [data.post];
-            return [data.post, ...oldData];
+            if (!oldData) return oldData;
+            return {
+              ...oldData,
+              statistics: {
+                ...oldData.statistics,
+                actualPostsCount: (oldData.statistics?.actualPostsCount || 0) + 1
+              }
+            };
           }
         );
       }
 
-      // Invalidate all posts queries to ensure consistency
+      // Only invalidate feed queries (not all posts queries)
       queryClient.invalidateQueries({
-        predicate: (query) => {
-          const key = query.queryKey[0];
-          return typeof key === 'string' && key.includes('/api/posts');
-        }
-      });
-
-      // Invalidate user profile to update post count in sidebar
-      queryClient.invalidateQueries({ queryKey: ["/api/users/me"] });
-
-      // Force immediate refetch of the feed to ensure we have the latest data
-      queryClient.refetchQueries({
-        queryKey: ["/api/posts/feed"],
-        type: 'active'
+        queryKey: ["/api/posts/feed"]
       });
 
       // Show success message with 0G Storage information

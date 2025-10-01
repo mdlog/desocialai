@@ -16,71 +16,60 @@ export function useWebSocket() {
 
   const handleWebSocketMessage = useCallback((message: WebSocketMessage) => {
     console.log('📨 WebSocket message received:', message.type);
-    
+
     switch (message.type) {
       case 'new_post':
-        console.log('📨 New post received, refreshing feed immediately...');
-        
-        // Invalidate and refetch all post-related queries immediately
-        queryClient.invalidateQueries({ 
-          predicate: (query) => {
-            const queryKey = query.queryKey as string[];
-            return queryKey[0] === '/api/posts' || queryKey[0] === '/api/posts/feed';
-          }
+        console.log('📨 New post received, updating feed...');
+
+        // Only invalidate feed queries, not all posts queries
+        queryClient.invalidateQueries({
+          queryKey: ['/api/posts/feed']
         });
-        
-        // Force immediate refetch for instant display
-        queryClient.refetchQueries({ 
-          predicate: (query) => {
-            const queryKey = query.queryKey as string[];
-            return queryKey[0] === '/api/posts/feed';
-          }
-        });
-        
+
         // Update user profile for post count
         queryClient.invalidateQueries({ queryKey: ['/api/users/me'] });
         break;
-        
+
       case 'post_liked':
         console.log('❤️ Post liked, refreshing posts...');
         queryClient.invalidateQueries({ queryKey: ['/api/posts'] });
         queryClient.invalidateQueries({ queryKey: ['/api/posts/feed'] });
         break;
-      
+
       case 'new_comment':
         const postId = message.data.postId;
         console.log(`💬 New comment received for post ${postId}, refreshing...`);
-        
+
         // Invalidate all comment queries for this post
-        queryClient.invalidateQueries({ 
+        queryClient.invalidateQueries({
           predicate: (query) => {
             const queryKey = query.queryKey as string[];
             return queryKey[0] === '/api/posts' && queryKey[2] === 'comments' && queryKey[1] === postId;
           }
         });
-        
+
         // Update post queries to show new comment count
         queryClient.invalidateQueries({ queryKey: ['/api/posts'] });
         queryClient.invalidateQueries({ queryKey: ['/api/posts/feed'] });
         break;
-        
+
       case 'new_notification':
         console.log('🔔 New notification received, refreshing notifications...');
         queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
         break;
-        
+
       case 'notifications_updated':
         console.log('🔔 Notifications updated, refreshing notifications...');
         queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
         break;
-        
+
       case 'profile_update':
         console.log('👤 Profile update received, refreshing user data...');
         queryClient.invalidateQueries({ queryKey: ['/api/users'] });
         queryClient.invalidateQueries({ queryKey: ['/api/users/me'] });
         queryClient.invalidateQueries({ queryKey: ['/api/posts/feed'] });
         break;
-        
+
       default:
         console.log('📨 Unknown WebSocket message type:', message.type);
     }
@@ -92,7 +81,7 @@ export function useWebSocket() {
     try {
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const wsUrl = `${protocol}//${window.location.host}/ws`;
-      
+
       ws.current = new WebSocket(wsUrl);
 
       ws.current.onopen = () => {
@@ -125,18 +114,18 @@ export function useWebSocket() {
           } else {
             data = String(event.data);
           }
-          
+
           if (!data || data.trim() === '' || data === '[object Object]') return;
-          
+
           // Additional validation for 'setImmedia' error
           if (data.includes('setImmedia') || data.startsWith('setImmedia')) {
             console.warn('Skipping invalid WebSocket message containing setImmedia');
             return;
           }
-          
+
           const message: WebSocketMessage = JSON.parse(data);
           handleWebSocketMessage(message);
-          
+
         } catch (error) {
           // Silently ignore JSON parsing errors to reduce console noise
           // console.error('WebSocket message parsing error:', error);
@@ -146,12 +135,12 @@ export function useWebSocket() {
       ws.current.onclose = () => {
         console.log('WebSocket disconnected');
         setConnected(false);
-        
+
         // Attempt to reconnect if we haven't exceeded max attempts
         if (reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++;
           console.log(`Attempting to reconnect... (${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
-          
+
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
           }, Math.pow(2, reconnectAttemptsRef.current) * 1000); // Exponential backoff
@@ -172,18 +161,18 @@ export function useWebSocket() {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
-    
+
     if (ws.current) {
       ws.current.close();
       ws.current = null;
     }
-    
+
     setConnected(false);
   }, []);
 
   useEffect(() => {
     connect();
-    
+
     return () => {
       disconnect();
     };

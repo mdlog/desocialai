@@ -2625,7 +2625,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await zgStorageService.storeContent(content, {
         type,
         userId: 'test-user',
-        postId: 'test-post',
         manualRetry: false
       });
 
@@ -4736,6 +4735,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const userKey = 'demo_sender_key'; // Same as senderKey used during encryption
           const otherUserPublicKey = 'demo_receiver_key'; // Same as receiverPublicKey used during encryption
 
+          console.log(`[DM] Decryption keys for message ${msg.id}:`, {
+            userKey,
+            otherUserPublicKey,
+            encryptedContent: msg.encryptedContent,
+            iv: msg.iv,
+            tag: msg.tag
+          });
+
           const decryptedResult = e2eEncryptionService.decryptMessage(
             msg.encryptedContent,
             userKey,
@@ -4744,15 +4751,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
             msg.tag
           );
 
+          console.log(`[DM] Decrypt result for message ${msg.id}:`, {
+            success: decryptedResult.success,
+            hasDecryptedData: !!decryptedResult.decryptedData,
+            decryptedDataLength: decryptedResult.decryptedData?.length,
+            encryptedContentLength: msg.encryptedContent.length,
+            error: decryptedResult.error
+          });
+
           // Get sender information for avatar and display name
           const sender = await storage.getUser(msg.senderId);
           const receiver = await storage.getUser(msg.receiverId);
+
+          const messageContent = decryptedResult.success ? decryptedResult.decryptedData : '[Encrypted]';
+
+          console.log(`[DM] Final message content for ${msg.id}:`, {
+            content: messageContent,
+            isDecrypted: decryptedResult.success,
+            contentType: typeof messageContent,
+            contentLength: messageContent.length
+          });
 
           return {
             id: msg.id,
             senderId: msg.senderId,
             receiverId: msg.receiverId,
-            content: decryptedResult.success ? decryptedResult.decryptedData : '[Encrypted]',
+            content: messageContent,
             timestamp: msg.timestamp,
             read: msg.read,
             messageType: msg.messageType,
@@ -4841,6 +4865,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { dmStorageService } = await import('./services/dm-storage');
 
       const encryptedResult = e2eEncryptionService.encryptMessage(content, senderKey, receiverPublicKey);
+
+      console.log(`[DM] Encryption result for message:`, {
+        originalContent: content,
+        originalContentLength: content.length,
+        encryptedMessage: encryptedResult.encryptedMessage,
+        encryptedMessageLength: encryptedResult.encryptedMessage.length,
+        iv: encryptedResult.iv,
+        tag: encryptedResult.tag,
+        sharedSecret: encryptedResult.sharedSecret,
+        encryptionKey: senderKey
+      });
 
       // Create or get conversation between users
       console.log(`[DM] Creating/getting conversation between ${userId} and ${receiverId}`);
