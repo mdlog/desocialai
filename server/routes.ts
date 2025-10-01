@@ -4936,36 +4936,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
-  // Temporary debug endpoint to check conversations
-  app.get("/api/debug/conversations", async (req, res) => {
-    try {
-      console.log('[DEBUG] Checking conversations in database...');
-      
-      const { db } = await import('./db');
-      const { conversations, messages, users } = await import('@shared/schema');
-      
-      // Check all conversations
-      const allConversations = await db.select().from(conversations);
-      console.log(`[DEBUG] Total conversations: ${allConversations.length}`);
-      
-      // Check all messages
-      const allMessages = await db.select().from(messages);
-      console.log(`[DEBUG] Total messages: ${allMessages.length}`);
-      
-      // Check all users
-      const allUsers = await db.select().from(users);
-      console.log(`[DEBUG] Total users: ${allUsers.length}`);
-      
-      res.json({
-        conversations: allConversations,
-        messages: allMessages,
-        users: allUsers.map(u => ({ id: u.id, displayName: u.displayName, username: u.username }))
-      });
-    } catch (error: any) {
-      console.error('[DEBUG] Error checking conversations:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
+
 
   return httpServer;
 }

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -55,6 +56,7 @@ export function DirectMessageInterface({ initialConversationId, targetUserId }: 
     const [messageInput, setMessageInput] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const scrollAreaRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
     const { user: currentUser } = useAuth();
     const { toast } = useToast();
     const queryClient = useQueryClient();
@@ -327,6 +329,13 @@ export function DirectMessageInterface({ initialConversationId, targetUserId }: 
             content: messageInput.trim(),
             receiverId: receiverId
         });
+        
+        // Reset textarea height after sending
+        setTimeout(() => {
+            if (textareaRef.current) {
+                textareaRef.current.style.height = '40px';
+            }
+        }, 100);
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -335,6 +344,25 @@ export function DirectMessageInterface({ initialConversationId, targetUserId }: 
             handleSendMessage();
         }
     };
+
+    // Auto-resize textarea
+    const autoResizeTextarea = () => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+        }
+    };
+
+    // Handle message input change with auto-resize
+    const handleMessageInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        setMessageInput(e.target.value);
+        autoResizeTextarea();
+    };
+
+    // Auto-resize on mount and when messageInput changes
+    useEffect(() => {
+        autoResizeTextarea();
+    }, [messageInput]);
 
     const formatTimestamp = (timestamp: Date) => {
         const now = new Date();
@@ -601,7 +629,7 @@ export function DirectMessageInterface({ initialConversationId, targetUserId }: 
                                                     : 'bg-muted'
                                                     }`}
                                             >
-                                                <p className="text-sm">{message.content}</p>
+                                                <p className="text-sm break-words whitespace-pre-wrap overflow-wrap-anywhere">{message.content}</p>
                                                 <p className="text-xs opacity-70 mt-1">
                                                     {formatTimestamp(message.timestamp)}
                                                 </p>
@@ -628,14 +656,21 @@ export function DirectMessageInterface({ initialConversationId, targetUserId }: 
                                     <span>Messages are encrypted end-to-end and stored in 0G Storage</span>
                                 </div>
                             </div>
-                            <div className="flex gap-2">
-                                <Input
+                            <div className="flex gap-2 items-end">
+                                <Textarea
+                                    ref={textareaRef}
                                     value={messageInput}
-                                    onChange={(e) => setMessageInput(e.target.value)}
-                                    onKeyPress={handleKeyPress}
+                                    onChange={handleMessageInputChange}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleSendMessage();
+                                        }
+                                    }}
                                     placeholder="Type an encrypted message..."
                                     disabled={sendMessageMutation.isPending}
-                                    className="flex-1"
+                                    className="flex-1 min-h-[40px] max-h-[120px] resize-none overflow-hidden"
+                                    rows={1}
                                 />
                                 <Button
                                     onClick={() => {
@@ -654,6 +689,7 @@ export function DirectMessageInterface({ initialConversationId, targetUserId }: 
                                         return isDisabled;
                                     })()}
                                     size="icon"
+                                    className="h-10 w-10"
                                 >
                                     <Send className="h-4 w-4" />
                                 </Button>
