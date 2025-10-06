@@ -166,13 +166,19 @@ export function EditProfileDialog({ user, trigger }: EditProfileDialogProps) {
 
       // Update form value
       form.setValue("avatar", avatarData.avatar);
+      console.log("[AVATAR UPLOAD] Updated form with avatar:", avatarData.avatar);
 
       // Force complete cache refresh to ensure avatar shows immediately
+      console.log("[AVATAR UPLOAD] Invalidating user cache...");
       await queryClient.invalidateQueries({ queryKey: ["/api/users/me"] });
       await queryClient.refetchQueries({ queryKey: ["/api/users/me"] });
 
       // Additional cache invalidation for all user-related queries
       await queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/posts/feed"] });
+      await queryClient.invalidateQueries({ queryKey: ["posts"] });
+
+      console.log("[AVATAR UPLOAD] Cache invalidation completed");
 
       // Close dialog after successful upload
       setTimeout(() => {

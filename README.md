@@ -2,9 +2,6 @@
 
 Platform media sosial terdesentralisasi dengan AI yang dibangun di atas infrastruktur 0G Chain - dimana pengguna benar-benar memiliki data, AI, dan pengalaman sosial mereka.
 
-## 🚀 Live Production
-- **URL**: https://desocialai.xyz/
-- **Status**: ✅ Aktif dan dipantau 24/7
 
 ## 🌟 Fitur Utama
 

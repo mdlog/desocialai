@@ -183,7 +183,6 @@ function Router() {
             <Route path="/profile" component={SimpleHomePage} />
             <Route path="/messages" component={SimpleHomePage} />
             <Route path="/bookmarks" component={SimpleHomePage} />
-            <Route path="/settings" component={SimpleHomePage} />
             <Route path="/ai-recommendations" component={SimpleHomePage} />
             <Route path="/chat" component={SimpleHomePage} />
             <Route path="/admin" component={SimpleHomePage} />

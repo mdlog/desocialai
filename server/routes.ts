@@ -3004,12 +3004,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/objects/avatar/:objectId", async (req, res) => {
     try {
       const objectId = req.params.objectId;
+      console.log(`[AVATAR SERVE] Requesting avatar: ${objectId}`);
 
       const storageDir = path.join(process.cwd(), 'storage', 'avatars');
-      const fileName = `${objectId}.jpg`;
-      const filePath = path.join(storageDir, fileName);
 
-      if (!fs.existsSync(filePath)) {
+      // Try different filename formats
+      let filePath = null;
+      let fileName = null;
+
+      // Format 1: objectId.jpg (for new uploads)
+      fileName = `${objectId}.jpg`;
+      filePath = path.join(storageDir, fileName);
+      if (fs.existsSync(filePath)) {
+        console.log(`[AVATAR SERVE] Found avatar with format 1: ${fileName}`);
+      } else {
+        // Format 2: avatar_timestamp_randomid.jpg (for existing avatars)
+        fileName = objectId; // objectId already contains the full filename
+        filePath = path.join(storageDir, fileName);
+        if (fs.existsSync(filePath)) {
+          console.log(`[AVATAR SERVE] Found avatar with format 2: ${fileName}`);
+        } else {
+          // Format 3: Look for any file starting with objectId
+          const files = fs.readdirSync(storageDir);
+          const matchingFile = files.find(file => file.startsWith(objectId));
+          if (matchingFile) {
+            fileName = matchingFile;
+            filePath = path.join(storageDir, fileName);
+            console.log(`[AVATAR SERVE] Found avatar with format 3: ${fileName}`);
+          }
+        }
+      }
+
+      if (!filePath || !fs.existsSync(filePath)) {
+        console.log(`[AVATAR SERVE] Avatar not found: ${objectId}`);
         return res.status(404).json({ error: "Avatar not found" });
       }
 
@@ -3020,6 +3047,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Send the file
       const fileBuffer = fs.readFileSync(filePath);
+      console.log(`[AVATAR SERVE] ✅ Served avatar: ${fileName} (${fileBuffer.length} bytes)`);
       res.send(fileBuffer);
 
     } catch (error: any) {
@@ -3242,6 +3270,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log(`[AVATAR UPDATE] Request session:`, req.session.id);
       console.log(`[AVATAR UPDATE] Wallet connection:`, req.session.walletConnection);
+      console.log(`[AVATAR UPDATE] Request body:`, req.body);
 
       const walletConnection = getWalletConnection(req);
 
@@ -3254,6 +3283,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (!req.body.avatarURL) {
+        console.log(`[AVATAR UPDATE] ❌ No avatarURL provided in request body`);
         return res.status(400).json({ error: "avatarURL is required" });
       }
 
@@ -3270,6 +3300,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      console.log(`[AVATAR UPDATE] Found user:`, { id: user.id, currentAvatar: user.avatar });
+
       // Extract object ID from uploadURL and create proper avatar path
       let avatarPath = req.body.avatarURL;
 
@@ -3278,6 +3310,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const urlParts = avatarPath.split('/');
         const objectId = urlParts[urlParts.length - 1];
         avatarPath = `/api/objects/avatar/${objectId}`;
+        console.log(`[AVATAR UPDATE] Extracted objectId: ${objectId}, new avatarPath: ${avatarPath}`);
       }
 
       console.log(`[AVATAR UPDATE] Processing avatar URL from ${req.body.avatarURL} to ${avatarPath}`);
@@ -3290,10 +3323,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`[AVATAR UPDATE] ✅ Avatar updated successfully. User avatar field:`, updatedUser.avatar);
 
-      // Clear any invalid avatar if file doesn't exist
+      // Verify the avatar file exists in storage
       try {
         const objectStorageService = new ObjectStorageService();
         const testFile = await objectStorageService.getObjectEntityFile(avatarPath.replace('/api', ''));
+        console.log(`[AVATAR UPDATE] Avatar file verification result:`, testFile ? 'EXISTS' : 'NOT FOUND');
+
         if (!testFile) {
           console.log(`[AVATAR UPDATE] ⚠️ Avatar file not found in storage, clearing avatar field`);
           await storage.updateUserProfile(user.id, { avatar: null });
@@ -3307,13 +3342,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`[AVATAR UPDATE] Could not verify avatar file existence:`, err);
       }
 
+      // Final verification - fetch user again to confirm update
+      const finalUser = await storage.getUserByWalletAddress(walletConnection.address);
+      console.log(`[AVATAR UPDATE] Final user avatar verification:`, finalUser?.avatar);
+
       res.json({
         success: true,
         avatar: avatarPath,
-        user: updatedUser
+        user: updatedUser,
+        debug: {
+          originalAvatarURL: req.body.avatarURL,
+          processedAvatarPath: avatarPath,
+          finalUserAvatar: finalUser?.avatar
+        }
       });
     } catch (error) {
       console.error("[AVATAR UPDATE] ❌ Avatar update error:", error);
+      res.status(500).json({ error: "Failed to update avatar" });
+    }
+  });
+
+  // Simple endpoint to update avatar manually
+  app.post("/api/admin/update-avatar", async (req, res) => {
+    try {
+      const { userId, avatarPath } = req.body;
+
+      if (!userId || !avatarPath) {
+        return res.status(400).json({ error: "userId and avatarPath required" });
+      }
+
+      console.log(`[ADMIN] Updating avatar for user ${userId} to ${avatarPath}`);
+
+      const updatedUser = await storage.updateUserProfile(userId, {
+        avatar: avatarPath
+      });
+
+      console.log(`[ADMIN] Avatar update successful:`, updatedUser);
+
+      res.json({
+        success: true,
+        user: updatedUser
+      });
+    } catch (error) {
+      console.error("[ADMIN] Avatar update error:", error);
       res.status(500).json({ error: "Failed to update avatar" });
     }
   });
