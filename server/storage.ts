@@ -1867,24 +1867,16 @@ export class DatabaseStorage implements IStorage {
             participant = null;
           }
 
-          // Debug: Check if participant exists in users table
+          // If participant not found, create placeholder
           if (!participant) {
-            console.log(`[Get Conversations] Participant ${otherParticipantId} not found in users table`);
-            // Let's try to find all users to debug
-            try {
-              const allUsers = await db.select({
-                id: users.id,
-                displayName: users.displayName,
-                username: users.username
-              }).from(users).limit(10);
-              console.log(`[Get Conversations] Available users:`, allUsers);
-            } catch (debugError) {
-              console.error(`[Get Conversations] Error fetching all users:`, debugError);
-            }
-
-            // Skip this conversation if participant not found
-            console.log(`[Get Conversations] Skipping conversation ${conv.id} - participant not found`);
-            return null;
+            console.log(`[Get Conversations] Participant ${otherParticipantId} not found, creating placeholder`);
+            participant = {
+              id: otherParticipantId,
+              displayName: `User ${otherParticipantId.substring(0, 8)}`,
+              username: `user_${otherParticipantId.substring(0, 6)}`,
+              avatar: null,
+              isOnline: false
+            };
           }
 
           // Get last message if exists
@@ -1905,15 +1897,9 @@ export class DatabaseStorage implements IStorage {
 
           return {
             id: conv.id,
-            participant: participant || {
-              id: otherParticipantId,
-              displayName: 'Unknown User',
-              username: 'unknown',
-              avatar: null,
-              isOnline: false
-            },
+            participant,
             lastMessage: lastMessage ? {
-              content: '[Encrypted Message]', // Show placeholder for encrypted content
+              content: '[Encrypted Message]',
               timestamp: lastMessage.timestamp,
               senderId: lastMessage.senderId,
               read: lastMessage.read
@@ -1925,8 +1911,7 @@ export class DatabaseStorage implements IStorage {
         })
       );
 
-      // Filter out null conversations (where participant not found)
-      const validConversations = conversationsWithDetails.filter(conv => conv !== null);
+      const validConversations = conversationsWithDetails;
 
       console.log(`[Get Conversations] Returning ${validConversations.length} valid conversations with details`);
       console.log(`[Get Conversations] Conversations data:`, JSON.stringify(validConversations, null, 2));
