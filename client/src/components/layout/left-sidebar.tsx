@@ -1,4 +1,4 @@
-import { Home, Settings, Shield, MessageSquareText, Images, Wallet, User } from "lucide-react";
+import { Home, Shield, MessageSquareText, Images, Wallet, User } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -64,6 +64,8 @@ function LeftSidebarBase() {
       const userData = await res.json();
       console.log("[SIDEBAR] Fetched user data:", userData);
       console.log("[SIDEBAR] Avatar value:", userData?.avatar);
+      console.log("[SIDEBAR] Avatar type:", typeof userData?.avatar);
+      console.log("[SIDEBAR] Avatar is null:", userData?.avatar === null);
       return userData;
     },
   });
@@ -102,7 +104,6 @@ function LeftSidebarBase() {
     { icon: Images, label: "NFT Gallery", href: "/nft-gallery" },
     { icon: Wallet, label: "Wallet", href: "/wallet" },
     { icon: User, label: "Profile", href: "/profile" },
-    { icon: Settings, label: "Settings", href: "/settings" },
   ], [unreadMessageCount]);
 
   // Check if current user is admin - memoized

@@ -1145,8 +1145,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUserProfile(id: string, updates: UpdateUserProfile): Promise<User> {
+    console.log(`[DATABASE] updateUserProfile called for user ${id} with updates:`, updates);
     const [user] = await db.update(users).set(updates).where(eq(users.id, id)).returning();
-    if (!user) throw new Error("User not found");
+    if (!user) {
+      console.log(`[DATABASE] User not found for id: ${id}`);
+      throw new Error("User not found");
+    }
+    console.log(`[DATABASE] updateUserProfile successful, updated user:`, { id: user.id, avatar: user.avatar });
     return user;
   }
 

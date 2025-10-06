@@ -129,7 +129,6 @@ function StableApp() {
                         <a href="/profile" style={{ padding: '0.75rem', background: 'white', borderRadius: '6px', textDecoration: 'none', color: '#374151', border: '1px solid #e5e7eb' }}>👤 Profile</a>
                         <a href="/messages" style={{ padding: '0.75rem', background: 'white', borderRadius: '6px', textDecoration: 'none', color: '#374151', border: '1px solid #e5e7eb' }}>💬 Messages</a>
                         <a href="/bookmarks" style={{ padding: '0.75rem', background: 'white', borderRadius: '6px', textDecoration: 'none', color: '#374151', border: '1px solid #e5e7eb' }}>🔖 Bookmarks</a>
-                        <a href="/settings" style={{ padding: '0.75rem', background: 'white', borderRadius: '6px', textDecoration: 'none', color: '#374151', border: '1px solid #e5e7eb' }}>⚙️ Settings</a>
                         <a href="/ai-recommendations" style={{ padding: '0.75rem', background: 'white', borderRadius: '6px', textDecoration: 'none', color: '#374151', border: '1px solid #e5e7eb' }}>🤖 AI Recommendations</a>
                         <a href="/chat" style={{ padding: '0.75rem', background: 'white', borderRadius: '6px', textDecoration: 'none', color: '#374151', border: '1px solid #e5e7eb' }}>💬 Chat</a>
                         <a href="/admin" style={{ padding: '0.75rem', background: 'white', borderRadius: '6px', textDecoration: 'none', color: '#374151', border: '1px solid #e5e7eb' }}>👨‍💼 Admin</a>

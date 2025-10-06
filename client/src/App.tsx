@@ -8,7 +8,6 @@ import Home from "./pages/home";
 import { ProfilePage } from "./pages/profile";
 import { AIRecommendationsPage } from "./pages/ai-recommendations";
 import { BookmarksPage } from "./pages/bookmarks";
-import { SettingsPage } from "./pages/settings";
 import { NFTGalleryPage } from "./pages/nft-gallery";
 import { WalletPage } from "./pages/wallet";
 import ChatPage from "./pages/chat";
@@ -31,7 +30,6 @@ function Router() {
       <Route path="/profile" component={ProfilePage} />
       <Route path="/ai-recommendations" component={AIRecommendationsPage} />
       <Route path="/bookmarks" component={BookmarksPage} />
-      <Route path="/settings" component={SettingsPage} />
       <Route path="/chat" component={ChatPage} />
       <Route path="/messages" component={MessagesPage} />
       <Route path="/admin" component={AdminPage} />
