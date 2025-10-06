@@ -5,20 +5,50 @@ import session from "express-session";
 import MemoryStore from "memorystore";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { InputSanitizer } from "./security/input-sanitizer";
+import { CSRFProtection } from "./security/csrf-protection";
+import { RateLimiter } from "./security/rate-limiter";
 
 const app = express();
 
+// Security: Rate limiting
+app.use('/api/', RateLimiter.create({ windowMs: 60000, maxRequests: 100 }));
+
 // DEBUG: Capture ALL requests before any processing
 app.use((req, res, next) => {
-  console.log(`[SERVER DEBUG] ${req.method} ${req.url} - Content-Type: ${req.headers['content-type']}`);
+  const sanitizedUrl = InputSanitizer.sanitizeForLog(req.url);
+  const sanitizedMethod = InputSanitizer.sanitizeForLog(req.method);
+  console.log(`[SERVER DEBUG] ${sanitizedMethod} ${sanitizedUrl} - Content-Type: ${req.headers['content-type']}`);
   if (req.method === 'POST' && req.url === '/api/posts') {
-    console.log('[SERVER DEBUG] POST /api/posts DETECTED - Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('[SERVER DEBUG] POST /api/posts DETECTED');
   }
   next();
 });
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// CORS middleware for development
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
+
+// Security: Input sanitization middleware
+app.use((req, res, next) => {
+  if (req.body && typeof req.body === 'object') {
+    req.body = InputSanitizer.sanitizeObject(req.body);
+  }
+  next();
+});
 
 // Memory session store for development
 const MemStore = MemoryStore(session);
@@ -32,12 +62,18 @@ app.use(session({
   resave: false,
   saveUninitialized: true, // Allow uninitialized sessions for wallet connection
   cookie: {
-    secure: false, // Disable secure for development
-    httpOnly: false, // Allow client-side access for debugging
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: 'lax' // Allow cross-origin cookies
+    sameSite: 'strict'
   }
 }));
+
+// Security: CSRF Protection (disabled for now to avoid breaking existing functionality)
+// app.use(CSRFProtection.middleware());
+
+// CSRF token endpoint
+app.get('/api/csrf-token', CSRFProtection.getTokenEndpoint);
 
 app.use((req, res, next) => {
   const start = Date.now();

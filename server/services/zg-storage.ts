@@ -53,22 +53,13 @@ class ZGStorageService {
   private indexer: Indexer | null = null;
 
   constructor() {
-    // 0G Galileo Testnet V3 configuration - Chain ID 16601 dengan private key real
-    this.rpcUrl = process.env.ZG_RPC_URL || 'https://rpc.ankr.com/0g_galileo_testnet_evm';
-    this.indexerRpc = process.env.ZG_INDEXER_RPC || 'https://indexer-storage-testnet-turbo.0g.ai/';
-
-    // Set additional 0G Storage environment variables that SDK might need
-    // Use production endpoints when in production environment
-    const storageEndpoint = process.env.REPLIT_ENVIRONMENT === 'production' || process.env.NODE_ENV === 'production'
-      ? 'http://34.111.179.208:5678'
-      : 'http://34.111.179.208:5678'; // Same for both now since we updated both
-
-    process.env.ZGS_NODE_URL = process.env.ZGS_NODE_URL || storageEndpoint;
-    process.env.ZG_STORAGE_URL = process.env.ZG_STORAGE_URL || storageEndpoint;
-    process.env.ZGS_RPC_URL = process.env.ZGS_RPC_URL || storageEndpoint;
+    // 0G Galileo Testnet configuration following official SDK documentation
+    this.rpcUrl = process.env.ZG_RPC_URL || 'https://evmrpc-testnet.0g.ai/';
+    this.indexerRpc = process.env.ZG_INDEXER_RPC || 'https://indexer-storage-testnet-turbo.0g.ai';
 
     console.log(`[0G Storage] Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`[0G Storage] Using storage endpoint: ${storageEndpoint}`);
+    console.log(`[0G Storage] RPC URL: ${this.rpcUrl}`);
+    console.log(`[0G Storage] Indexer RPC: ${this.indexerRpc}`);
     this.privateKey = process.env.ZG_PRIVATE_KEY || '';
 
     this.initializeClients(); // Initialize async but don't wait
@@ -94,7 +85,7 @@ class ZGStorageService {
   }
 
   /**
-   * Initialize Web3 provider, signer, and indexer based on official starter kit
+   * Initialize Web3 provider, signer, and indexer following official SDK documentation
    */
   private async initializeClients() {
     try {
@@ -104,7 +95,7 @@ class ZGStorageService {
 
       console.log('[0G Storage] ✅ Private key found - initializing REAL 0G Storage connection');
 
-      // Initialize provider and signer
+      // Initialize provider and signer following SDK documentation
       this.provider = new ethers.JsonRpcProvider(this.rpcUrl);
       this.signer = new ethers.Wallet(this.privateKey, this.provider);
 
@@ -117,51 +108,22 @@ class ZGStorageService {
         throw new Error(`RPC connection failed: ${rpcError}`);
       }
 
-      // Initialize indexer with official 0G turbo indexer
+      // Initialize indexer following SDK documentation
       console.log('[0G Storage] Initializing indexer with URL:', this.indexerRpc);
       this.indexer = new Indexer(this.indexerRpc);
 
-      // Test indexer connectivity with proper endpoint
-      try {
-        console.log('[0G Storage] Testing indexer connectivity...');
-        // Try the correct health endpoint
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
-        const testResult = await fetch(`${this.indexerRpc}status`, {
-          method: 'GET',
-          signal: controller.signal,
-          headers: { 'Content-Type': 'application/json' }
-        });
-        clearTimeout(timeoutId);
-
-        if (testResult.ok) {
-          console.log('[0G Storage] ✅ Indexer connection successful');
-        } else {
-          console.warn('[0G Storage] ⚠️ Indexer responded with status:', testResult.status);
-          // Try alternative endpoint
-          const altResult = await fetch(`${this.indexerRpc}health`, { method: 'GET' });
-          if (altResult.ok) {
-            console.log('[0G Storage] ✅ Indexer health endpoint working');
-          }
-        }
-      } catch (indexerError) {
-        console.error('[0G Storage] ❌ Indexer connectivity test failed:', indexerError);
-        console.warn('[0G Storage] ⚠️ Storage uploads may fail due to indexer connectivity issues');
-        console.log('[0G Storage] 🔧 Will attempt uploads anyway - some indexer services don\'t expose health endpoints');
-      }
-
-      console.log('[0G Storage] Galileo Testnet V3 - RPC:', this.rpcUrl);
-      console.log('[0G Storage] Galileo Testnet V3 - Indexer:', this.indexerRpc);
+      console.log('[0G Storage] Galileo Testnet - RPC:', this.rpcUrl);
+      console.log('[0G Storage] Galileo Testnet - Indexer:', this.indexerRpc);
       console.log('[0G Storage] Wallet address:', this.signer.address);
 
       // Test wallet balance
       try {
         const balance = await this.provider.getBalance(this.signer.address);
         const balanceEth = ethers.formatEther(balance);
-        console.log('[0G Storage] Wallet balance:', balanceEth, 'ETH');
+        console.log('[0G Storage] Wallet balance:', balanceEth, '0G');
 
         if (parseFloat(balanceEth) < 0.001) {
-          console.warn('[0G Storage] ⚠️ Low wallet balance - may need more ETH from faucet');
+          console.warn('[0G Storage] ⚠️ Low wallet balance - may need more 0G from faucet');
         }
       } catch (balanceError) {
         console.error('[0G Storage] Failed to check wallet balance:', balanceError);
@@ -197,13 +159,7 @@ class ZGStorageService {
       return {
         success: true,
         hash: hash,
-        transactionHash: `fallback_${timestamp}`,
-        metadata: {
-          ...metadata,
-          fallbackMode: true,
-          localPath: filepath,
-          timestamp: timestamp
-        }
+        transactionHash: `fallback_${timestamp}`
       };
     } catch (error) {
       console.error('[0G Storage] Fallback storage failed:', error);
@@ -211,6 +167,50 @@ class ZGStorageService {
         success: false,
         error: `Development fallback storage failed: ${error}`
       };
+    }
+  }
+
+  /**
+   * Upload file following official SDK documentation pattern
+   */
+  async uploadFile(filePath: string): Promise<{ rootHash?: string; txHash?: string }> {
+    try {
+      await this.ensureInitialized();
+
+      if (!this.indexer || !this.signer) {
+        throw new Error('0G Storage not initialized');
+      }
+
+      // Create file object from file path
+      const file = await ZgFile.fromFilePath(filePath);
+
+      // Generate merkle tree
+      const [tree, treeErr] = await file.merkleTree();
+      if (treeErr || !tree) {
+        throw new Error(`Failed to create merkle tree: ${treeErr}`);
+      }
+
+      // Get root hash
+      const rootHash = tree.rootHash();
+      console.log("File Root Hash:", rootHash);
+
+      // Upload to network
+      const [tx, uploadErr] = await this.indexer.upload(file, this.rpcUrl, this.signer);
+
+      if (uploadErr) {
+        throw new Error(`Upload failed: ${uploadErr}`);
+      }
+
+      console.log("Upload successful! Transaction:", tx);
+      await file.close();
+
+      return {
+        rootHash,
+        txHash: typeof tx === 'string' ? tx : (tx as any)?.txHash
+      };
+    } catch (error) {
+      console.error('[0G Storage] Upload failed:', error);
+      throw error;
     }
   }
 
@@ -251,118 +251,18 @@ class ZGStorageService {
         // Write content to temporary file
         await writeFile(tempFilePath, content);
 
-        console.log(`[0G Storage] Uploading ${metadata.type} content to 0G Storage network...`);
-
-        // Create ZgFile from file path
-        const zgFile = await ZgFile.fromFilePath(tempFilePath);
-        const [tree, treeErr] = await zgFile.merkleTree();
-
-        if (treeErr || !tree) {
-          throw new Error(`Failed to create merkle tree: ${treeErr}`);
-        }
-
-        // Upload file to 0G Storage network with improved timeout handling
-        console.log(`[0G Storage] Starting upload with timeout protection...`);
-        const uploadPromise = this.indexer.upload(zgFile, this.rpcUrl, this.signer);
-
-        // Create timeout promise (60 seconds for better network stability)
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => {
-            reject(new Error('Upload timeout after 60 seconds - 0G network sync delay'));
-          }, 60000);
-        });
-
-        let transactionHash: string | undefined;
-        let uploadErr: any;
-
-        try {
-          [transactionHash, uploadErr] = await Promise.race([uploadPromise, timeoutPromise]);
-        } catch (timeoutError) {
-          // Handle timeout more gracefully - network might still process the upload
-          console.log('[0G Storage] ⚠️ Upload timeout - but transaction may still be processing on network');
-          console.log('[0G Storage] 🔄 Attempting to get root hash for post storage...');
-
-          // Even if timeout, we can still get merkle root for post storage
-          const rootHash = tree.rootHash();
-          if (rootHash) {
-            console.log('[0G Storage] ✅ Got merkle root despite timeout:', rootHash);
-            return {
-              success: true,
-              hash: rootHash,
-              transactionHash: undefined // No tx hash due to timeout, but content is processed
-            };
-          }
-
-          throw timeoutError;
-        }
-
-        if (uploadErr) {
-          // Special handling for "Data already exists" - this means data is on blockchain
-          const errorString = uploadErr.toString();
-          if (errorString.includes('Data already exists')) {
-            console.log('[0G Storage] ⚠️ Data already exists - attempting to retrieve blockchain hash from network');
-
-            // Try to retrieve existing data from 0G Storage to get real blockchain hash
-            try {
-              const rootHash = tree.rootHash();
-              console.log('[0G Storage] ✅ Real Merkle Root Hash from existing data:', rootHash);
-
-              // Instead of generating hash, try to query the network for the real transaction
-              // For now, we'll force a new upload with slight modification to get real hash
-              console.log('[0G Storage] 🔄 Forcing fresh upload to get real blockchain transaction hash...');
-
-              // Add timestamp to make content unique and force new blockchain transaction
-              const uniqueContent = content + `\n<!-- Timestamp: ${Date.now()} -->`;
-
-              // Write unique content to temporary file (ZgFile only supports fromFilePath)
-              const uniqueTempPath = tempFilePath + '_unique';
-              await writeFile(uniqueTempPath, uniqueContent, 'utf-8');
-
-              // Create ZgFile using fromFilePath (not fromBytes)
-              const uniqueZgFile = await ZgFile.fromFilePath(uniqueTempPath);
-
-              // Force upload with unique content to get real blockchain hash
-              const [realTxHash, realUploadErr] = await this.indexer.upload(uniqueZgFile, this.rpcUrl, this.signer);
-
-              if (realUploadErr) {
-                console.error('[0G Storage] ❌ Failed to get real blockchain hash:', realUploadErr);
-                throw new Error(`Failed to obtain real blockchain hash: ${realUploadErr}`);
-              }
-
-              console.log('[0G Storage] ✅ SUCCESS: Got real blockchain transaction hash:', realTxHash);
-              console.log('[0G Storage] ✅ Hash is verifiable on 0G Chain explorer!');
-
-              // Cleanup unique temp file
-              try {
-                await unlink(uniqueTempPath);
-              } catch (err) {
-                console.warn('[0G Storage] Failed to delete unique temp file:', err);
-              }
-
-              return {
-                success: true,
-                hash: rootHash || undefined,
-                transactionHash: realTxHash // REAL blockchain hash, not derived
-              };
-            } catch (retrievalError) {
-              console.error('[0G Storage] ❌ Failed to retrieve real blockchain hash:', retrievalError);
-              throw new Error(`Cannot retrieve real blockchain hash: ${retrievalError}`);
-            }
-          }
-          throw new Error(`0G Storage upload failed: ${uploadErr}`);
-        }
-
-        const rootHash = tree.rootHash();
+        // Use the simplified upload function
+        const result = await this.uploadFile(tempFilePath);
 
         console.log(`[0G Storage] ✅ SUCCESS: Real upload to 0G Storage network completed!`);
-        console.log(`[0G Storage] ✅ Real Merkle Root Hash: ${rootHash}`);
-        console.log(`[0G Storage] ✅ Real Transaction Hash: ${transactionHash}`);
+        console.log(`[0G Storage] ✅ Real Merkle Root Hash: ${result.rootHash}`);
+        console.log(`[0G Storage] ✅ Real Transaction Hash: ${result.txHash}`);
         console.log(`[0G Storage] ✅ Content verifiable on blockchain explorer!`);
 
         return {
           success: true,
-          hash: rootHash || undefined,
-          transactionHash: transactionHash
+          hash: result.rootHash,
+          transactionHash: result.txHash
         };
 
       } finally {
@@ -717,7 +617,7 @@ Your post is saved locally. Please check your connection or try again later.`;
       console.log(`[0G Storage] Uploading to network...`);
 
       // 3) Upload to network using direct indexer.upload method
-      const [tx, uploadErr] = await this.indexer.upload(zgFile, this.rpcUrl, this.signer);
+      const [tx, uploadErr] = await this.indexer.upload(zgFile, this.rpcUrl, this.signer as any);
       if (uploadErr !== null) {
         throw new Error(`Upload error: ${uploadErr}`);
       }
@@ -754,7 +654,7 @@ Your post is saved locally. Please check your connection or try again later.`;
       return {
         success: true,
         hash: rootHash || undefined,
-        transactionHash: tx || undefined
+        transactionHash: typeof tx === 'string' ? tx : (tx as any)?.txHash || undefined
       };
 
     } catch (error) {

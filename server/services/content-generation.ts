@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import { zgComputeService } from './zg-compute-real';
 
 // Initialize OpenAI client for content generation
-const openai = new OpenAI({ 
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "default_key"
 });
 
@@ -35,33 +35,10 @@ class ContentGenerationService {
    */
   async generatePost(request: ContentGenerationRequest): Promise<GeneratedContent> {
     const { content, tone = 'professional', platform = 'general', userId } = request;
-    
-    try {
-      // Try 0G Compute Network first (user preference)
-      const response = await this.tryZGCompute({
-        prompt: this.buildPostPrompt(content || '', tone, platform),
-        maxTokens: 300,
-        temperature: 0.7
-      });
-      
-      if (response.success) {
-        return {
-          success: true,
-          content: response.content,
-          metadata: {
-            confidence: 0.9,
-            tone,
-            suggestions: this.extractSuggestions(response.content)
-          },
-          source: '0G-Compute'
-        };
-      }
-    } catch (error) {
-      console.log('[Content Gen] 0G Compute unavailable, using OpenAI');
-    }
 
-    // Fallback to OpenAI
+    // Try OpenAI first (more reliable)
     try {
+      console.log('[Content Gen] Attempting OpenAI generation...');
       const completion = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
@@ -79,7 +56,7 @@ class ContentGenerationService {
       });
 
       const generatedContent = completion.choices[0].message.content || '';
-      
+
       return {
         success: true,
         content: generatedContent,
@@ -91,9 +68,36 @@ class ContentGenerationService {
         source: 'OpenAI'
       };
     } catch (error) {
-      console.error('[Content Gen] Post generation failed:', error);
-      return this.fallbackPostGeneration(content || '', tone, platform);
+      console.log('[Content Gen] OpenAI failed, trying 0G Compute...', error);
     }
+
+    // Fallback to 0G Compute
+    try {
+      const response = await this.tryZGCompute({
+        prompt: this.buildPostPrompt(content || '', tone, platform),
+        maxTokens: 300,
+        temperature: 0.7
+      });
+
+      if (response.success) {
+        return {
+          success: true,
+          content: response.content,
+          metadata: {
+            confidence: 0.9,
+            tone,
+            suggestions: this.extractSuggestions(response.content)
+          },
+          source: '0G-Compute'
+        };
+      }
+    } catch (error) {
+      console.log('[Content Gen] 0G Compute unavailable, using fallback');
+    }
+
+    // Final fallback to simulation
+    console.log('[Content Gen] Using fallback simulation');
+    return this.fallbackPostGeneration(content || '', tone, platform);
   }
 
   /**
@@ -102,7 +106,7 @@ class ContentGenerationService {
    */
   async generateHashtags(request: ContentGenerationRequest): Promise<GeneratedContent> {
     const { content = '', platform = 'general' } = request;
-    
+
     try {
       // Try 0G Compute Network first
       const response = await this.tryZGCompute({
@@ -110,7 +114,7 @@ class ContentGenerationService {
         maxTokens: 150,
         temperature: 0.5
       });
-      
+
       if (response.success) {
         const hashtags = this.parseHashtags(response.content);
         return {
@@ -147,7 +151,7 @@ class ContentGenerationService {
 
       const hashtagContent = completion.choices[0].message.content || '';
       const hashtags = this.parseHashtags(hashtagContent);
-      
+
       return {
         success: true,
         content: hashtags.join(' '),
@@ -169,7 +173,7 @@ class ContentGenerationService {
    */
   async translateContent(request: ContentGenerationRequest): Promise<GeneratedContent> {
     const { content = '', targetLanguage = 'English' } = request;
-    
+
     try {
       // Try 0G Compute Network first
       const response = await this.tryZGCompute({
@@ -177,7 +181,7 @@ class ContentGenerationService {
         maxTokens: Math.max(content.length * 2, 200),
         temperature: 0.3
       });
-      
+
       if (response.success) {
         return {
           success: true,
@@ -212,7 +216,7 @@ class ContentGenerationService {
       });
 
       const translatedContent = completion.choices[0].message.content || '';
-      
+
       return {
         success: true,
         content: translatedContent,
@@ -234,7 +238,7 @@ class ContentGenerationService {
    */
   async describeImage(request: ContentGenerationRequest): Promise<GeneratedContent> {
     const { imageUrl = '', content = '' } = request;
-    
+
     // For now, use OpenAI Vision API as 0G Compute doesn't have vision capabilities yet
     try {
       const completion = await openai.chat.completions.create({
@@ -265,7 +269,7 @@ class ContentGenerationService {
       });
 
       const description = completion.choices[0].message.content || '';
-      
+
       return {
         success: true,
         content: description,
@@ -336,25 +340,18 @@ Requirements:
   // Helper methods for 0G Compute integration
   private async tryZGCompute(params: { prompt: string; maxTokens: number; temperature: number }): Promise<{ success: boolean; content: string }> {
     try {
-      // Use generateRecommendations with adapted parameters
-      // Convert our prompt into a context format that the 0G service expects
-      const mockContext = [{ content: params.prompt, type: 'content_generation' }];
-      const response = await zgComputeService.generateRecommendations('content-gen-user', mockContext);
-      
-      // Extract content from response
-      if (response && response.length > 0) {
-        const firstResponse = response[0];
-        return {
-          success: true,
-          content: firstResponse.description || firstResponse.title || JSON.stringify(firstResponse)
-        };
-      }
-      
+      // Use the new generateContent method from 0G Compute service
+      const response = await zgComputeService.generateContent(params.prompt, {
+        maxTokens: params.maxTokens,
+        temperature: params.temperature
+      });
+
       return {
-        success: false,
-        content: ''
+        success: response.success,
+        content: response.content
       };
     } catch (error) {
+      console.error('[Content Gen] 0G Compute error:', error);
       return {
         success: false,
         content: ''
@@ -377,15 +374,15 @@ Requirements:
     // Extract hashtags from generated content
     const hashtagRegex = /#[\w\d_]+/g;
     const matches = content.match(hashtagRegex) || [];
-    
+
     // If no hashtags found, generate from content
     if (matches.length === 0) {
-      const words = content.toLowerCase().split(/\s+/).filter(word => 
+      const words = content.toLowerCase().split(/\s+/).filter(word =>
         word.length > 3 && !['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'man', 'new', 'now', 'old', 'see', 'two', 'way', 'who', 'boy', 'did', 'its', 'let', 'put', 'say', 'she', 'too', 'use'].includes(word)
       );
       return words.slice(0, 8).map(word => `#${word}`);
     }
-    
+
     return matches.slice(0, 12);
   }
 
@@ -438,7 +435,7 @@ Requirements:
     };
 
     const hashtags = platformHashtags[platform as keyof typeof platformHashtags] || platformHashtags.general;
-    
+
     return {
       success: true,
       content: hashtags.slice(0, 8).join(' '),

@@ -1,16 +1,18 @@
-import { Home, Compass, Users, Settings, Shield, MessageSquareText, Images, Wallet, User } from "lucide-react";
+import { Home, Settings, Shield, MessageSquareText, Images, Wallet, User } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EditProfileDialog } from "@/components/edit-profile-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { LoadingCard, LoadingSpinner } from "@/components/ui/loading";
+import { Badge } from "@/components/ui/badge";
 import { Link, useLocation } from "wouter";
 import { useMemo, memo } from "react";
 
 function LeftSidebarBase() {
   const [location] = useLocation();
 
-  const { data: currentUser, isError, refetch } = useQuery<{
+  const { data: currentUser, isError, refetch, isLoading: isLoadingUser } = useQuery<{
     id: string;
     displayName: string;
     username: string;
@@ -66,26 +68,46 @@ function LeftSidebarBase() {
     },
   });
 
-  const { data: chainStatus } = useQuery<{ network: string; blockHeight: number; gasPrice: string }>({
+  const { data: chainStatus, isLoading: isLoadingChain } = useQuery<{ network: string; blockHeight: number; gasPrice: string }>({
     queryKey: ["/api/web3/status"],
     refetchInterval: 10000,
+  });
+
+  // Query for unread message count
+  const { data: unreadMessageCount = 0 } = useQuery<number>({
+    queryKey: ['/api/messages/unread-count'],
+    queryFn: async () => {
+      const response = await fetch('/api/messages/unread-count', {
+        credentials: 'include',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      if (!response.ok) {
+        return 0;
+      }
+      const data = await response.json();
+      return data.count || 0;
+    },
+    enabled: !!currentUser,
+    refetchInterval: 5000, // Check every 5 seconds
+    retry: 1,
   });
 
   // Memoize expensive calculations
   const baseNavItems = useMemo(() => [
     { icon: Home, label: "Home", href: "/" },
-    { icon: Compass, label: "Explore", href: "/explore" },
-    { icon: MessageSquareText, label: "Messages", href: "/messages" },
-    { icon: Users, label: "Communities", href: "/communities" },
+    { icon: MessageSquareText, label: "Messages", href: "/messages", unreadCount: unreadMessageCount },
     { icon: Images, label: "NFT Gallery", href: "/nft-gallery" },
     { icon: Wallet, label: "Wallet", href: "/wallet" },
     { icon: User, label: "Profile", href: "/profile" },
     { icon: Settings, label: "Settings", href: "/settings" },
-  ], []);
+  ], [unreadMessageCount]);
 
   // Check if current user is admin - memoized
   const isAdmin = useMemo(() =>
-    currentUser?.walletAddress?.toLowerCase() === "0x4c6165286739696849fb3e77a16b0639d762c5b6",
+    currentUser?.walletAddress?.toLowerCase() === "0x3e4d881819768fab30c5a79f3a9a7e69f0a935a4",
     [currentUser?.walletAddress]
   );
 
@@ -106,7 +128,9 @@ function LeftSidebarBase() {
         <Card className="modern-card">
           <CardContent className="p-6">
             <div className="text-center">
-              {currentUser ? (
+              {isLoadingUser ? (
+                <LoadingCard showAvatar={true} showContent={true} lines={2} />
+              ) : currentUser ? (
                 <>
                   <Avatar className="w-20 h-20 mx-auto mb-4 ring-4 ring-primary ring-opacity-20">
                     <AvatarImage
@@ -204,7 +228,17 @@ function LeftSidebarBase() {
                         }`}
                       data-testid={`nav-${item.href.replace('/', '') || 'home'}`}
                     >
-                      <Icon className="w-5 h-5" />
+                      <div className="relative">
+                        <Icon className="w-5 h-5" />
+                        {item.unreadCount && item.unreadCount > 0 && (
+                          <Badge
+                            variant="destructive"
+                            className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs font-bold"
+                          >
+                            {item.unreadCount > 99 ? '99+' : item.unreadCount}
+                          </Badge>
+                        )}
+                      </div>
                       <span className="font-medium">{item.label}</span>
                     </Button>
                   </Link>
@@ -221,20 +255,37 @@ function LeftSidebarBase() {
               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
               <span>Network Status</span>
             </h4>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between py-2">
-                <span className="text-muted-foreground">Network:</span>
-                <span className="text-foreground font-mono">{chainStatus?.network || "0G Galileo"}</span>
+            {isLoadingChain ? (
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between py-2">
+                  <span className="text-muted-foreground">Network:</span>
+                  <LoadingSpinner size="sm" />
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-muted-foreground">Block:</span>
+                  <LoadingSpinner size="sm" />
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-muted-foreground">Gas:</span>
+                  <LoadingSpinner size="sm" />
+                </div>
               </div>
-              <div className="flex justify-between py-2">
-                <span className="text-muted-foreground">Block:</span>
-                <span className="text-foreground font-mono">{chainStatus?.blockHeight?.toLocaleString() || "5,610,000"}</span>
+            ) : (
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between py-2">
+                  <span className="text-muted-foreground">Network:</span>
+                  <span className="text-foreground font-mono">{chainStatus?.network || "0G Galileo"}</span>
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-muted-foreground">Block:</span>
+                  <span className="text-foreground font-mono">{chainStatus?.blockHeight?.toLocaleString() || "5,610,000"}</span>
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-muted-foreground">Gas:</span>
+                  <span className="text-foreground font-mono">{chainStatus?.gasPrice || "0.1 Gwei"}</span>
+                </div>
               </div>
-              <div className="flex justify-between py-2">
-                <span className="text-muted-foreground">Gas:</span>
-                <span className="text-foreground font-mono">{chainStatus?.gasPrice || "0.1 Gwei"}</span>
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>

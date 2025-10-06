@@ -5,7 +5,7 @@ import { ZGInfrastructureStatus } from "@/components/zg-infrastructure/zg-status
 export function Footer() {
   return (
     <footer className="bg-white dark:bg-og-slate-800 border-t border-og-slate-200 dark:border-og-slate-700 mt-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
           {/* Brand Section */}
           <div className="space-y-4">

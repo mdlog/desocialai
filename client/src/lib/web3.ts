@@ -68,7 +68,7 @@ export class Web3Service {
   async getChainStatus(): Promise<ChainStatus> {
     // 0G-Galileo-Testnet chain status
     return {
-      network: "0G-Galileo-Testnet",
+      network: "Galileo (Testnet)",
       blockHeight: 1847392 + Math.floor(Math.random() * 100),
       gasPrice: "0.1 gwei",
     };

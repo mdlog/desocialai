@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { ImageIcon, Database, Loader2, Wallet, X, Video } from "lucide-react";
@@ -239,6 +240,12 @@ export function CreatePost() {
           console.error('[FRONTEND ERROR] Error type:', typeof apiError);
           console.error('[FRONTEND ERROR] Error message:', apiError.message);
           console.error('[FRONTEND ERROR] Error stack:', apiError.stack);
+
+          // Handle specific network errors
+          if (apiError.message?.includes('fetch') || apiError.message?.includes('NetworkError')) {
+            throw new Error('Network error: Please check your internet connection and try again');
+          }
+
           throw apiError; // Re-throw to be caught by outer catch
         }
 
@@ -254,9 +261,23 @@ export function CreatePost() {
       } catch (error: any) {
         // Reset signing state if signature fails or is cancelled
         setIsSigningMetaMask(false);
+
+        console.error('[FRONTEND ERROR] Post creation failed:', error);
+
         if (error.code === 4001) {
           throw new Error("Signature cancelled by user");
         }
+
+        // Handle network errors specifically
+        if (error.message?.includes('NetworkError') || error.message?.includes('fetch')) {
+          throw new Error('Network error: Unable to connect to server. Please check your internet connection and try again.');
+        }
+
+        // Handle timeout errors
+        if (error.message?.includes('timeout')) {
+          throw new Error('Request timeout: The server took too long to respond. Please try again.');
+        }
+
         throw error;
       }
     },
@@ -269,26 +290,48 @@ export function CreatePost() {
       setIsSigningMetaMask(false);
       setUploadStartTime(null);
 
-      // Invalidate all posts queries with broad matching to refresh the feed
-      queryClient.invalidateQueries({
-        predicate: (query) => {
-          const key = query.queryKey[0];
-          return typeof key === 'string' && key.includes('/api/posts');
-        }
-      });
-
-      // Invalidate user profile to update post count in sidebar
-      queryClient.invalidateQueries({ queryKey: ["/api/users/me"] });
-
-      // Force immediate refetch of the current feed and profile with a slight delay to ensure backend processing
-      setTimeout(() => {
-        queryClient.refetchQueries({
-          predicate: (query) => {
-            const key = query.queryKey[0];
-            return typeof key === 'string' && (key === '/api/posts/feed' || key === '/api/users/me');
+      // Optimistically update the feed cache with the new post
+      if (data.post) {
+        // Update infinite query cache for feed
+        queryClient.setQueryData(
+          ["/api/posts/feed", 10],
+          (oldData: any) => {
+            if (!oldData) {
+              return {
+                pages: [[data.post]],
+                pageParams: [0]
+              };
+            }
+            return {
+              ...oldData,
+              pages: [
+                [data.post, ...oldData.pages[0]], // Add new post to first page
+                ...oldData.pages.slice(1)
+              ]
+            };
           }
-        });
-      }, 100);
+        );
+
+        // Update user profile to increment post count
+        queryClient.setQueryData(
+          ["/api/users/me"],
+          (oldData: any) => {
+            if (!oldData) return oldData;
+            return {
+              ...oldData,
+              statistics: {
+                ...oldData.statistics,
+                actualPostsCount: (oldData.statistics?.actualPostsCount || 0) + 1
+              }
+            };
+          }
+        );
+      }
+
+      // Only invalidate feed queries (not all posts queries)
+      queryClient.invalidateQueries({
+        queryKey: ["/api/posts/feed"]
+      });
 
       // Show success message with 0G Storage information
       if (data.storageStatus === "pending") {
@@ -474,7 +517,17 @@ export function CreatePost() {
         <CardContent className="p-6">
           <form onSubmit={handleSubmit}>
             <div className="flex space-x-4">
-              <div className="w-10 h-10 avatar-gradient-1 rounded-full flex-shrink-0"></div>
+              <Avatar className="w-10 h-10 flex-shrink-0 ring-2 ring-primary/20">
+                <AvatarImage
+                  src={userData?.avatar ? `${window.location.origin}${userData.avatar}` : ""}
+                  alt={userData?.displayName || "User"}
+                  className="object-cover"
+                  loading="lazy"
+                />
+                <AvatarFallback className="gradient-brand text-white font-semibold text-sm">
+                  {(userData?.displayName || "U").slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
               <div className="flex-1">
                 <div className="relative">
                   <Textarea
@@ -655,40 +708,13 @@ export function CreatePost() {
                       <Button
                         type="submit"
                         disabled={isDisabled}
-                        title={
-                          isOverLimit && !isUserVerified
-                            ? `Post exceeds ${CHARACTER_LIMIT} character limit by ${characterCount - CHARACTER_LIMIT} characters`
-                            : !hasContentOrFile
-                              ? "Enter some content to post"
-                              : !isWalletConnected
-                                ? "Connect your wallet to post"
-                                : "Post to 0G Storage"
-                        }
-                        className={`bg-og-primary hover:bg-og-primary/90 text-white font-semibold transition-all ${createPostMutation.isPending ? 'px-4 min-w-[200px]' : 'px-6'
-                          } ${isOverLimit && !isUserVerified ? 'opacity-50 cursor-not-allowed' : ''
-                          }`}
+                        className="bg-og-primary hover:bg-og-primary/90 text-white font-semibold px-6 py-2"
                       >
                         {createPostMutation.isPending ? (
-                          isSigningMetaMask ? (
-                            <div className="flex items-center space-x-2">
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              <span className="text-sm">Waiting for signature...</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center space-x-3 w-full">
-                              <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className="text-xs">Uploading to 0G...</span>
-                                  <span className="text-xs font-mono">{Math.floor(uploadProgress)}%</span>
-                                </div>
-                                <Progress
-                                  value={uploadProgress}
-                                  className="h-2 bg-white/20 [&>div]:bg-white/80"
-                                />
-                              </div>
-                            </div>
-                          )
+                          <div className="flex items-center space-x-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span>Posting...</span>
+                          </div>
                         ) : (
                           "Sign & Post"
                         )}

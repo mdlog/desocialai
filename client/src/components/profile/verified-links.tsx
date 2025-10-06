@@ -6,15 +6,16 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  ExternalLink, 
-  Plus, 
-  Check, 
-  X, 
-  Github, 
-  Twitter, 
-  Globe, 
-  Linkedin, 
+import { VerifiedLinksSkeleton } from "@/components/ui/loading-skeletons";
+import {
+  ExternalLink,
+  Plus,
+  Check,
+  X,
+  Github,
+  Twitter,
+  Globe,
+  Linkedin,
   Instagram,
   Youtube,
   Shield,
@@ -38,13 +39,18 @@ interface VerifiedLinksProps {
     verifiedLinks?: VerifiedLink[];
   };
   isOwner?: boolean;
+  isLoading?: boolean;
 }
 
-export function VerifiedLinks({ user, isOwner = false }: VerifiedLinksProps) {
+export function VerifiedLinks({ user, isOwner = false, isLoading = false }: VerifiedLinksProps) {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newLink, setNewLink] = useState({ platform: '', url: '', username: '' });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  if (isLoading) {
+    return <VerifiedLinksSkeleton />;
+  }
 
   const links = user.verifiedLinks || [];
 
@@ -203,7 +209,7 @@ export function VerifiedLinks({ user, isOwner = false }: VerifiedLinksProps) {
                 <div className="space-y-4">
                   <div>
                     <Label htmlFor="platform">Platform</Label>
-                    <Select value={newLink.platform} onValueChange={(value) => setNewLink({...newLink, platform: value})}>
+                    <Select value={newLink.platform} onValueChange={(value) => setNewLink({ ...newLink, platform: value })}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select platform" />
                       </SelectTrigger>
@@ -225,7 +231,7 @@ export function VerifiedLinks({ user, isOwner = false }: VerifiedLinksProps) {
                       id="url"
                       placeholder={newLink.platform ? platformConfig[newLink.platform as keyof typeof platformConfig]?.placeholder : "https://..."}
                       value={newLink.url}
-                      onChange={(e) => setNewLink({...newLink, url: e.target.value})}
+                      onChange={(e) => setNewLink({ ...newLink, url: e.target.value })}
                     />
                   </div>
                   <div>
@@ -234,7 +240,7 @@ export function VerifiedLinks({ user, isOwner = false }: VerifiedLinksProps) {
                       id="username"
                       placeholder="@username"
                       value={newLink.username}
-                      onChange={(e) => setNewLink({...newLink, username: e.target.value})}
+                      onChange={(e) => setNewLink({ ...newLink, username: e.target.value })}
                     />
                   </div>
                   {newLink.platform && (
@@ -260,7 +266,7 @@ export function VerifiedLinks({ user, isOwner = false }: VerifiedLinksProps) {
               const IconComponent = getPlatformIcon(link.platform);
               const platformColor = getPlatformColor(link.platform);
               const platformName = platformConfig[link.platform as keyof typeof platformConfig]?.name || link.platform;
-              
+
               return (
                 <div
                   key={link.id}
@@ -292,7 +298,7 @@ export function VerifiedLinks({ user, isOwner = false }: VerifiedLinksProps) {
                       </p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
                     {!link.verified && isOwner && (
                       <Button
@@ -325,8 +331,8 @@ export function VerifiedLinks({ user, isOwner = false }: VerifiedLinksProps) {
               {isOwner ? "No verified links yet" : "No verified links"}
             </h3>
             <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-              {isOwner 
-                ? "Add and verify your social profiles and websites to build trust with your audience." 
+              {isOwner
+                ? "Add and verify your social profiles and websites to build trust with your audience."
                 : "This user hasn't added any verified links yet."
               }
             </p>
@@ -347,7 +353,7 @@ export function VerifiedLinks({ user, isOwner = false }: VerifiedLinksProps) {
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor="platform">Platform</Label>
-                      <Select value={newLink.platform} onValueChange={(value) => setNewLink({...newLink, platform: value})}>
+                      <Select value={newLink.platform} onValueChange={(value) => setNewLink({ ...newLink, platform: value })}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select platform" />
                         </SelectTrigger>
@@ -369,7 +375,7 @@ export function VerifiedLinks({ user, isOwner = false }: VerifiedLinksProps) {
                         id="url"
                         placeholder={newLink.platform ? platformConfig[newLink.platform as keyof typeof platformConfig]?.placeholder : "https://..."}
                         value={newLink.url}
-                        onChange={(e) => setNewLink({...newLink, url: e.target.value})}
+                        onChange={(e) => setNewLink({ ...newLink, url: e.target.value })}
                       />
                     </div>
                     <div>
@@ -378,7 +384,7 @@ export function VerifiedLinks({ user, isOwner = false }: VerifiedLinksProps) {
                         id="username"
                         placeholder="@username"
                         value={newLink.username}
-                        onChange={(e) => setNewLink({...newLink, username: e.target.value})}
+                        onChange={(e) => setNewLink({ ...newLink, username: e.target.value })}
                       />
                     </div>
                     {newLink.platform && (

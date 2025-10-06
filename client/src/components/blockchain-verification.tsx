@@ -16,26 +16,17 @@ export function BlockchainVerification({ storageHash, transactionHash, postId }:
 
   const verifyOnChain = async () => {
     if (!storageHash || !transactionHash) return;
-    
-    // Skip verification for placeholder values
-    if (transactionHash === 'existing_on_network') {
-      setVerificationResult({ 
-        verified: true, 
-        message: 'Content verified on 0G Network' 
-      });
-      return;
-    }
-    
+
     setVerifying(true);
     try {
       // Verify storage hash on 0G Storage
       const storageResponse = await fetch(`/api/zg/storage/content/${storageHash}`);
       const storageData = storageResponse.ok ? await storageResponse.json() : null;
-      
+
       // Get transaction details from 0G Chain
       const txResponse = await fetch(`/api/zg/chain/transaction/${transactionHash}`);
       const txData = txResponse.ok ? await txResponse.json() : null;
-      
+
       setVerificationResult({
         storage: storageData,
         transaction: txData,
@@ -50,43 +41,38 @@ export function BlockchainVerification({ storageHash, transactionHash, postId }:
   };
 
   const openChainExplorer = () => {
-    if (transactionHash && transactionHash !== 'existing_on_network') {
+    if (transactionHash) {
       // 0G Galileo Testnet Explorer
       window.open(`https://chainscan-galileo.0g.ai/tx/${transactionHash}`, '_blank');
     }
   };
 
   const getVerificationStatus = () => {
-    // Special handling for existing_on_network placeholder - treat as verified
-    if (transactionHash === 'existing_on_network' && storageHash) {
-      return { icon: Check, text: "Verified on 0G", color: "bg-green-500" };
-    }
-    
     // Check if hash contains other placeholder values
     const hasFakeHash = transactionHash?.includes('_hash') ||
-                       storageHash?.includes('existing') || 
-                       storageHash?.includes('_hash');
-    
+      storageHash?.includes('existing') ||
+      storageHash?.includes('_hash');
+
     // If we have both hashes and they are not fake, consider it verified
-    if (storageHash && transactionHash && !hasFakeHash && transactionHash !== 'existing_on_network') {
+    if (storageHash && transactionHash && !hasFakeHash) {
       return { icon: Check, text: "Verified", color: "bg-green-500" };
     }
-    
+
     // If we have valid storage hash but no transaction hash
     if (storageHash && !hasFakeHash && !transactionHash) {
       return { icon: AlertCircle, text: "Stored", color: "bg-blue-500" };
     }
-    
+
     // If no hashes or fake hashes
     if (!storageHash || !transactionHash || hasFakeHash) {
       return { icon: AlertCircle, text: "Pending", color: "bg-yellow-500" };
     }
-    
+
     // After verification process
     if (verificationResult?.verified) {
       return { icon: Check, text: "Verified", color: "bg-green-500" };
     }
-    
+
     return { icon: Clock, text: "Unverified", color: "bg-gray-500" };
   };
 
@@ -132,8 +118,8 @@ export function BlockchainVerification({ storageHash, transactionHash, postId }:
 
         {storageHash && transactionHash && (
           <div className="flex gap-2">
-            <Button 
-              onClick={verifyOnChain} 
+            <Button
+              onClick={verifyOnChain}
               disabled={verifying}
               variant="outline"
               size="sm"
@@ -141,7 +127,7 @@ export function BlockchainVerification({ storageHash, transactionHash, postId }:
             >
               {verifying ? "Verifying..." : "Verify Content"}
             </Button>
-            <Button 
+            <Button
               onClick={openChainExplorer}
               variant="outline"
               size="sm"

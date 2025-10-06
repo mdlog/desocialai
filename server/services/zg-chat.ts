@@ -41,7 +41,7 @@ export interface ChatResponse {
 // Configuration from environment variables
 const {
   ZG_PRIVATE_KEY,
-  ZG_RPC_URL = "https://rpc.ankr.com/0g_galileo_testnet_evm",
+  ZG_RPC_URL = "https://evmrpc-testnet.0g.ai",
   ZG_PROVIDER_ADDRESS,
   ZG_MIN_BALANCE = "10.0",
   ZG_TOPUP_AMOUNT = "20.0",
@@ -488,156 +488,163 @@ class ZGChatService {
           error: error.message || "Unknown error occurred"
         };
       }
+    } catch (error: any) {
+      console.error('[0G Chat] Outer chat completion failed:', error.message);
+      return {
+        ok: false,
+        error: error.message || "Unknown error occurred"
+      };
     }
+  }
 
   /**
    * Get service status and available providers
    */
-  async getServiceStatus(): Promise < {
-      isConfigured: boolean;
-      hasPrivateKey: boolean;
-      availableProviders: number;
-      balance?: string;
-      error?: string;
-    } > {
-      try {
-        if(!ZG_PRIVATE_KEY) {
-          return {
-            isConfigured: false,
-            hasPrivateKey: false,
-            availableProviders: 0,
-            error: "No private key configured"
-          };
-        }
-
-      if(!this.isInitialized || !this.broker) {
-      await this.initBroker();
-    }
-
-    const broker = this.broker!;
-
-    // Get available services
-    const services = await broker.inference.listService();
-
-    // Get balance
-    let balance = "0";
+  async getServiceStatus(): Promise<{
+    isConfigured: boolean;
+    hasPrivateKey: boolean;
+    availableProviders: number;
+    balance?: string;
+    error?: string;
+  }> {
     try {
-      const acct = await broker.ledger.getLedger();
-      balance = acct.totalBalance.toString();
-    } catch (error) {
-      console.log('[0G Chat] Could not fetch balance:', error);
+      if (!ZG_PRIVATE_KEY) {
+        return {
+          isConfigured: false,
+          hasPrivateKey: false,
+          availableProviders: 0,
+          error: "No private key configured"
+        };
+      }
+
+      if (!this.isInitialized || !this.broker) {
+        await this.initBroker();
+      }
+
+      const broker = this.broker!;
+
+      // Get available services
+      const services = await broker.inference.listService();
+
+      // Get balance
+      let balance = "0";
+      try {
+        const acct = await broker.ledger.getLedger();
+        balance = acct.totalBalance.toString();
+      } catch (error) {
+        console.log('[0G Chat] Could not fetch balance:', error);
+      }
+
+      return {
+        isConfigured: true,
+        hasPrivateKey: true,
+        availableProviders: services.length,
+        balance
+      };
+
+    } catch (error: any) {
+      return {
+        isConfigured: false,
+        hasPrivateKey: Boolean(ZG_PRIVATE_KEY),
+        availableProviders: 0,
+        error: error.message
+      };
     }
-
-    return {
-      isConfigured: true,
-      hasPrivateKey: true,
-      availableProviders: services.length,
-      balance
-    };
-
-  } catch(error: any) {
-    return {
-      isConfigured: false,
-      hasPrivateKey: Boolean(ZG_PRIVATE_KEY),
-      availableProviders: 0,
-      error: error.message
-    };
   }
-}
 
   /**
    * Create ledger account if it doesn't exist
    */
-  async createAccount(): Promise < { success: boolean; txHash?: string; error?: string } > {
-  try {
-    if(!this.isInitialized || !this.broker) {
-  await this.initBroker();
-}
+  async createAccount(): Promise<{ success: boolean; txHash?: string; error?: string }> {
+    try {
+      if (!this.isInitialized || !this.broker) {
+        await this.initBroker();
+      }
 
-const broker = this.broker!;
-if (!this.walletAddress) {
-  throw new Error('Wallet address not set. Please ensure wallet is connected.');
-}
+      const broker = this.broker!;
+      if (!this.walletAddress) {
+        throw new Error('Wallet address not set. Please ensure wallet is connected.');
+      }
 
-console.log(`[0G Chat] Creating ledger account for wallet: ${this.walletAddress}`);
+      console.log(`[0G Chat] Creating ledger account for wallet: ${this.walletAddress}`);
 
-// Create account with initial funding using addLedger
-const tx = await broker.ledger.addLedger(10.0);
+      // Create account with initial funding using addLedger
+      const tx = await broker.ledger.addLedger(10.0);
 
-console.log(`[0G Chat] ✅ Account created with 10.0 OG initial funding`);
+      console.log(`[0G Chat] ✅ Account created with 10.0 OG initial funding`);
 
-return {
-  success: true,
-  txHash: typeof tx === 'object' && tx ? (tx as any).hash || (tx as any).transactionHash : undefined
-};
+      return {
+        success: true,
+        txHash: typeof tx === 'object' && tx ? (tx as any).hash || (tx as any).transactionHash : undefined
+      };
 
     } catch (error: any) {
-  console.error('[0G Chat] Failed to create account:', error.message);
-  return {
-    success: false,
-    error: error.message
-  };
-}
+      console.error('[0G Chat] Failed to create account:', error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
   }
 
   /**
    * Add funds to the compute account
    */
-  async addFunds(amount: string): Promise < { success: boolean; txHash?: string; error?: string } > {
-  try {
-    if(!this.isInitialized || !this.broker) {
-  await this.initBroker();
-}
+  async addFunds(amount: string): Promise<{ success: boolean; txHash?: string; error?: string }> {
+    try {
+      if (!this.isInitialized || !this.broker) {
+        await this.initBroker();
+      }
 
-const broker = this.broker!;
+      const broker = this.broker!;
 
-// Check if account exists first
-try {
-  await broker.ledger.getLedger();
-  console.log('[0G Chat] Account exists, adding funds...');
-} catch (ledgerError: any) {
-  if (ledgerError.message.includes('Account does not exist') || ledgerError.reason === 'LedgerNotExists(address)') {
-    console.log('[0G Chat] Account does not exist, creating account first...');
-    const createResult = await this.createAccount();
-    if (!createResult.success) {
-      return createResult;
-    }
+      // Check if account exists first
+      try {
+        await broker.ledger.getLedger();
+        console.log('[0G Chat] Account exists, adding funds...');
+      } catch (ledgerError: any) {
+        if (ledgerError.message.includes('Account does not exist') || ledgerError.reason === 'LedgerNotExists(address)') {
+          console.log('[0G Chat] Account does not exist, creating account first...');
+          const createResult = await this.createAccount();
+          if (!createResult.success) {
+            return createResult;
+          }
 
-    // If requested amount is more than initial 10.0, add the difference
-    const requestedAmount = parseFloat(amount);
-    if (requestedAmount > 10.0) {
-      const additionalAmount = requestedAmount - 10.0;
-      console.log(`[0G Chat] Adding additional ${additionalAmount} OG...`);
-      const tx = await broker.ledger.addLedger(additionalAmount);
+          // If requested amount is more than initial 10.0, add the difference
+          const requestedAmount = parseFloat(amount);
+          if (requestedAmount > 10.0) {
+            const additionalAmount = requestedAmount - 10.0;
+            console.log(`[0G Chat] Adding additional ${additionalAmount} OG...`);
+            const tx = await broker.ledger.addLedger(additionalAmount);
+            return {
+              success: true,
+              txHash: typeof tx === 'object' && tx ? (tx as any).hash || (tx as any).transactionHash : undefined
+            };
+          }
+
+          return createResult;
+        }
+        throw ledgerError;
+      }
+
+      // Account exists, add funds using depositFund for existing accounts
+      console.log(`[0G Chat] Adding ${amount} OG to existing account...`);
+      const tx = await broker.ledger.depositFund(parseFloat(amount));
+
+      console.log(`[0G Chat] ✅ Added ${amount} OG to compute account`);
+
       return {
         success: true,
         txHash: typeof tx === 'object' && tx ? (tx as any).hash || (tx as any).transactionHash : undefined
       };
-    }
-
-    return createResult;
-  }
-  throw ledgerError;
-}
-
-// Account exists, add funds using depositFund for existing accounts
-console.log(`[0G Chat] Adding ${amount} OG to existing account...`);
-const tx = await broker.ledger.depositFund(parseFloat(amount));
-
-console.log(`[0G Chat] ✅ Added ${amount} OG to compute account`);
-
-return {
-  success: true,
-  txHash: typeof tx === 'object' && tx ? (tx as any).hash || (tx as any).transactionHash : undefined
-};
 
     } catch (error: any) {
-  console.error('[0G Chat] Failed to add funds:', error.message);
-  return {
-    success: false,
-    error: error.message
-  };
-}
+      console.error('[0G Chat] Failed to add funds:', error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
   }
 }
 

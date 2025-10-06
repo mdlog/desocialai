@@ -4,8 +4,8 @@ import { Chain } from 'viem';
 
 // Definisi 0G Chain Galileo Testnet
 export const zgChainGalileoTestnet: Chain = {
-  id: 16601,
-  name: '0G Galileo Testnet',
+  id: 16602,
+  name: 'Galileo (Testnet)',
   nativeCurrency: {
     decimals: 18,
     name: '0G Token',
@@ -13,13 +13,13 @@ export const zgChainGalileoTestnet: Chain = {
   },
   rpcUrls: {
     default: {
-      http: ['https://rpc.ankr.com/0g_galileo_testnet_evm'],
+      http: ['https://evmrpc-testnet.0g.ai'],
     },
   },
   blockExplorers: {
     default: {
       name: '0G Explorer',
-      url: 'https://chainscan-newton.0g.ai',
+      url: 'https://chainscan-galileo.0g.ai',
     },
   },
   testnet: true,

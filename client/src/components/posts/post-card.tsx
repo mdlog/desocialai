@@ -11,6 +11,7 @@ import { BlockchainVerification } from "@/components/blockchain-verification";
 import { useAuth } from "@/hooks/use-auth";
 import { FollowButton } from "@/components/follow/follow-button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLocation } from "wouter";
 import type { PostWithAuthor } from "@shared/schema";
 import { useState, useMemo, memo } from "react";
 
@@ -63,9 +64,8 @@ function ProgressiveImage({ src, alt, className, ...props }: React.ImgHTMLAttrib
           src={src}
           alt={alt}
           loading="lazy"
-          className={`${className} transition-opacity duration-300 ${
-            imageLoading ? 'opacity-0' : 'opacity-100'
-          }`}
+          className={`${className} transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'
+            }`}
           onLoad={() => setImageLoading(false)}
           onError={() => {
             setImageLoading(false);
@@ -95,10 +95,8 @@ function ProgressiveVideo({ src, className, ...props }: React.VideoHTMLAttribute
       {!videoError ? (
         <video
           src={src}
-          loading="lazy"
-          className={`${className} transition-opacity duration-300 ${
-            videoLoading ? 'opacity-0' : 'opacity-100'
-          }`}
+          className={`${className} transition-opacity duration-300 ${videoLoading ? 'opacity-0' : 'opacity-100'
+            }`}
           onLoadedData={() => setVideoLoading(false)}
           onError={() => {
             setVideoLoading(false);
@@ -121,6 +119,7 @@ interface PostCardProps {
 
 function PostCardBase({ post }: PostCardProps) {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuth();
   const [showComments, setShowComments] = useState(false);
@@ -163,7 +162,7 @@ function PostCardBase({ post }: PostCardProps) {
     onError: (error: any) => {
       // Parse error message from API
       let errorMessage = "Could not initiate storage retry";
-      
+
       try {
         const errorData = JSON.parse(error.message);
         if (errorData.error) {
@@ -175,7 +174,7 @@ function PostCardBase({ post }: PostCardProps) {
         // If JSON parsing fails, use the error message directly
         errorMessage = error.message || errorMessage;
       }
-      
+
       toast({
         title: "Retry failed",
         description: errorMessage,
@@ -234,9 +233,9 @@ function PostCardBase({ post }: PostCardProps) {
 
   const commentMutation = useMutation({
     mutationFn: async (content: string) => {
-      await apiRequest("POST", "/api/comments", { 
-        postId: post.id, 
-        content 
+      await apiRequest("POST", "/api/comments", {
+        postId: post.id,
+        content
       });
     },
     onSuccess: () => {
@@ -261,11 +260,24 @@ function PostCardBase({ post }: PostCardProps) {
   const timeAgo = useMemo(() => formatTimeAgo(post.createdAt), [post.createdAt]);
   const avatarClass = useMemo(() => getAvatarClass(post.author?.id || ''), [post.author?.id]);
 
+  // Handle profile navigation
+  const handleProfileClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (post.author?.username) {
+      setLocation(`/profile/${post.author.username}`);
+    }
+  };
+
   return (
     <Card className="modern-card card-hover">
       <CardContent className="p-6">
         <article className="flex space-x-4">
-          <Avatar className="w-12 h-12 flex-shrink-0 ring-2 ring-primary/20">
+          <Avatar
+            className="w-12 h-12 flex-shrink-0 ring-2 ring-primary/20 cursor-pointer hover:ring-primary/40 transition-all hover:scale-105"
+            onClick={handleProfileClick}
+            title={`View ${post.author?.displayName || "Unknown User"}'s profile`}
+          >
             <AvatarImage
               src={post.author?.avatar ? `${window.location.origin}${post.author.avatar}` : ""}
               alt={post.author?.displayName || "User"}
@@ -279,8 +291,20 @@ function PostCardBase({ post }: PostCardProps) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-3 min-w-0 flex-1">
-                <h4 className="font-semibold text-foreground text-base truncate">{post.author?.displayName || "Unknown User"}</h4>
-                <span className="text-muted-foreground text-sm truncate">@{post.author?.username || "unknown"}</span>
+                <h4
+                  className="font-semibold text-foreground text-base truncate cursor-pointer hover:text-primary transition-colors hover:underline"
+                  onClick={handleProfileClick}
+                  title={`View ${post.author?.displayName || "Unknown User"}'s profile`}
+                >
+                  {post.author?.displayName || "Unknown User"}
+                </h4>
+                <span
+                  className="text-muted-foreground text-sm truncate cursor-pointer hover:text-primary transition-colors hover:underline"
+                  onClick={handleProfileClick}
+                  title={`View @${post.author?.username || "unknown"}'s profile`}
+                >
+                  @{post.author?.username || "unknown"}
+                </span>
                 {post.author?.isVerified && (
                   <div className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-medium rounded-full border border-blue-200 dark:border-blue-800">
                     <Shield className="w-3 h-3" />
@@ -297,15 +321,15 @@ function PostCardBase({ post }: PostCardProps) {
               </div>
               {/* Follow Button */}
               {post.author && post.author.id && (
-                <FollowButton 
+                <FollowButton
                   userId={post.author.id}
-                  currentUserId={currentUser?.id}
+                  currentUserId={(currentUser as any)?.id || undefined}
                   size="sm"
                   className="ml-3 shrink-0"
                 />
               )}
             </div>
-            
+
             <p className="text-foreground mb-4 text-base leading-relaxed">
               {post.content}
             </p>
@@ -344,8 +368,8 @@ function PostCardBase({ post }: PostCardProps) {
                   <Database className="w-4 h-4 text-green-600 dark:text-green-400" />
                   <span className="font-medium text-green-700 dark:text-green-300">Stored on 0G Network</span>
                 </div>
-                
-                {/* L1 Transaction Hash - Only show real hashes, not placeholders */}
+
+                {/* L1 Transaction Hash - Only show real hashes */}
                 {post.transactionHash && post.transactionHash !== 'existing_on_network' && (
                   <div className="flex items-center space-x-2 text-xs text-gray-600 dark:text-gray-300 mb-1">
                     <Shield className="w-3 h-3" />
@@ -353,7 +377,7 @@ function PostCardBase({ post }: PostCardProps) {
                     <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded text-xs">
                       {post.transactionHash.slice(0, 8)}...{post.transactionHash.slice(-6)}
                     </code>
-                    <a 
+                    <a
                       href={`https://chainscan-galileo.0g.ai/tx/${post.transactionHash}`}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -365,18 +389,7 @@ function PostCardBase({ post }: PostCardProps) {
                     </a>
                   </div>
                 )}
-                
-                {/* Show existing status when using placeholder */}
-                {post.transactionHash === 'existing_on_network' && (
-                  <div className="flex items-center space-x-2 text-xs text-gray-600 dark:text-gray-300 mb-1">
-                    <Shield className="w-3 h-3" />
-                    <span className="font-mono">Status:</span>
-                    <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded text-xs text-blue-800 dark:text-blue-200">
-                      Data verified on 0G Network
-                    </code>
-                  </div>
-                )}
-                
+
                 {/* Storage Hash */}
                 {post.storageHash && (
                   <div className="flex items-center space-x-2 text-xs text-gray-600 dark:text-gray-300">
@@ -413,11 +426,10 @@ function PostCardBase({ post }: PostCardProps) {
                   size="sm"
                   onClick={() => likeMutation.mutate()}
                   disabled={likeMutation.isPending}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-full elegant-button transition-all ${
-                    post.isLiked 
-                      ? "text-red-500 bg-red-50 hover:bg-red-100" 
-                      : "text-gray-500 dark:text-gray-400 hover:text-red-500 hover:bg-red-50/50"
-                  }`}
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-full elegant-button transition-all ${post.isLiked
+                    ? "text-red-500 bg-red-50 hover:bg-red-100"
+                    : "text-gray-500 dark:text-gray-400 hover:text-red-500 hover:bg-red-50/50"
+                    }`}
                 >
                   <Heart className={`w-4 h-4 ${post.isLiked ? "fill-current" : ""}`} />
                   <span className="text-sm font-medium">{post.likesCount}</span>
@@ -436,11 +448,10 @@ function PostCardBase({ post }: PostCardProps) {
                   size="sm"
                   onClick={() => repostMutation.mutate()}
                   disabled={repostMutation.isPending}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-full elegant-button transition-all ${
-                    post.isReposted 
-                      ? "text-green-500 bg-green-50 hover:bg-green-100" 
-                      : "text-gray-500 dark:text-gray-400 hover:text-green-500 hover:bg-green-50/50"
-                  }`}
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-full elegant-button transition-all ${post.isReposted
+                    ? "text-green-500 bg-green-50 hover:bg-green-100"
+                    : "text-gray-500 dark:text-gray-400 hover:text-green-500 hover:bg-green-50/50"
+                    }`}
                 >
                   <Share className={`w-4 h-4 ${post.isReposted ? "fill-current" : ""}`} />
                   <span className="text-sm font-medium">{post.sharesCount}</span>
@@ -454,7 +465,7 @@ function PostCardBase({ post }: PostCardProps) {
                 >
                   <Bookmark className="w-4 h-4" />
                 </Button>
-                
+
 
               </div>
             </div>

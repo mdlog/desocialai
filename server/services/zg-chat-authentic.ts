@@ -43,7 +43,7 @@ const OFFICIAL_PROVIDERS = {
 };
 
 const ZG_PRIVATE_KEY = process.env.COMBINED_SERVER_PRIVATE_KEY;
-const ZG_RPC_URL = process.env.COMBINED_SERVER_CHAIN_RPC || "https://rpc.ankr.com/0g_galileo_testnet_evm";
+const ZG_RPC_URL = process.env.COMBINED_SERVER_CHAIN_RPC || "https://evmrpc-testnet.0g.ai";
 
 export class ZGChatServiceAuthentic {
   private broker: ZGComputeNetworkBroker | null = null;

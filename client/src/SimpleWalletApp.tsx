@@ -180,10 +180,8 @@ function Router() {
             <Route path="/" component={SimpleHomePage} />
             <Route path="/wallet" component={SimpleWalletPage} />
             <Route path="/nft-gallery" component={SimpleHomePage} />
-            <Route path="/explore" component={SimpleHomePage} />
             <Route path="/profile" component={SimpleHomePage} />
             <Route path="/messages" component={SimpleHomePage} />
-            <Route path="/communities" component={SimpleHomePage} />
             <Route path="/bookmarks" component={SimpleHomePage} />
             <Route path="/settings" component={SimpleHomePage} />
             <Route path="/ai-recommendations" component={SimpleHomePage} />

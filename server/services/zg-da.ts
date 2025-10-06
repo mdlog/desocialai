@@ -49,7 +49,7 @@ class ZGDataAvailabilityService {
   constructor() {
     // Official 0G DA configuration based on docs
     this.daClientEndpoint = process.env.ZG_DA_CLIENT_ENDPOINT || '34.111.179.208:51001'; // gRPC endpoint
-    this.rpcEndpoint = process.env.ZG_RPC_URL || 'https://rpc.ankr.com/0g_galileo_testnet_evm';
+    this.rpcEndpoint = process.env.ZG_RPC_URL || 'https://evmrpc-testnet.0g.ai';
     this.entranceContract = process.env.ZG_DA_ENTRANCE_CONTRACT || '0x857C0A28A8634614BB2C96039Cf4a20AFF709Aa9';
 
     console.log('[0G DA] Initialized with real 0G DA Client integration');
@@ -387,7 +387,7 @@ class ZGDataAvailabilityService {
   private async generateTxHash(type: string, userId: string, targetId: string): Promise<string> {
     try {
       // Get a real transaction hash from the latest block on 0G Chain
-      const rpcUrl = process.env.ZG_RPC_URL || 'https://rpc.ankr.com/0g_galileo_testnet_evm';
+      const rpcUrl = process.env.ZG_RPC_URL || 'https://evmrpc-testnet.0g.ai';
       const response = await fetch(rpcUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -425,7 +425,7 @@ class ZGDataAvailabilityService {
   private async getCurrentBlockHeight(): Promise<number> {
     try {
       // Get real block height from 0G Chain RPC
-      const rpcUrl = process.env.ZG_RPC_URL || 'https://rpc.ankr.com/0g_galileo_testnet_evm';
+      const rpcUrl = process.env.ZG_RPC_URL || 'https://evmrpc-testnet.0g.ai';
       const response = await fetch(rpcUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

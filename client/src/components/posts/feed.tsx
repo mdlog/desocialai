@@ -1,24 +1,32 @@
-import { useState } from "react";
 import { Brain } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { LazyPostCard } from "./lazy-post-card";
 import { useWebSocket } from "@/hooks/use-websocket";
+import { LoadingFeed, RefreshButton } from "@/components/ui/loading";
 import type { PostWithAuthor } from "@shared/schema";
 
 export function Feed() {
-  const [offset, setOffset] = useState(0);
   const limit = 10;
 
   // Initialize WebSocket connection for real-time updates
   useWebSocket();
 
-  const { data: posts, error, refetch } = useQuery<PostWithAuthor[]>({
-    queryKey: ["/api/posts/feed", limit, offset],
-    queryFn: async () => {
-      console.log(`🔄 Fetching feed: limit=${limit}, offset=${offset}`);
-      const response = await fetch(`/api/posts/feed?limit=${limit}&offset=${offset}`, {
+  const {
+    data,
+    error,
+    refetch,
+    isLoading,
+    isFetching,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useInfiniteQuery({
+    queryKey: ["/api/posts/feed", limit],
+    queryFn: async ({ pageParam = 0 }) => {
+      console.log(`🔄 Fetching feed: limit=${limit}, offset=${pageParam}`);
+      const response = await fetch(`/api/posts/feed?limit=${limit}&offset=${pageParam}`, {
         credentials: 'include',
         headers: {
           'Cache-Control': 'no-cache',
@@ -30,27 +38,48 @@ export function Feed() {
       console.log(`✅ Feed fetched: ${data.length} posts`);
       return data;
     },
-    staleTime: 0, // Always consider data stale for immediate refresh
-    gcTime: 0, // Don't cache for immediate updates
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-    // Remove aggressive polling since WebSocket will handle real-time updates
-    refetchInterval: false,
+    getNextPageParam: (lastPage, allPages) => {
+      // If the last page has fewer posts than the limit, we've reached the end
+      return lastPage.length === limit ? allPages.length * limit : undefined;
+    },
+    staleTime: 30000, // Consider data fresh for 30 seconds
+    gcTime: 300000, // Keep data in cache for 5 minutes
+    refetchOnMount: false, // Don't refetch on mount if data is fresh
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnReconnect: true, // Only refetch on reconnect
+    retry: 3, // Retry failed requests
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
   });
 
+  // Flatten all pages into a single array of posts
+  const posts = data?.pages.flat() ?? [];
+
   const loadMore = () => {
-    setOffset(prev => prev + limit);
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
   };
 
   if (error) {
+    console.error('Feed error:', error);
     return (
-      <div className="text-center py-12">
-        <p className="text-og-slate-600 dark:text-og-slate-400">
-          Failed to load posts. Please try again.
+      <div className="text-center py-12 space-y-4">
+        <div className="w-16 h-16 mx-auto mb-4 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
+          <span className="text-red-600 dark:text-red-400 text-2xl">⚠️</span>
+        </div>
+        <h3 className="text-lg font-semibold text-og-slate-900 dark:text-og-slate-100 mb-2">
+          Failed to Load Posts
+        </h3>
+        <p className="text-og-slate-600 dark:text-og-slate-400 mb-4">
+          {error instanceof Error ? error.message : 'An unexpected error occurred'}
         </p>
+        <RefreshButton onRefresh={() => refetch()} />
       </div>
     );
+  }
+
+  if (isLoading) {
+    return <LoadingFeed count={5} />;
   }
 
   return (
@@ -79,14 +108,23 @@ export function Feed() {
             <LazyPostCard key={post.id} post={post} />
           ))}
 
-          <div className="text-center py-6">
+          <div className="text-center py-6 space-y-4">
             <Button
               onClick={loadMore}
               variant="outline"
               className="px-6 py-3 bg-white dark:bg-og-slate-800 border border-og-slate-200 dark:border-og-slate-700 rounded-xl hover:shadow-md transition-all"
+              disabled={!hasNextPage || isFetchingNextPage}
             >
-              Load More Posts
+              {isFetchingNextPage ? "Loading..." : hasNextPage ? "Load More Posts" : "No More Posts"}
             </Button>
+
+            {/* Refresh Button */}
+            <div className="flex justify-center">
+              <RefreshButton
+                refreshing={isFetching}
+                onRefresh={() => refetch()}
+              />
+            </div>
           </div>
         </>
       ) : (

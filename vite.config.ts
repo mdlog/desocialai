@@ -5,20 +5,13 @@ import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 export default defineConfig({
   plugins: [
-    // Use basic React plugin without any HMR features
+    // Use React plugin with minimal configuration to avoid conflicts
     react({
       include: "**/*.{jsx,tsx}",
       fastRefresh: false,
       jsxRuntime: 'automatic',
       jsxImportSource: 'react',
-      // Completely disable React refresh
-      refresh: false,
-      // Disable all HMR features
       exclude: /node_modules/,
-      // Disable React refresh runtime
-      babel: {
-        plugins: [],
-      },
     }),
     runtimeErrorOverlay(),
     ...(process.env.NODE_ENV !== "production" &&
@@ -38,18 +31,13 @@ export default defineConfig({
     },
   },
   root: path.resolve(import.meta.dirname, "client"),
-  build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
-    emptyOutDir: true,
-  },
   server: {
     fs: {
       strict: true,
       deny: ["**/.*"],
     },
-    // Disable HMR completely
+    // Disable HMR to avoid WebSocket connection issues
     hmr: false,
-    // Force full page reload on changes
     watch: {
       usePolling: false,
     },
@@ -63,6 +51,8 @@ export default defineConfig({
     sourcemap: false,
   },
   build: {
+    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    emptyOutDir: true,
     sourcemap: false,
   },
 });

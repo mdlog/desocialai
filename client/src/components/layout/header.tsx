@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Moon, Sun, Search, Wifi, WifiOff } from "lucide-react";
+import { useLocation } from "wouter";
 import { useTheme } from "@/hooks/use-theme";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ export function Header() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
   const { connected: wsConnected } = useWebSocket();
+  const [, setLocation] = useLocation();
 
   const { data: currentUser } = useQuery({
     queryKey: ["/api/users/me"],
@@ -49,14 +51,31 @@ export function Header() {
     }
   }, [showSearchResults]);
 
+  // Navigate to home page
+  const handleLogoClick = () => {
+    setLocation('/');
+  };
+
 
 
   return (
     <header className="sticky top-0 z-50 glass-effect border-b border-border/50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-20">
           {/* Logo and Brand */}
-          <div className="flex items-center space-x-4">
+          <div
+            className="flex items-center space-x-4 cursor-pointer group"
+            onClick={handleLogoClick}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleLogoClick();
+              }
+            }}
+            aria-label="Go to home page"
+          >
             <div className="relative group">
               <div className="w-12 h-12 bg-gradient-to-br from-blue-600 via-purple-600 to-cyan-600 flex items-center justify-center shadow-xl ring-1 ring-white/20 transform transition-all duration-300 hover:scale-105 hover:shadow-2xl" style={{ borderRadius: "18px" }}>
                 <img
@@ -70,10 +89,10 @@ export function Header() {
               <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-purple-600/20 to-cyan-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-lg -z-10" style={{ borderRadius: "18px" }}></div>
             </div>
             <div className="flex flex-col">
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent tracking-tight">
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent tracking-tight group-hover:from-blue-500 group-hover:via-purple-500 group-hover:to-cyan-500 transition-all duration-300">
                 DeSocialAI
               </h1>
-              <span className="text-xs text-muted-foreground font-medium tracking-wider">
+              <span className="text-xs text-muted-foreground font-medium tracking-wider group-hover:text-muted-foreground/80 transition-colors duration-300">
                 Decentralized Social Network
               </span>
             </div>
