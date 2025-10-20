@@ -1,5 +1,5 @@
 import { Home, Shield, MessageSquareText, Images, Wallet, User } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EditProfileDialog } from "@/components/edit-profile-dialog";
@@ -7,10 +7,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LoadingCard, LoadingSpinner } from "@/components/ui/loading";
 import { Badge } from "@/components/ui/badge";
 import { Link, useLocation } from "wouter";
-import { useMemo, memo } from "react";
+import { useMemo, memo, useEffect } from "react";
 
 function LeftSidebarBase() {
   const [location] = useLocation();
+  const queryClient = useQueryClient();
 
   const { data: currentUser, isError, refetch, isLoading: isLoadingUser } = useQuery<{
     id: string;
@@ -36,12 +37,15 @@ function LeftSidebarBase() {
   }>({
     queryKey: ["/api/users/me"],
     retry: false, // Don't retry on 401 errors
-    staleTime: 0, // Always fetch fresh data
-    gcTime: 0, // Don't cache at all
-    refetchInterval: 2000, // Check every 2 seconds for avatar changes
+    staleTime: 5000, // Cache for 5 seconds to reduce requests
+    gcTime: 30000, // Keep in cache for 30 seconds
+    networkMode: 'always', // Always fetch from network
+    refetchInterval: 10000, // Check every 10 seconds (reduced from 2s)
     refetchOnWindowFocus: true,
     refetchOnMount: true,
+    refetchOnReconnect: true,
     queryFn: async () => {
+      console.log("[SIDEBAR] Query function called for key:", ["/api/users/me"]);
       const res = await fetch("/api/users/me", {
         credentials: "include",
         cache: "no-cache", // Prevent browser caching
@@ -66,6 +70,44 @@ function LeftSidebarBase() {
       console.log("[SIDEBAR] Avatar value:", userData?.avatar);
       console.log("[SIDEBAR] Avatar type:", typeof userData?.avatar);
       console.log("[SIDEBAR] Avatar is null:", userData?.avatar === null);
+      console.log("[SIDEBAR] Avatar is empty string:", userData?.avatar === "");
+      console.log("[SIDEBAR] Avatar length:", userData?.avatar?.length);
+
+      // Test avatar URL accessibility
+      if (userData?.avatar) {
+        const avatarUrl = `${userData.avatar}?cache=${userData.id}`;
+        console.log("[SIDEBAR] Full avatar URL:", avatarUrl);
+        console.log("[SIDEBAR] Avatar URL construction:", {
+          base: userData.avatar,
+          cache: userData.id,
+          final: avatarUrl
+        });
+
+        // Test if image loads with detailed error handling
+        const img = new Image();
+        img.onload = () => {
+          console.log("[SIDEBAR] ✅ Avatar image loaded successfully");
+          console.log("[SIDEBAR] Image dimensions:", img.width, "x", img.height);
+        };
+        img.onerror = (e) => {
+          console.log("[SIDEBAR] ❌ Avatar image failed to load");
+          console.log("[SIDEBAR] Error event:", e);
+          console.log("[SIDEBAR] Failed URL:", img.src);
+
+          // Try to fetch the URL directly to see what happens
+          fetch(img.src)
+            .then(response => {
+              console.log("[SIDEBAR] Direct fetch response:", response.status, response.statusText);
+              return response.text();
+            })
+            .then(text => console.log("[SIDEBAR] Response text:", text.substring(0, 200)))
+            .catch(fetchError => console.log("[SIDEBAR] Fetch error:", fetchError));
+        };
+        img.src = avatarUrl;
+      } else {
+        console.log("[SIDEBAR] No avatar data found in userData");
+      }
+
       return userData;
     },
   });
@@ -120,6 +162,21 @@ function LeftSidebarBase() {
     [isAdmin, baseNavItems]
   );
 
+  // Listen for wallet connection events and refetch user data immediately
+  useEffect(() => {
+    const handleWalletConnect = () => {
+      console.log("[SIDEBAR] Wallet connected, refetching user data...");
+      refetch();
+    };
+
+    // Listen for custom wallet connect event
+    window.addEventListener('walletConnected', handleWalletConnect);
+
+    return () => {
+      window.removeEventListener('walletConnected', handleWalletConnect);
+    };
+  }, [refetch]);
+
   // Always show all components, but with different content based on wallet connection
 
   return (
@@ -135,9 +192,22 @@ function LeftSidebarBase() {
                 <>
                   <Avatar className="w-20 h-20 mx-auto mb-4 ring-4 ring-primary ring-opacity-20">
                     <AvatarImage
-                      src={currentUser.avatar ? `${currentUser.avatar}?cache=${currentUser.id}` : ""}
+                      src={currentUser.avatar ? `${currentUser.avatar}?cache=${currentUser.id}&t=${Date.now()}&v=${Math.random()}` : ""}
                       alt={currentUser.displayName}
                       className="object-cover"
+                      onLoad={() => {
+                        console.log("[SIDEBAR] ✅ AvatarImage onLoad triggered");
+                        console.log("[SIDEBAR] AvatarImage src:", currentUser.avatar);
+                      }}
+                      onError={(e) => {
+                        console.log("[SIDEBAR] ❌ AvatarImage onError triggered:", e);
+                        console.log("[SIDEBAR] AvatarImage failed src:", currentUser.avatar);
+                        console.log("[SIDEBAR] AvatarImage error details:", {
+                          type: e.type,
+                          target: e.target,
+                          currentSrc: (e.target as HTMLImageElement)?.currentSrc
+                        });
+                      }}
                     />
                     <AvatarFallback className="gradient-brand text-white font-semibold text-lg">
                       {currentUser.displayName.slice(0, 2).toUpperCase()}

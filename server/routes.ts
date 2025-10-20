@@ -1225,6 +1225,146 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Schedule content for an AI agent
+  app.post("/api/ai/agents/:agentId/schedule", async (req, res) => {
+    try {
+      const user = req.session.user;
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      const { agentId } = req.params;
+      const { content, scheduledTime } = req.body;
+      const { aiAgentService } = await import('./services/ai-agent-service');
+      await aiAgentService.scheduleContent(agentId, content, new Date(scheduledTime));
+      res.json({ success: true });
+    } catch (error) {
+      console.error('[AI Agent] Schedule failed:', error);
+      res.status(500).json({ message: 'Failed to schedule content' });
+    }
+  });
+
+  // Moderation: check content
+  app.post("/api/moderation/check", async (req, res) => {
+    try {
+      const { content, context } = req.body;
+      const { moderationService } = await import('./services/moderation');
+      const result = await moderationService.checkContent(content, context || {});
+      res.json(result);
+    } catch (error) {
+      console.error('[Moderation] Check failed:', error);
+      res.status(500).json({ message: 'Moderation check failed' });
+    }
+  });
+
+  // Moderation: get policy
+  app.get("/api/moderation/policy", async (_req, res) => {
+    try {
+      const { moderationService } = await import('./services/moderation');
+      res.json({ policy: moderationService.getPolicy() });
+    } catch (error) {
+      console.error('[Moderation] Policy failed:', error);
+      res.status(500).json({ message: 'Failed to fetch moderation policy' });
+    }
+  });
+
+  // DAC: Proposals
+  app.post('/api/dac/proposals', async (req, res) => {
+    try {
+      const user = req.session.user;
+      if (!user) return res.status(401).json({ message: 'Unauthorized' });
+      const { dacService } = await import('./services/dac');
+      const proposal = dacService.createProposal(user.id, req.body);
+      res.json(proposal);
+    } catch (e) {
+      console.error('[DAC] Create proposal failed:', e);
+      res.status(500).json({ message: 'Failed to create proposal' });
+    }
+  });
+
+  app.get('/api/dac/proposals', async (_req, res) => {
+    try {
+      const { dacService } = await import('./services/dac');
+      res.json(dacService.listProposals());
+    } catch (e) {
+      console.error('[DAC] List proposals failed:', e);
+      res.status(500).json({ message: 'Failed to list proposals' });
+    }
+  });
+
+  app.post('/api/dac/proposals/:id/vote', async (req, res) => {
+    try {
+      const user = req.session.user;
+      if (!user) return res.status(401).json({ message: 'Unauthorized' });
+      const { id } = req.params;
+      const { dacService } = await import('./services/dac');
+      const updated = dacService.vote(id, req.body);
+      res.json(updated);
+    } catch (e) {
+      console.error('[DAC] Vote failed:', e);
+      res.status(500).json({ message: 'Failed to cast vote' });
+    }
+  });
+
+  app.get('/api/dac/proposals/:id/tally', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { dacService } = await import('./services/dac');
+      res.json(dacService.tally(id));
+    } catch (e) {
+      console.error('[DAC] Tally failed:', e);
+      res.status(500).json({ message: 'Failed to tally votes' });
+    }
+  });
+
+  // DAC: Community token mocks
+  app.post('/api/dac/token/issue', async (req, res) => {
+    try {
+      const user = req.session.user;
+      if (!user) return res.status(401).json({ message: 'Unauthorized' });
+      const { address, amount } = req.body;
+      const { dacService } = await import('./services/dac');
+      res.json(dacService.issueCommunityTokens(address, Number(amount)));
+    } catch (e) {
+      console.error('[DAC] Issue token failed:', e);
+      res.status(500).json({ message: 'Failed to issue tokens' });
+    }
+  });
+
+  app.get('/api/dac/token/balance/:address', async (req, res) => {
+    try {
+      const { address } = req.params;
+      const { dacService } = await import('./services/dac');
+      res.json(dacService.balanceOf(address));
+    } catch (e) {
+      console.error('[DAC] Balance failed:', e);
+      res.status(500).json({ message: 'Failed to fetch balance' });
+    }
+  });
+
+  // DAC: Treasury stubs
+  app.post('/api/dac/treasury/proposals', async (req, res) => {
+    try {
+      const user = req.session.user;
+      if (!user) return res.status(401).json({ message: 'Unauthorized' });
+      const { dacService } = await import('./services/dac');
+      res.json(dacService.createTreasuryProposal(req.body));
+    } catch (e) {
+      console.error('[DAC] Create treasury proposal failed:', e);
+      res.status(500).json({ message: 'Failed to create treasury proposal' });
+    }
+  });
+
+  app.post('/api/dac/treasury/execute/:id', async (req, res) => {
+    try {
+      const user = req.session.user;
+      if (!user) return res.status(401).json({ message: 'Unauthorized' });
+      const { id } = req.params;
+      const { dacService } = await import('./services/dac');
+      res.json(dacService.executeTreasuryProposal(id));
+    } catch (e) {
+      console.error('[DAC] Execute treasury failed:', e);
+      res.status(500).json({ message: 'Failed to execute treasury proposal' });
+    }
+  });
+
   app.get("/api/ai/agents", async (req, res) => {
     try {
       const walletData = req.session.walletConnection;
@@ -1270,21 +1410,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ✍️ AI-assisted post writing
   app.post("/api/ai/content/generate-post", async (req, res) => {
     try {
+      console.log('[Content Gen] Request received:', { body: req.body });
+
       // Validate request body
       const { content, tone, platform } = req.body;
 
       if (!content || typeof content !== 'string' || content.trim().length === 0) {
+        console.log('[Content Gen] Validation failed: Content required');
         return res.status(400).json({ message: "Content is required for post generation" });
       }
 
       if (!tone || !['professional', 'casual', 'enthusiastic', 'technical', 'humorous', 'inspirational'].includes(tone)) {
+        console.log('[Content Gen] Validation failed: Invalid tone:', tone);
         return res.status(400).json({ message: "Valid tone is required" });
       }
 
       if (!platform || !['0g-chain', 'twitter', 'linkedin', 'facebook', 'instagram', 'tech', 'web3', 'general', 'business'].includes(platform)) {
+        console.log('[Content Gen] Validation failed: Invalid platform:', platform);
         return res.status(400).json({ message: "Valid platform is required" });
       }
 
+      console.log('[Content Gen] Validation passed, calling service...');
       const { contentGenerationService } = await import('./services/content-generation');
       const result = await contentGenerationService.generatePost({
         type: 'post',
@@ -1294,7 +1440,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: 'anonymous'
       });
 
-      console.log(`[Content Gen] ✅ Generated post (${result.source})`);
+      console.log(`[Content Gen] ✅ Generated post (${result.source}):`, result.content?.substring(0, 100) + '...');
 
       // Map service result to frontend expected format
       res.json({
@@ -1303,7 +1449,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       console.error('[Content Gen] Post generation failed:', error);
-      res.status(500).json({ message: error.message });
+      console.error('[Content Gen] Error stack:', error.stack);
+      res.status(500).json({ message: error.message || 'Internal server error' });
     }
   });
 
@@ -1866,21 +2013,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Valid amount required" });
       }
 
+      console.log(`[API] Creating 0G Compute account with ${amount} OG...`);
+
       const result = await zgComputeService.addFunds(amount);
 
       if (result.success) {
+        console.log(`[API] ✅ 0G Compute account created successfully`);
         res.json({
           success: true,
-          message: `Berhasil menambahkan ${amount} OG ke akun 0G Compute`,
+          message: result.message || `Successfully added ${amount} OG to 0G Compute account`,
           txHash: result.txHash
         });
       } else {
+        console.log(`[API] ⚠️ Account creation failed:`, result.error);
         res.status(400).json({
-          error: result.error || "Gagal menambahkan dana"
+          error: result.error || "Failed to create 0G Compute account"
         });
       }
     } catch (error: any) {
-      res.status(500).json({ message: "Failed to add compute funds" });
+      console.error('[API] ❌ Exception during account creation:', error);
+      res.status(500).json({
+        error: "Failed to create 0G Compute account",
+        details: error.message
+      });
     }
   });
 
@@ -2665,9 +2820,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       walletConnection.network = network || "Galileo (Testnet)";
       walletConnection.chainId = chainId || "16602";
 
-      // Force session save with promise wrapper
+      // Force session save with promise wrapper and timeout
       const saveSession = () => new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          console.warn('[WALLET CONNECT] Session save timeout, continuing...');
+          resolve(true);
+        }, 2000); // 2 second timeout
+
         req.session.save((err) => {
+          clearTimeout(timeout);
           if (err) {
             console.error('[WALLET CONNECT] Session save error:', err);
             reject(err);

@@ -11,8 +11,14 @@ import { RateLimiter } from "./security/rate-limiter";
 
 const app = express();
 
-// Security: Rate limiting
-app.use('/api/', RateLimiter.create({ windowMs: 60000, maxRequests: 100 }));
+// Security: Rate limiting (excluding avatar endpoints)
+app.use('/api/', (req, res, next) => {
+  // Skip rate limiting for avatar serving
+  if (req.path.startsWith('/api/objects/avatar/')) {
+    return next();
+  }
+  return RateLimiter.create({ windowMs: 60000, maxRequests: 100 })(req, res, next);
+});
 
 // DEBUG: Capture ALL requests before any processing
 app.use((req, res, next) => {
@@ -136,10 +142,10 @@ app.use((req, res, next) => {
     }
 
     // ALWAYS serve the app on the port specified in the environment variable PORT
-    // Other ports are firewalled. Default to 5000 if not specified.
+    // Other ports are firewalled. Default to 3005 if not specified.
     // this serves both the API and the client.
     // It is the only port that is not firewalled.
-    const port = parseInt(process.env.PORT || '5000', 10);
+    const port = parseInt(process.env.PORT || '3005', 10);
 
     // Use the server returned by registerRoutes which includes WebSocket support
     server.listen(port, "0.0.0.0", () => {

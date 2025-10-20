@@ -551,52 +551,97 @@ Requirements:
   }
 
   // Method to add funds to 0G Compute account
-  async addFunds(amount: string): Promise<{ success: boolean; error?: string; txHash?: string }> {
+  async addFunds(amount: string): Promise<{ success: boolean; error?: string; txHash?: string; message?: string }> {
     if (!this.isConfigured || !this.broker) {
-      return { success: false, error: 'Broker tidak terkonfigurasi. Set environment variable ZG_PRIVATE_KEY.' };
+      return {
+        success: false,
+        error: 'Broker not configured. Please set ZG_PRIVATE_KEY environment variable.'
+      };
     }
 
     try {
-      // Validasi amount
+      // Validate amount
       const amountFloat = parseFloat(amount);
       if (isNaN(amountFloat) || amountFloat <= 0) {
-        return { success: false, error: 'Jumlah harus berupa angka positif' };
+        return { success: false, error: 'Amount must be a positive number' };
       }
 
-      // Minimal 0.1 OG untuk membuat akun
+      // Minimum 0.1 OG to create account
       if (amountFloat < 0.1) {
-        return { success: false, error: 'Minimal 0.1 OG diperlukan untuk membuat akun 0G Compute' };
+        return { success: false, error: 'Minimum 0.1 OG required to create 0G Compute account' };
       }
 
-      console.log(`[0G Compute] Menambahkan ${amount} OG ke akun compute...`);
+      console.log(`[0G Compute] Adding ${amount} OG to compute account...`);
 
-      // Add funds to ledger account (ini akan membuat akun baru jika belum ada)
-      // Due to known SDK formatting issue, provide manual setup instructions
-      console.log(`[0G Compute] ⚠️ SDK memiliki issue formatting internal - menyediakan instruksi manual`);
+      // Try to add funds using broker.ledger.addLedger
+      try {
+        console.log('[0G Compute] Calling broker.ledger.addLedger...');
+        const tx = await this.broker.ledger.addLedger(amount);
+        console.log(`[0G Compute] ✅ Account created successfully! Transaction:`, tx);
 
-      // Return informative message dengan instruksi setup manual
-      return {
-        success: false,
-        error: `Setup Manual Diperlukan:
+        return {
+          success: true,
+          message: `Successfully added ${amount} OG to 0G Compute account`,
+          txHash: typeof tx === 'string' ? tx : (tx as any)?.hash || 'pending'
+        };
+      } catch (ledgerError: any) {
+        console.error('[0G Compute] Ledger error:', ledgerError);
+        console.error('[0G Compute] Error details:', {
+          message: ledgerError.message,
+          code: ledgerError.code,
+          stack: ledgerError.stack?.split('\n')[0]
+        });
 
-1. Buka terminal/command prompt
-2. Pastikan ZG_PRIVATE_KEY sudah di-set di environment
-3. Jalankan perintah berikut untuk membuat akun 0G Compute:
+        // If account already exists, that's actually success
+        if (ledgerError.message && (
+          ledgerError.message.includes('account already exists') ||
+          ledgerError.message.includes('already exist')
+        )) {
+          console.log('[0G Compute] ✅ Account already exists - this is OK!');
+          return {
+            success: true,
+            message: `0G Compute account already exists and is ready to use`
+          };
+        }
 
-Untuk Windows:
-curl -X POST -H "Content-Type: application/json" -d "{\\"action\\":\\"add_account\\",\\"amount\\":\\"${amount}\\"}" http://localhost:8080/ledger
+        // Check for specific SDK errors
+        if (ledgerError.message && (
+          ledgerError.message.includes('could not decode') ||
+          ledgerError.message.includes('execution reverted') ||
+          ledgerError.message.includes('invalid BigNumber')
+        )) {
+          console.log('[0G Compute] ⚠️ SDK formatting issue detected');
+          return {
+            success: false,
+            error: `0G Compute SDK encountered a formatting issue. This is a known limitation.
 
-Untuk Mac/Linux:  
-curl -X POST -H 'Content-Type: application/json' -d '{"action":"add_account","amount":"${amount}"}' http://localhost:8080/ledger
+WORKAROUND: You can still use all AI features in simulation mode.
 
-4. Setelah berhasil, refresh halaman ini
+The AI Feed will work perfectly without account creation. Simply click "Deploy AI Feed" to continue.
 
-Alternatif: Akun akan otomatis dibuat saat 0G Compute mainnet diluncurkan (Q2-Q3 2025). Saat ini sistem menggunakan mode simulasi untuk pengembangan.`
-      };
+Technical details: ${ledgerError.message}`
+          };
+        }
+
+        // For other errors, provide helpful message
+        throw ledgerError;
+      }
 
     } catch (error: any) {
-      console.error('[0G Compute] Gagal menambahkan dana:', error.message);
-      return { success: false, error: error.message };
+      console.error('[0G Compute] Failed to add funds:', error.message);
+
+      // Provide user-friendly error message
+      return {
+        success: false,
+        error: `Failed to create 0G Compute account: ${error.message}. 
+
+Note: Account creation on 0G Compute Network requires:
+1. Valid private key with sufficient balance
+2. Connection to 0G Galileo Testnet
+3. Network availability
+
+You can still use the AI features - they will work in simulation mode until the account is created.`
+      };
     }
   }
 }

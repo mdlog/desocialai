@@ -10,13 +10,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { 
-  PenTool, 
-  Hash, 
-  Globe, 
-  ImageIcon, 
-  Loader2, 
-  Copy, 
+import {
+  PenTool,
+  Hash,
+  Globe,
+  ImageIcon,
+  Loader2,
+  Copy,
   Plus,
   Sparkles,
   Bot,
@@ -67,9 +67,24 @@ export function ContentGenerationAI({ onContentGenerated, currentContent, select
       }
     },
     onError: (error: any) => {
+      console.error('[AI Content Gen] Error:', error);
+
+      let errorMessage = "Please try again";
+      if (error.message?.includes("Content is required")) {
+        errorMessage = "Please enter some content or ideas for the post";
+      } else if (error.message?.includes("Valid tone is required")) {
+        errorMessage = "Please select a valid tone";
+      } else if (error.message?.includes("Valid platform is required")) {
+        errorMessage = "Please select a valid platform";
+      } else if (error.message?.includes("OpenAI") || error.message?.includes("API key")) {
+        errorMessage = "AI service temporarily unavailable. Using fallback mode.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       toast({
         title: "Failed to generate post",
-        description: error.message || "Please try again",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -271,7 +286,7 @@ export function ContentGenerationAI({ onContentGenerated, currentContent, select
                   data-testid="input-post-prompt"
                 />
               </div>
-              
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-sm font-medium">Tone</label>
@@ -289,7 +304,7 @@ export function ContentGenerationAI({ onContentGenerated, currentContent, select
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div>
                   <label className="text-sm font-medium">Platform</label>
                   <Select value={postPlatform} onValueChange={setPostPlatform}>
@@ -306,7 +321,7 @@ export function ContentGenerationAI({ onContentGenerated, currentContent, select
                   </Select>
                 </div>
               </div>
-              
+
               <Button
                 onClick={handleGeneratePost}
                 disabled={generatePostMutation.isPending || !postPrompt.trim()}
@@ -347,7 +362,7 @@ export function ContentGenerationAI({ onContentGenerated, currentContent, select
                   </p>
                 )}
               </div>
-              
+
               <div>
                 <label className="text-sm font-medium">Platform</label>
                 <Select value={hashtagPlatform} onValueChange={setHashtagPlatform}>
@@ -362,7 +377,7 @@ export function ContentGenerationAI({ onContentGenerated, currentContent, select
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <Button
                 onClick={handleGenerateHashtags}
                 disabled={generateHashtagsMutation.isPending || (!hashtagContent.trim() && !currentContent.trim())}
@@ -381,7 +396,7 @@ export function ContentGenerationAI({ onContentGenerated, currentContent, select
                   </>
                 )}
               </Button>
-              
+
               {/* Display generated hashtags */}
               {generatedHashtags.length > 0 && (
                 <div className="space-y-2">
@@ -428,7 +443,7 @@ export function ContentGenerationAI({ onContentGenerated, currentContent, select
                   </p>
                 )}
               </div>
-              
+
               <div>
                 <label className="text-sm font-medium">Target language</label>
                 <Select value={targetLanguage} onValueChange={setTargetLanguage}>
@@ -452,7 +467,7 @@ export function ContentGenerationAI({ onContentGenerated, currentContent, select
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <Button
                 onClick={handleTranslate}
                 disabled={translateMutation.isPending || (!translateText.trim() && !currentContent.trim())}
@@ -487,7 +502,7 @@ export function ContentGenerationAI({ onContentGenerated, currentContent, select
                   data-testid="input-image-url"
                 />
               </div>
-              
+
               <div>
                 <label className="text-sm font-medium">Additional context (optional)</label>
                 <Textarea
@@ -499,7 +514,7 @@ export function ContentGenerationAI({ onContentGenerated, currentContent, select
                   data-testid="input-image-context"
                 />
               </div>
-              
+
               <Button
                 onClick={handleDescribeImage}
                 disabled={describeImageMutation.isPending || !imageUrl.trim()}
@@ -518,7 +533,7 @@ export function ContentGenerationAI({ onContentGenerated, currentContent, select
                   </>
                 )}
               </Button>
-              
+
               <div className="text-xs text-og-slate-500 bg-og-slate-50 dark:bg-og-slate-800 p-3 rounded-lg">
                 <strong>Accessibility feature:</strong> This generates descriptive text for images to help users with visual impairments understand your content.
               </div>

@@ -1880,7 +1880,7 @@ export class DatabaseStorage implements IStorage {
               displayName: `User ${otherParticipantId.substring(0, 8)}`,
               username: `user_${otherParticipantId.substring(0, 6)}`,
               avatar: null,
-              isOnline: false
+            isOnline: false
             };
           }
 
