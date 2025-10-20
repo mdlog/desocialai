@@ -170,6 +170,7 @@ export function EditProfileDialog({ user, trigger }: EditProfileDialogProps) {
 
       // Force complete cache refresh to ensure avatar shows immediately
       console.log("[AVATAR UPLOAD] Invalidating user cache...");
+
       await queryClient.invalidateQueries({ queryKey: ["/api/users/me"] });
       await queryClient.refetchQueries({ queryKey: ["/api/users/me"] });
 

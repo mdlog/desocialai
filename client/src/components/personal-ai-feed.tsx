@@ -12,7 +12,7 @@ export function PersonalAIFeed() {
   const [fundAmount, setFundAmount] = useState("0.1");
 
   // Query AI feed status
-  const { data: feedStatus } = useQuery<{deployed: boolean; status: string; instanceId?: string; mode?: string}>({
+  const { data: feedStatus } = useQuery<{ deployed: boolean; status: string; instanceId?: string; mode?: string }>({
     queryKey: ["/api/ai/feed/status"],
     refetchInterval: 30000, // Check status every 30 seconds
   });
@@ -67,14 +67,14 @@ export function PersonalAIFeed() {
     onSuccess: (data) => {
       toast({
         title: "AI Feed Deployed",
-        description: data.mode === 'simulation' 
+        description: data.mode === 'simulation'
           ? "Personal AI deployed in simulation mode using OpenAI GPT-4o"
           : "Your personal AI feed is now running on authentic 0G Compute Network",
       });
       // Force refetch of both status and recommendations
       queryClient.invalidateQueries({ queryKey: ["/api/ai/feed/status"] });
       queryClient.invalidateQueries({ queryKey: ["/api/ai/feed/recommendations"] });
-      
+
       // Also force immediate refetch
       setTimeout(() => {
         queryClient.refetchQueries({ queryKey: ["/api/ai/feed/status"] });
@@ -102,42 +102,69 @@ export function PersonalAIFeed() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to add funds');
+        throw new Error(errorData.error || 'Failed to create 0G Compute account');
       }
 
       return response.json();
     },
     onSuccess: (data) => {
       toast({
-        title: "0G Compute Account Successfully Created",
-        description: `${data.message}. You can now use authentic 0G Compute services!`,
+        title: "✅ 0G Compute Account Created!",
+        description: data.message || "Your account is now ready. You can use authentic 0G Compute services!",
       });
-      
+
       // Reset fund amount
       setFundAmount("0.1");
-      
-      // Refresh compute status
+
+      // Refresh all relevant queries
       queryClient.invalidateQueries({ queryKey: ["/api/zg/compute/status"] });
       queryClient.invalidateQueries({ queryKey: ["/api/zg/compute/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/ai/feed/status"] });
+
+      // Force immediate refetch after 1 second
+      setTimeout(() => {
+        queryClient.refetchQueries({ queryKey: ["/api/zg/compute/status"] });
+        queryClient.refetchQueries({ queryKey: ["/api/zg/compute/stats"] });
+      }, 1000);
     },
     onError: (error: Error) => {
-      // Handle setup manual instructions
-      if (error.message.includes('Manual Setup Required')) {
+      console.error('[Personal AI Feed] Account creation error:', error);
+
+      // Check if it's a network/connection error
+      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
         toast({
-          title: "Manual 0G Compute Setup",
-          description: "See complete instructions in browser console (F12) or use simulation mode.",
-          variant: "default",
-        });
-        console.log("=== 0G COMPUTE SETUP INSTRUCTIONS ===");
-        console.log(error.message);
-      } else {
-        toast({
-          title: "Failed to Add Funds",
-          description: error.message,
+          title: "⚠️ Network Error",
+          description: "Cannot connect to server. Please check your connection and try again.",
           variant: "destructive",
         });
+        return;
       }
+
+      // Check if account already exists (this is actually OK)
+      if (error.message.includes('already exists')) {
+        toast({
+          title: "✅ Account Already Exists",
+          description: "Your 0G Compute account is already set up and ready to use!",
+        });
+
+        // Refresh status
+        queryClient.invalidateQueries({ queryKey: ["/api/zg/compute/status"] });
+        return;
+      }
+
+      // For other errors, show detailed message
+      toast({
+        title: "⚠️ Account Creation Issue",
+        description: error.message.length > 200
+          ? "Account creation encountered an issue. You can still use AI features in simulation mode."
+          : error.message,
+        variant: "default",
+      });
+
+      // Log full error for debugging
+      console.log("=== 0G COMPUTE ACCOUNT CREATION ERROR ===");
+      console.log(error.message);
+      console.log("Note: AI features will work in simulation mode until account is created.");
     },
   });
 
@@ -184,7 +211,7 @@ export function PersonalAIFeed() {
                     </span>
                   )}
                 </div>
-                
+
                 {/* Setup 0G Compute Account if needed */}
                 {computeStatus?.mode === 'real' && computeStatus?.connection === false && (
                   <div className="mt-3 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
@@ -195,7 +222,7 @@ export function PersonalAIFeed() {
                     <p className="text-xs text-orange-700 dark:text-orange-300 mb-3">
                       0G Compute account not created yet. Add funds to use authentic services.
                     </p>
-                    
+
                     <div className="flex items-center space-x-2">
                       <Input
                         type="number"
@@ -242,7 +269,7 @@ export function PersonalAIFeed() {
                     <span className="text-xs text-green-400 font-mono">AUTHENTIC</span>
                   )}
                 </div>
-                
+
                 {recommendations.slice(0, 3).map((rec) => (
                   <div key={rec.id} className="flex items-start space-x-3 p-3 cyber-glass dark:cyber-glass-dark rounded-lg hover:bg-cyan-400/10 transition-colors cursor-pointer">
                     <div className="flex-shrink-0">
@@ -270,18 +297,18 @@ export function PersonalAIFeed() {
                 <Users className="w-8 h-8 text-purple-600 dark:text-purple-400" />
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <p className="text-sm text-gray-900 dark:text-gray-100 font-medium">
                 Personal AI Feed Available
               </p>
               <p className="text-xs text-gray-600 dark:text-gray-400">
-                {computeStatus?.mode === 'real' 
+                {computeStatus?.mode === 'real'
                   ? 'Deploy using authentic 0G Compute Network'
                   : 'Deploy in simulation mode (awaiting 0G Compute mainnet)'
                 }
               </p>
-              
+
               {/* Status indicators */}
               <div className="flex items-center justify-center space-x-2 mt-3">
                 {computeStatus?.hasPrivateKey ? (
@@ -295,7 +322,7 @@ export function PersonalAIFeed() {
                     <span>SDK READY</span>
                   </span>
                 )}
-                
+
                 {computeStatus?.mode === 'real' && computeStatus?.connection && (
                   <span className="inline-flex items-center space-x-1 text-xs bg-blue-900/30 text-blue-400 px-2 py-1 rounded-full border border-blue-500/40">
                     <Activity className="w-3 h-3" />
@@ -303,7 +330,7 @@ export function PersonalAIFeed() {
                   </span>
                 )}
               </div>
-              
+
               {/* Setup 0G Compute Account if needed */}
               {computeStatus?.mode === 'real' && !computeStatus?.connection && (
                 <div className="mt-4 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
@@ -312,13 +339,13 @@ export function PersonalAIFeed() {
                     <p className="text-xs font-medium text-orange-800 dark:text-orange-200">Setup 0G Compute Account</p>
                   </div>
                   <p className="text-xs text-orange-700 dark:text-orange-300 mb-3">
-                    To use authentic 0G Compute, add funds to your account (minimum 0.1 OG). 
+                    To use authentic 0G Compute, add funds to your account (minimum 0.1 OG).
                     This process will create a new account on the 0G blockchain.
                   </p>
                   <p className="text-xs text-orange-600 dark:text-orange-400 mb-3">
                     💡 Tip: If the setup button doesn't work, see manual instructions in browser console (F12).
                   </p>
-                  
+
                   <div className="flex items-center space-x-2">
                     <Input
                       type="number"
@@ -374,7 +401,7 @@ export function PersonalAIFeed() {
                   <p className="text-gray-600 dark:text-gray-400">AI learns your preferences</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center space-x-3 p-3 bg-gradient-to-r from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
                 <Bot className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0" />
                 <div className="text-xs">
@@ -386,7 +413,7 @@ export function PersonalAIFeed() {
                   </p>
                 </div>
               </div>
-              
+
               <div className="flex items-center space-x-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg border border-green-200 dark:border-green-800">
                 <Users className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
                 <div className="text-xs">

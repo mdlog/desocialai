@@ -13,10 +13,10 @@ export function RainbowKitWallet() {
 
   // Mutation untuk sync wallet connection dengan backend
   const syncWalletConnection = useMutation({
-    mutationFn: async (connectionData: { 
-      address: string; 
-      chainId: number; 
-      network: string; 
+    mutationFn: async (connectionData: {
+      address: string;
+      chainId: number;
+      network: string;
     }) => {
       const response = await fetch('/api/web3/connect', {
         method: 'POST',
@@ -32,7 +32,10 @@ export function RainbowKitWallet() {
       queryClient.invalidateQueries({ queryKey: ['/api/web3/wallet'] });
       queryClient.invalidateQueries({ queryKey: ['/api/users/me'] });
       queryClient.invalidateQueries({ queryKey: ['/api/web3/status'] });
-      
+
+      // Dispatch custom event to trigger immediate sidebar refetch
+      window.dispatchEvent(new CustomEvent('walletConnected'));
+
       toast({
         title: "Wallet Connected",
         description: "Successfully connected to 0G Chain Galileo testnet",
@@ -61,7 +64,7 @@ export function RainbowKitWallet() {
       queryClient.invalidateQueries({ queryKey: ['/api/web3/wallet'] });
       queryClient.invalidateQueries({ queryKey: ['/api/users/me'] });
       queryClient.invalidateQueries({ queryKey: ['/api/web3/status'] });
-      
+
       toast({
         title: "Wallet Disconnected",
         description: "Successfully disconnected from DeSocialAI",
@@ -73,7 +76,7 @@ export function RainbowKitWallet() {
   useEffect(() => {
     if (isConnected && address && chain) {
       console.log('🔗 RainbowKit wallet connected:', { address, chainId: chain.id, network: chain.name });
-      
+
       // Sync dengan backend
       syncWalletConnection.mutate({
         address,
@@ -82,7 +85,7 @@ export function RainbowKitWallet() {
       });
     } else if (!isConnected) {
       console.log('🔌 RainbowKit wallet disconnected');
-      
+
       // Sync disconnection dengan backend
       syncWalletDisconnection.mutate();
     }
@@ -160,7 +163,7 @@ export function RainbowKitWallet() {
                       {chain.name}
                     </span>
                   </div>
-                  
+
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={openAccountModal}
@@ -169,7 +172,7 @@ export function RainbowKitWallet() {
                     >
                       Profile
                     </button>
-                    
+
                     <button
                       onClick={() => {
                         disconnect();

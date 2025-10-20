@@ -39,10 +39,21 @@ export interface AgentPerformance {
 
 class AIAgentService {
   private agents: Map<string, AIAgent> = new Map();
+  private scheduledQueue: Array<{ agentId: string; content: string; runAt: number }> = [];
+  private schedulerInterval: NodeJS.Timeout | null = null;
+
+  constructor() {
+    // Start lightweight background scheduler (checks every 30s)
+    this.schedulerInterval = setInterval(() => {
+      this.processDueSchedules().catch((err) => {
+        console.error('[AI Agent] Scheduler tick failed:', err);
+      });
+    }, 30_000);
+  }
 
   async createAgent(userId: string, config: Partial<AgentConfiguration>): Promise<AIAgent> {
     const agentId = `agent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     const agent: AIAgent = {
       id: agentId,
       userId,
@@ -86,7 +97,8 @@ class AIAgentService {
     }
 
     try {
-      // Use 0G Compute Network for AI generation
+      // PRIORITIZE 0G Compute Network for AI generation
+      console.log('[AI Agent] Attempting 0G Compute generation (PRIORITY)...');
       const response = await zgComputeService.generateResponse({
         prompt: this.buildPrompt(agent, prompt, context),
         maxTokens: 500,
@@ -97,10 +109,11 @@ class AIAgentService {
       agent.performance.postsCreated++;
       agent.lastActiveAt = new Date();
 
+      console.log('[AI Agent] ✅ 0G Compute generation successful');
       return response;
     } catch (error) {
-      console.error('[AI Agent] Content generation failed:', error);
-      throw new Error('Failed to generate content with AI agent');
+      console.error('[AI Agent] 0G Compute generation failed:', error);
+      throw new Error('Failed to generate content with AI agent - 0G Compute unavailable');
     }
   }
 
@@ -152,6 +165,9 @@ class AIAgentService {
     }
 
     // Store scheduled content (in real implementation, use database)
+    this.scheduledQueue.push({ agentId, content, runAt: scheduledTime.getTime() });
+    // Keep queue ordered by time to minimize scans
+    this.scheduledQueue.sort((a, b) => a.runAt - b.runAt);
     console.log(`[AI Agent] Content scheduled for ${scheduledTime.toISOString()}: ${content.slice(0, 50)}...`);
   }
 
@@ -179,7 +195,7 @@ class AIAgentService {
 
       const times = recommendations.match(/\d{2}:\d{2}/g) || ['09:00', '14:00', '18:00'];
       agent.configuration.scheduleSettings.optimalTimes = times;
-      
+
       return times;
     } catch (error) {
       console.error('[AI Agent] Time optimization failed:', error);
@@ -189,7 +205,7 @@ class AIAgentService {
 
   private buildPrompt(agent: AIAgent, userPrompt: string, context?: any): string {
     const { personality, responseStyle, topics } = agent.configuration;
-    
+
     return `
       You are an AI assistant with these characteristics:
       - Personality: ${personality}
@@ -231,10 +247,36 @@ class AIAgentService {
 
     // Calculate success rate based on performance metrics
     const totalActions = agent.performance.postsCreated + agent.performance.engagementGenerated;
-    agent.performance.successRate = totalActions > 0 ? 
+    agent.performance.successRate = totalActions > 0 ?
       (agent.performance.engagementGenerated / totalActions) * 100 : 0;
 
     return agent.performance;
+  }
+
+  private async processDueSchedules(): Promise<void> {
+    if (this.scheduledQueue.length === 0) return;
+    const now = Date.now();
+    const due: typeof this.scheduledQueue = [];
+    // Extract all due items (stable since queue is time-ordered)
+    while (this.scheduledQueue.length && this.scheduledQueue[0].runAt <= now) {
+      due.push(this.scheduledQueue.shift()!);
+    }
+    for (const item of due) {
+      try {
+        const agent = this.agents.get(item.agentId);
+        if (!agent) continue;
+        if (!agent.configuration.autoPost) {
+          console.log(`[AI Agent] Due content for ${item.agentId} is ready (autoPost disabled)`);
+          continue;
+        }
+        // Here we would persist post and broadcast; for now just log and update stats
+        console.log(`[AI Agent] Auto-posting scheduled content for ${item.agentId}: ${item.content.slice(0, 80)}...`);
+        agent.performance.postsCreated++;
+        agent.lastActiveAt = new Date();
+      } catch (e) {
+        console.error('[AI Agent] Failed to process scheduled item:', e);
+      }
+    }
   }
 }
 

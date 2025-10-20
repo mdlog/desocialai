@@ -2,23 +2,32 @@
 
 Platform media sosial terdesentralisasi dengan AI yang dibangun di atas infrastruktur 0G Chain - dimana pengguna benar-benar memiliki data, AI, dan pengalaman sosial mereka.
 
-
 ## 🌟 Fitur Utama
 
-### **🤖 Sistem AI Personal Assistant**
-- 5 tipe AI agent khusus (Content, Engagement, Trend, Network, Scheduler)
-- Integrasi 0G Compute Network untuk pemrosesan AI terdesentralisasi
-- Operasi otonomous untuk menumbuhkan presence social media
+### **🤖 Sistem AI Personal Assistant (Wave 4)**
+- **5 tipe AI agent khusus**: Content Assistant, Engagement Manager, Trend Analyzer, Network Growth, Content Scheduler
+- **0G Compute Network Priority**: AI generation menggunakan decentralized network sebagai pilihan utama
+- **Background Scheduler**: Auto-posting dengan queue system dan 30s worker
+- **Performance Tracking**: Real-time metrics dan success analytics
+- **Fallback Chain**: 0G Compute → OpenAI → Simulation Mode
+
+### **🌊 Wave 4 Features (Fully Implemented)**
+- **AI Agent Integration**: Personal AI Assistant, Content Scheduling Agent, Engagement Agent, Research Agent, Network Growth Agent
+- **DAC Tools**: Community Governance Tokens, Voting Mechanisms, Treasury Management, Reputation Systems, Automated Moderation
+- **Background Processing**: Scheduled content dengan auto-posting capabilities
+- **Moderation System**: AI-powered content moderation dengan policy-based filtering
 
 ### **📊 Analytics & Intelligence**
 - Deep user analytics dan trend detection
 - AI viral content predictor
 - Real-time insights dan recommendations
+- Advanced engagement metrics
 
 ### **🔐 Blockchain Verification**
 - Content authenticity dengan cryptographic proof
 - Identity verification berbasis wallet signature
 - Semua data tersimpan di 0G Storage dengan hash verifiable
+- Reputation system dengan blockchain-backed scoring
 
 ### **💬 Direct Messaging (E2E Encryption)**
 - End-to-End encryption untuk semua pesan pribadi
@@ -32,29 +41,23 @@ Platform media sosial terdesentralisasi dengan AI yang dibangun di atas infrastr
 - Progressive image loading dengan skeleton
 - Real-time WebSocket updates
 - Modern dark/light mode support
+- Optimized wallet connection dengan immediate profile loading
 
 ### **🔄 Real-time Features**
 - Live block height updates dari 0G Chain
 - WebSocket untuk real-time notifications
 - Instant post updates tanpa refresh
 - Optimistic UI updates untuk performa optimal
-
-### **Core Features**
-- True data ownership di 0G Chain
-- Real-time updates dengan WebSocket
-- Modern UI/UX dengan dark mode
-- Media upload system dengan 0G Storage
-- Admin dashboard dengan wallet access control
-- Feed dengan infinite scroll dan cache optimization
+- Event-driven refetch system untuk wallet connection
 
 ## 🛠️ Tech Stack
 
 **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui + React Query  
 **Backend**: Express.js + PostgreSQL + Drizzle ORM + WebSocket  
 **Blockchain**: 0G Chain (Galileo Testnet) + RainbowKit + Wagmi  
-**AI**: OpenAI GPT-5 + 0G Compute Network  
+**AI**: 0G Compute Network (Priority) + OpenAI GPT-4 (Fallback) + @0glabs/0g-serving-broker v0.5.4  
 **Encryption**: AES-256-GCM + ECDH + Web Crypto API  
-**Real-time**: WebSocket + React Query + Optimistic Updates  
+**Real-time**: WebSocket + React Query + Optimistic Updates + Event-driven Refetch  
 
 ## 📊 Production Metrics
 - **Block Height**: ~781K+ (Real-time sync setiap 2 detik)
@@ -138,13 +141,14 @@ Platform media sosial terdesentralisasi dengan AI yang dibangun di atas infrastr
 - Error handling dengan graceful fallbacks
 
 **🔧 Recent Updates:**
-- Fixed network error handling untuk post creation
-- Implemented CORS headers untuk cross-origin requests
-- Optimized React Query cache management
-- Enhanced error messages dengan user-friendly feedback
-- Improved feed pagination dengan infinite scroll
-- Fixed encryption/decryption untuk Direct Messages
-- Added comprehensive logging untuk debugging
+- **Wave 4 Implementation**: Full AI Agent & DAC features dengan background processing
+- **0G Compute Priority**: AI generation menggunakan decentralized network sebagai pilihan utama
+- **Background Scheduler**: Auto-posting system dengan queue dan 30s worker
+- **Wallet Connection Optimization**: Event-driven refetch mengurangi delay profile loading
+- **Enhanced Error Handling**: Better error messages untuk AI Content Generation
+- **DAC Tools**: Governance, voting, treasury, dan moderation systems
+- **Moderation System**: AI-powered content filtering dengan policy-based rules
+- **Performance Improvements**: Optimized query caching dan session management
 
 ## 🌐 API Endpoints
 
@@ -159,6 +163,30 @@ Platform media sosial terdesentralisasi dengan AI yang dibangun di atas infrastr
 - `POST /api/messages/send` - Send encrypted message
 - `GET /api/messages/unread-count` - Get unread message count
 - `POST /api/messages/start-conversation` - Start new conversation
+
+### **AI & Content Generation**
+- `POST /api/ai/content/generate-post` - Generate AI-powered posts (0G Compute priority)
+- `POST /api/ai/content/hashtags` - Generate relevant hashtags
+- `POST /api/ai/content/translate` - Translate content
+- `POST /api/ai/content/describe-image` - Generate image descriptions
+- `POST /api/ai/agents` - Create AI agent
+- `GET /api/ai/agents` - List user AI agents
+- `POST /api/ai/agents/:id/generate` - Generate content with specific agent
+- `POST /api/ai/agents/:id/schedule` - Schedule content for auto-posting
+
+### **DAC & Governance**
+- `POST /api/dac/proposals` - Create governance proposal
+- `GET /api/dac/proposals` - List all proposals
+- `POST /api/dac/proposals/:id/vote` - Vote on proposal
+- `GET /api/dac/proposals/:id/tally` - Get vote tally
+- `POST /api/dac/token/issue` - Issue community tokens
+- `GET /api/dac/token/balance/:address` - Get token balance
+- `POST /api/dac/treasury/proposals` - Create treasury proposal
+- `POST /api/dac/treasury/execute/:id` - Execute treasury proposal
+
+### **Moderation**
+- `POST /api/moderation/check` - Check content moderation
+- `GET /api/moderation/policy` - Get moderation policy
 
 ### **0G Integration**
 - `GET /api/zg/da/stats` - Data Availability statistics

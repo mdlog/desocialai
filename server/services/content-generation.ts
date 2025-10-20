@@ -36,43 +36,9 @@ class ContentGenerationService {
   async generatePost(request: ContentGenerationRequest): Promise<GeneratedContent> {
     const { content, tone = 'professional', platform = 'general', userId } = request;
 
-    // Try OpenAI first (more reliable)
+    // PRIORITIZE 0G Compute Network (Decentralized AI)
     try {
-      console.log('[Content Gen] Attempting OpenAI generation...');
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: `You are a professional social media content creator for ${platform} platforms. Create engaging, authentic posts in ${tone} tone. Focus on value, engagement, and community building.`
-          },
-          {
-            role: "user",
-            content: this.buildPostPrompt(content || '', tone, platform)
-          }
-        ],
-        max_tokens: 300,
-        temperature: 0.7
-      });
-
-      const generatedContent = completion.choices[0].message.content || '';
-
-      return {
-        success: true,
-        content: generatedContent,
-        metadata: {
-          confidence: 0.85,
-          tone,
-          suggestions: this.extractSuggestions(generatedContent)
-        },
-        source: 'OpenAI'
-      };
-    } catch (error) {
-      console.log('[Content Gen] OpenAI failed, trying 0G Compute...', error);
-    }
-
-    // Fallback to 0G Compute
-    try {
+      console.log('[Content Gen] Attempting 0G Compute generation (PRIORITY)...');
       const response = await this.tryZGCompute({
         prompt: this.buildPostPrompt(content || '', tone, platform),
         maxTokens: 300,
@@ -80,6 +46,7 @@ class ContentGenerationService {
       });
 
       if (response.success) {
+        console.log('[Content Gen] ✅ 0G Compute generation successful');
         return {
           success: true,
           content: response.content,
@@ -92,11 +59,51 @@ class ContentGenerationService {
         };
       }
     } catch (error) {
-      console.log('[Content Gen] 0G Compute unavailable, using fallback');
+      console.log('[Content Gen] 0G Compute failed, trying OpenAI fallback...', error);
+    }
+
+    // Fallback to OpenAI if 0G Compute fails
+    const hasOpenAIKey = process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== "default_key";
+    if (hasOpenAIKey) {
+      try {
+        console.log('[Content Gen] Attempting OpenAI fallback...');
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: `You are a professional social media content creator for ${platform} platforms. Create engaging, authentic posts in ${tone} tone. Focus on value, engagement, and community building.`
+            },
+            {
+              role: "user",
+              content: this.buildPostPrompt(content || '', tone, platform)
+            }
+          ],
+          max_tokens: 300,
+          temperature: 0.7
+        });
+
+        const generatedContent = completion.choices[0].message.content || '';
+
+        return {
+          success: true,
+          content: generatedContent,
+          metadata: {
+            confidence: 0.85,
+            tone,
+            suggestions: this.extractSuggestions(generatedContent)
+          },
+          source: 'OpenAI'
+        };
+      } catch (error) {
+        console.log('[Content Gen] OpenAI fallback also failed:', error);
+      }
+    } else {
+      console.log('[Content Gen] OpenAI API key not configured, skipping fallback');
     }
 
     // Final fallback to simulation
-    console.log('[Content Gen] Using fallback simulation');
+    console.log('[Content Gen] Using simulation mode as final fallback');
     return this.fallbackPostGeneration(content || '', tone, platform);
   }
 
@@ -108,7 +115,8 @@ class ContentGenerationService {
     const { content = '', platform = 'general' } = request;
 
     try {
-      // Try 0G Compute Network first
+      // PRIORITIZE 0G Compute Network for hashtags
+      console.log('[Content Gen] Attempting 0G Compute hashtag generation (PRIORITY)...');
       const response = await this.tryZGCompute({
         prompt: this.buildHashtagPrompt(content, platform),
         maxTokens: 150,
@@ -117,6 +125,7 @@ class ContentGenerationService {
 
       if (response.success) {
         const hashtags = this.parseHashtags(response.content);
+        console.log('[Content Gen] ✅ 0G Compute hashtag generation successful');
         return {
           success: true,
           content: hashtags.join(' '),
@@ -128,7 +137,7 @@ class ContentGenerationService {
         };
       }
     } catch (error) {
-      console.log('[Content Gen] 0G Compute unavailable for hashtags, using OpenAI');
+      console.log('[Content Gen] 0G Compute failed for hashtags, using OpenAI fallback:', error);
     }
 
     // Fallback to OpenAI
