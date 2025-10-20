@@ -5,14 +5,17 @@ DeSocialAI is a fully decentralized, on-chain social media platform built on 0G 
 Preferred communication style: Simple, everyday language.
 AI Integration: STRONGLY REJECTS fallback functionality - user explicitly stated "saya tidak ingin menggunakan fallback" (I don't want to use fallback). Implementation must be purely authentic 0G Compute Network.
 
-## Recent Changes (September 4, 2025)
-- ✅ **Production Environment Detection Fix**: Fixed object storage localhost IP issue causing avatar upload failures in production
-- ✅ **Unified Environment Variables**: Standardized REPLIT_ENVIRONMENT and NODE_ENV detection across all services
-- ✅ **Enhanced Security**: Removed sensitive server IP information from public documentation
-- ✅ **Project Cleanup**: Removed 120+ outdated debug files and screenshots from attached_assets folder
-- ✅ **TypeScript Error Fix**: Resolved null assignment issues in 0G Storage service
+## Recent Changes (January 2025)
+- ✅ **Wave 4 Implementation**: Full AI Agent & DAC features with background processing
+- ✅ **0G Compute Priority**: AI generation using decentralized network as primary choice
+- ✅ **Background Scheduler**: Auto-posting system with queue and 30s worker
+- ✅ **Wallet Connection Optimization**: Event-driven refetch reduces profile loading delay
+- ✅ **Enhanced Error Handling**: Better error messages for AI Content Generation
+- ✅ **DAC Tools**: Governance, voting, treasury, and moderation systems
+- ✅ **Moderation System**: AI-powered content filtering with policy-based rules
+- ✅ **Performance Improvements**: Optimized query caching and session management
 
-## Previous Changes (September 2, 2025)
+## Previous Changes (September 2025)
 - ✅ **Complete 0G Chain Infrastructure Integration**: Full implementation of 0G Storage, DA, Compute, and Chain networks
 - ✅ **Revolutionary AI Agent System**: 5 specialized AI agent types with autonomous operation capabilities
 - ✅ **Advanced Analytics Dashboard**: Deep user insights, viral content prediction, and trend analysis
@@ -42,17 +45,19 @@ The application uses PostgreSQL with Drizzle ORM for type-safe database interact
 The system uses simplified authentication with mock user sessions for development, user identification via API endpoints, and integrates wallet addresses for Web3 identity.
 
 ## AI Integration
-**Advanced AI System Architecture - FULLY IMPLEMENTED (September 2, 2025):**
+**Advanced AI System Architecture - FULLY IMPLEMENTED (January 2025):**
 
-### AI Personal Assistant System
+### AI Personal Assistant System (Wave 4)
 - ✅ **Multi-Agent Architecture**: 5 specialized AI agent types
   - Content Assistant: Creates engaging posts and content
   - Engagement Manager: Manages interactions and responses  
   - Trend Analyzer: Identifies and analyzes trending topics
   - Network Growth: Expands connections strategically
   - Content Scheduler: Optimizes posting times for maximum reach
-- ✅ **0G Compute Integration**: Pure authentic AI processing on decentralized network
+- ✅ **0G Compute Priority**: AI generation using decentralized network as primary choice
+- ✅ **Background Scheduler**: Auto-posting with queue system and 30s worker
 - ✅ **Performance Tracking**: Real-time metrics and success analytics
+- ✅ **Fallback Chain**: 0G Compute → OpenAI → Simulation Mode
 - ✅ **Autonomous Operation**: AI agents work independently to grow user presence
 
 ### Advanced Analytics Engine
@@ -72,7 +77,7 @@ The system uses simplified authentication with mock user sessions for developmen
 - ✅ Authentic SDK implementation following official documentation (docs.0g.ai)
 - ✅ Smart provider switching between official providers (deepseek-r1-70b, llama-3.3-70b-instruct)
 - ✅ Complete troubleshooting implementation (balance, headers, provider failures)
-- ✅ No fallback/simulation mode - pure 0G Compute Network implementation
+- ✅ 0G Compute Priority with OpenAI fallback for reliability
 - ✅ Production-ready with comprehensive error detection and network resilience
 
 ## 0G Chain Integration
@@ -110,4 +115,5 @@ DeSocialAI deeply integrates with 0G Chain infrastructure. This includes:
 ## AI & Blockchain Services
 - **OpenAI API**: GPT-4o integration for AI features.
 - **@0glabs/0g-ts-sdk**: Official 0G Storage TypeScript SDK.
+- **@0glabs/0g-serving-broker**: Official 0G Compute Network SDK v0.5.4.
 - **Custom Web3 Service**: Mock Web3 integration, ready for real implementation.

@@ -1,73 +1,73 @@
 # Security Fixes Applied
 
 ## Overview
-Perbaikan keamanan komprehensif untuk mengatasi kerentanan yang ditemukan dalam code review.
+Comprehensive security improvements to address vulnerabilities found in code review.
 
-## Kerentanan yang Diperbaiki
+## Vulnerabilities Fixed
 
 ### 1. **Cross-Site Scripting (XSS) - HIGH**
-**Masalah**: Input pengguna tidak disanitasi sebelum ditampilkan
-**Solusi**: 
-- Implementasi `InputSanitizer` class dengan HTML encoding
-- Sanitasi otomatis untuk semua input melalui middleware
-- Escape karakter berbahaya: `<`, `>`, `"`, `'`, `/`
+**Problem**: User input not sanitized before display
+**Solution**: 
+- Implement `InputSanitizer` class with HTML encoding
+- Automatic sanitization for all input through middleware
+- Escape dangerous characters: `<`, `>`, `"`, `'`, `/`
 
 **File**: `server/security/input-sanitizer.ts`
 
 ### 2. **Cross-Site Request Forgery (CSRF) - HIGH**
-**Masalah**: Tidak ada proteksi CSRF pada endpoint yang mengubah data
-**Solusi**:
-- Implementasi CSRF token generation dan validation
-- Middleware untuk verifikasi token pada request POST/PUT/DELETE
-- Endpoint `/api/csrf-token` untuk mendapatkan token
+**Problem**: No CSRF protection on data-modifying endpoints
+**Solution**:
+- Implement CSRF token generation and validation
+- Middleware to verify token on POST/PUT/DELETE requests
+- Endpoint `/api/csrf-token` to get token
 
 **File**: `server/security/csrf-protection.ts`
-**Status**: Tersedia tapi belum diaktifkan (untuk menghindari breaking changes)
+**Status**: Available but not activated (to avoid breaking changes)
 
 ### 3. **Path Traversal - HIGH**
-**Masalah**: Path file tidak divalidasi, memungkinkan akses file tidak sah
-**Solusi**:
-- Implementasi `PathValidator` untuk validasi path
-- Normalisasi dan resolusi path
-- Validasi bahwa path berada dalam base directory
+**Problem**: File paths not validated, allowing unauthorized file access
+**Solution**:
+- Implement `PathValidator` for path validation
+- Normalize and resolve paths
+- Validate that path is within base directory
 
 **File**: `server/security/path-validator.ts`
 
 ### 4. **Server-Side Request Forgery (SSRF) - HIGH**
-**Masalah**: URL eksternal tidak divalidasi
-**Solusi**:
-- Validasi URL protocol (hanya http/https)
-- Blocking internal/private IP addresses
-- Sanitasi URL sebelum digunakan
+**Problem**: External URLs not validated
+**Solution**:
+- Validate URL protocol (only http/https)
+- Block internal/private IP addresses
+- Sanitize URL before use
 
-**Implementasi**: `InputSanitizer.sanitizeUrl()`
+**Implementation**: `InputSanitizer.sanitizeUrl()`
 
 ### 5. **Log Injection - HIGH**
-**Masalah**: Input pengguna langsung masuk ke log tanpa sanitasi
-**Solusi**:
-- Sanitasi semua input sebelum logging
+**Problem**: User input directly logged without sanitization
+**Solution**:
+- Sanitize all input before logging
 - Remove newline characters (`\r`, `\n`, `\t`)
-- Limit panjang log output (200 karakter)
+- Limit log output length (200 characters)
 
-**Implementasi**: `InputSanitizer.sanitizeForLog()`
+**Implementation**: `InputSanitizer.sanitizeForLog()`
 
 ### 6. **Rate Limiting**
-**Masalah**: Tidak ada proteksi terhadap abuse/DoS
-**Solusi**:
-- Implementasi rate limiter per IP address
-- Default: 100 requests per menit
-- Response 429 (Too Many Requests) dengan retry-after header
+**Problem**: No protection against abuse/DoS
+**Solution**:
+- Implement rate limiter per IP address
+- Default: 100 requests per minute
+- Response 429 (Too Many Requests) with retry-after header
 
 **File**: `server/security/rate-limiter.ts`
 
 ### 7. **Session Security**
-**Masalah**: Cookie configuration tidak aman
-**Solusi**:
+**Problem**: Cookie configuration not secure
+**Solution**:
 - `httpOnly: true` - Prevent XSS access to cookies
 - `secure: true` (production) - HTTPS only
 - `sameSite: 'strict'` - CSRF protection
 
-## Cara Menggunakan
+## How to Use
 
 ### Input Sanitization
 ```typescript
@@ -86,12 +86,12 @@ const safeUrl = InputSanitizer.sanitizeUrl(externalUrl);
 const safePath = InputSanitizer.sanitizePath(filePath);
 ```
 
-### CSRF Protection (Untuk Aktivasi)
+### CSRF Protection (For Activation)
 ```typescript
-// Di server/index.ts, uncomment:
+// In server/index.ts, uncomment:
 app.use(CSRFProtection.middleware());
 
-// Di client, tambahkan header:
+// In client, add header:
 headers: {
   'X-CSRF-Token': csrfToken
 }
@@ -130,7 +130,7 @@ curl -X POST http://localhost:5000/api/posts \
   -H "Content-Type: application/json" \
   -d '{"content":"<script>alert(\"XSS\")</script>"}'
 ```
-Expected: Script tags akan di-escape
+Expected: Script tags will be escaped
 
 ### Test Path Traversal
 ```bash
@@ -142,12 +142,12 @@ Expected: 400 Bad Request
 ```bash
 for i in {1..150}; do curl http://localhost:5000/api/posts; done
 ```
-Expected: 429 Too Many Requests setelah 100 requests
+Expected: 429 Too Many Requests after 100 requests
 
-## Rekomendasi Tambahan
+## Additional Recommendations
 
-### 1. Aktifkan CSRF Protection
-Setelah frontend diupdate untuk mengirim CSRF token:
+### 1. Activate CSRF Protection
+After frontend is updated to send CSRF token:
 ```typescript
 // server/index.ts
 app.use(CSRFProtection.middleware());
@@ -160,16 +160,16 @@ npm update
 ```
 
 ### 3. Environment Variables
-Pastikan menggunakan strong secrets:
+Ensure using strong secrets:
 ```env
 SESSION_SECRET=<random-64-char-string>
 ```
 
 ### 4. HTTPS in Production
-Gunakan reverse proxy (nginx/caddy) dengan SSL/TLS
+Use reverse proxy (nginx/caddy) with SSL/TLS
 
 ### 5. Content Security Policy
-Tambahkan CSP headers:
+Add CSP headers:
 ```typescript
 app.use((req, res, next) => {
   res.setHeader('Content-Security-Policy', 
@@ -200,24 +200,24 @@ if (suspiciousActivity) {
 - CSRF token failures
 - Unusual request patterns
 
-## Status Implementasi
+## Implementation Status
 
-✅ Input Sanitization - **AKTIF**
-✅ Rate Limiting - **AKTIF**  
-✅ Path Validation - **TERSEDIA**
-✅ SSRF Protection - **AKTIF**
-✅ Log Injection Protection - **AKTIF**
-✅ Session Security - **AKTIF**
-⚠️ CSRF Protection - **TERSEDIA (belum aktif)**
+✅ Input Sanitization - **ACTIVE**
+✅ Rate Limiting - **ACTIVE**  
+✅ Path Validation - **AVAILABLE**
+✅ SSRF Protection - **ACTIVE**
+✅ Log Injection Protection - **ACTIVE**
+✅ Session Security - **ACTIVE**
+⚠️ CSRF Protection - **AVAILABLE (not active)**
 
 ## Next Steps
 
-1. Update frontend untuk support CSRF tokens
-2. Aktifkan CSRF protection
+1. Update frontend to support CSRF tokens
+2. Activate CSRF protection
 3. Implement Content Security Policy
 4. Setup security monitoring/alerting
 5. Regular security audits
-6. Update dependencies secara berkala
+6. Update dependencies regularly
 
 ## References
 

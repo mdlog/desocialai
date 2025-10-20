@@ -1,54 +1,54 @@
 # DeSocialAI
 
-Platform media sosial terdesentralisasi dengan AI yang dibangun di atas infrastruktur 0G Chain - dimana pengguna benar-benar memiliki data, AI, dan pengalaman sosial mereka.
+Decentralized social media platform with AI built on 0G Chain infrastructure - where users truly own their data, AI, and social experience.
 
-## 🌟 Fitur Utama
+## 🌟 Key Features
 
-### **🤖 Sistem AI Personal Assistant (Wave 4)**
-- **5 tipe AI agent khusus**: Content Assistant, Engagement Manager, Trend Analyzer, Network Growth, Content Scheduler
-- **0G Compute Network Priority**: AI generation menggunakan decentralized network sebagai pilihan utama
-- **Background Scheduler**: Auto-posting dengan queue system dan 30s worker
-- **Performance Tracking**: Real-time metrics dan success analytics
+### **🤖 AI Personal Assistant System (Wave 4)**
+- **5 specialized AI agent types**: Content Assistant, Engagement Manager, Trend Analyzer, Network Growth, Content Scheduler
+- **0G Compute Network Priority**: AI generation using decentralized network as primary choice
+- **Background Scheduler**: Auto-posting with queue system and 30s worker
+- **Performance Tracking**: Real-time metrics and success analytics
 - **Fallback Chain**: 0G Compute → OpenAI → Simulation Mode
 
 ### **🌊 Wave 4 Features (Fully Implemented)**
 - **AI Agent Integration**: Personal AI Assistant, Content Scheduling Agent, Engagement Agent, Research Agent, Network Growth Agent
 - **DAC Tools**: Community Governance Tokens, Voting Mechanisms, Treasury Management, Reputation Systems, Automated Moderation
-- **Background Processing**: Scheduled content dengan auto-posting capabilities
-- **Moderation System**: AI-powered content moderation dengan policy-based filtering
+- **Background Processing**: Scheduled content with auto-posting capabilities
+- **Moderation System**: AI-powered content moderation with policy-based filtering
 
 ### **📊 Analytics & Intelligence**
-- Deep user analytics dan trend detection
+- Deep user analytics and trend detection
 - AI viral content predictor
-- Real-time insights dan recommendations
+- Real-time insights and recommendations
 - Advanced engagement metrics
 
 ### **🔐 Blockchain Verification**
-- Content authenticity dengan cryptographic proof
-- Identity verification berbasis wallet signature
-- Semua data tersimpan di 0G Storage dengan hash verifiable
-- Reputation system dengan blockchain-backed scoring
+- Content authenticity with cryptographic proof
+- Identity verification based on wallet signature
+- All data stored in 0G Storage with verifiable hash
+- Reputation system with blockchain-backed scoring
 
 ### **💬 Direct Messaging (E2E Encryption)**
-- End-to-End encryption untuk semua pesan pribadi
-- Messages tersimpan di 0G Storage dengan AES-256-GCM encryption
-- Real-time notifications untuk pesan masuk
-- Profile pictures dan user info integration
+- End-to-End encryption for all private messages
+- Messages stored in 0G Storage with AES-256-GCM encryption
+- Real-time notifications for incoming messages
+- Profile pictures and user info integration
 
 ### **📱 Advanced UI/UX**
-- Infinite scroll feed dengan pagination
-- Auto-resize textarea untuk pesan panjang
-- Progressive image loading dengan skeleton
+- Infinite scroll feed with pagination
+- Auto-resize textarea for long messages
+- Progressive image loading with skeleton
 - Real-time WebSocket updates
 - Modern dark/light mode support
-- Optimized wallet connection dengan immediate profile loading
+- Optimized wallet connection with immediate profile loading
 
 ### **🔄 Real-time Features**
-- Live block height updates dari 0G Chain
-- WebSocket untuk real-time notifications
-- Instant post updates tanpa refresh
-- Optimistic UI updates untuk performa optimal
-- Event-driven refetch system untuk wallet connection
+- Live block height updates from 0G Chain
+- WebSocket for real-time notifications
+- Instant post updates without refresh
+- Optimistic UI updates for optimal performance
+- Event-driven refetch system for wallet connection
 
 ## 🛠️ Tech Stack
 
@@ -60,12 +60,12 @@ Platform media sosial terdesentralisasi dengan AI yang dibangun di atas infrastr
 **Real-time**: WebSocket + React Query + Optimistic Updates + Event-driven Refetch  
 
 ## 📊 Production Metrics
-- **Block Height**: ~781K+ (Real-time sync setiap 2 detik)
+- **Block Height**: ~781K+ (Real-time sync every 2 seconds)
 - **API Performance**: <100ms average response
-- **WebSocket**: Koneksi real-time stabil dengan auto-reconnect
-- **Authentication**: Wallet-based dengan session management
-- **Database**: PostgreSQL dengan Drizzle ORM
-- **Cache**: React Query dengan intelligent caching
+- **WebSocket**: Stable real-time connection with auto-reconnect
+- **Authentication**: Wallet-based with session management
+- **Database**: PostgreSQL with Drizzle ORM
+- **Cache**: React Query with intelligent caching
 
 ## 🚀 Quick Start
 
@@ -99,62 +99,62 @@ Platform media sosial terdesentralisasi dengan AI yang dibangun di atas infrastr
 
 ## 📱 Usage
 
-1. **Connect Wallet** - RainbowKit dengan multi-wallet support
-2. **Create Posts** - Upload media hingga 2MB dengan 0G Storage
-3. **Direct Messages** - Kirim pesan terenkripsi E2E ke pengguna lain
-4. **AI Features** - AI agents bekerja otomatis untuk growth
-5. **Analytics** - Monitor performance dengan AI insights
-6. **Real-time Updates** - Semua aktivitas update secara real-time
+1. **Connect Wallet** - RainbowKit with multi-wallet support
+2. **Create Posts** - Upload media up to 2MB with 0G Storage
+3. **Direct Messages** - Send E2E encrypted messages to other users
+4. **AI Features** - AI agents work automatically for growth
+5. **Analytics** - Monitor performance with AI insights
+6. **Real-time Updates** - All activities update in real-time
 
 ## 🔒 Security Features
 
 ### **End-to-End Encryption**
-- AES-256-GCM encryption untuk Direct Messages
-- ECDH key exchange untuk shared secrets
+- AES-256-GCM encryption for Direct Messages
+- ECDH key exchange for shared secrets
 - PBKDF2 key derivation
-- Messages tersimpan di 0G Storage dengan hash verification
+- Messages stored in 0G Storage with hash verification
 
 ### **Blockchain Security**
 - Wallet-based authentication
-- Cryptographic proof untuk content authenticity
-- 0G Storage dengan immutable data storage
-- Real transaction hashes dari 0G Chain
+- Cryptographic proof for content authenticity
+- 0G Storage with immutable data storage
+- Real transaction hashes from 0G Chain
 
 ## 🏆 Production Status
 
 **✅ Live Features:**
 - Complete 0G Chain integration (Storage, DA, Compute, Chain)
-- Multi-agent AI system dengan authentic processing
-- Advanced analytics dengan viral prediction
-- Blockchain verification untuk content authenticity  
+- Multi-agent AI system with authentic processing
+- Advanced analytics with viral prediction
+- Blockchain verification for content authenticity  
 - Real-time WebSocket communication
-- Production authentication dengan wallet verification
+- Production authentication with wallet verification
 - End-to-End encrypted Direct Messaging
-- Infinite scroll feed dengan cache optimization
-- Progressive image loading dan auto-resize UI
+- Infinite scroll feed with cache optimization
+- Progressive image loading and auto-resize UI
 - Real-time notifications system
 
 **📊 Monitoring:**
-- Real-time blockchain sync setiap 2 detik
-- Zero simulation modes - implementasi authentic murni
-- Performance monitoring dengan detailed logging
-- Error handling dengan graceful fallbacks
+- Real-time blockchain sync every 2 seconds
+- Zero simulation modes - pure authentic implementation
+- Performance monitoring with detailed logging
+- Error handling with graceful fallbacks
 
 **🔧 Recent Updates:**
-- **Wave 4 Implementation**: Full AI Agent & DAC features dengan background processing
-- **0G Compute Priority**: AI generation menggunakan decentralized network sebagai pilihan utama
-- **Background Scheduler**: Auto-posting system dengan queue dan 30s worker
-- **Wallet Connection Optimization**: Event-driven refetch mengurangi delay profile loading
-- **Enhanced Error Handling**: Better error messages untuk AI Content Generation
-- **DAC Tools**: Governance, voting, treasury, dan moderation systems
-- **Moderation System**: AI-powered content filtering dengan policy-based rules
-- **Performance Improvements**: Optimized query caching dan session management
+- **Wave 4 Implementation**: Full AI Agent & DAC features with background processing
+- **0G Compute Priority**: AI generation using decentralized network as primary choice
+- **Background Scheduler**: Auto-posting system with queue and 30s worker
+- **Wallet Connection Optimization**: Event-driven refetch reduces profile loading delay
+- **Enhanced Error Handling**: Better error messages for AI Content Generation
+- **DAC Tools**: Governance, voting, treasury, and moderation systems
+- **Moderation System**: AI-powered content filtering with policy-based rules
+- **Performance Improvements**: Optimized query caching and session management
 
 ## 🌐 API Endpoints
 
 ### **Posts & Feed**
-- `GET /api/posts/feed` - Global feed dengan infinite scroll
-- `POST /api/posts` - Create post dengan 0G Storage upload
+- `GET /api/posts/feed` - Global feed with infinite scroll
+- `POST /api/posts` - Create post with 0G Storage upload
 - `GET /api/posts/user/:userId` - User-specific posts
 
 ### **Direct Messages**
@@ -213,14 +213,14 @@ Platform media sosial terdesentralisasi dengan AI yang dibangun di atas infrastr
 ## 📝 Development Notes
 
 ### **Performance Optimizations**
-- React Query dengan intelligent caching
-- Infinite scroll untuk large datasets
+- React Query with intelligent caching
+- Infinite scroll for large datasets
 - Progressive image loading
-- WebSocket untuk real-time updates
+- WebSocket for real-time updates
 - Optimistic UI updates
 
 ### **Security Best Practices**
-- E2E encryption untuk sensitive data
+- E2E encryption for sensitive data
 - Wallet-based authentication
 - Cryptographic content verification
 - Secure session management

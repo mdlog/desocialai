@@ -1,8 +1,8 @@
-# ✅ Solusi: Account Creation Issue - Personal AI Feed
+# ✅ Solution: Account Creation Issue - Personal AI Feed
 
-## 🎯 Masalah
+## 🎯 Problem
 
-Ketika user klik "Create Account", muncul notifikasi:
+When user clicks "Create Account", notification appears:
 ```
 ⚠️ Account Creation Issue
 Account creation encountered an issue. You can still use AI features in simulation mode.
@@ -10,48 +10,48 @@ Account creation encountered an issue. You can still use AI features in simulati
 
 ---
 
-## 🔍 Penyebab
+## 🔍 Root Cause
 
-Error ini terjadi karena:
+This error occurs because:
 
-1. **SDK Limitation**: `@0glabs/0g-serving-broker` SDK memiliki issue dengan method `addLedger()`
-2. **Network Issues**: Koneksi ke 0G Galileo Testnet mungkin tidak stabil
-3. **Balance Issues**: Wallet mungkin tidak memiliki cukup balance untuk gas fees
-4. **Account Already Exists**: Account mungkin sudah dibuat sebelumnya
-
----
-
-## ✅ SOLUSI: Skip Account Creation
-
-### **GOOD NEWS: Anda TIDAK PERLU create account untuk menggunakan AI Feed!**
-
-AI Feed akan bekerja sempurna dalam **simulation mode** tanpa perlu account creation.
+1. **SDK Limitation**: `@0glabs/0g-serving-broker` SDK has issues with `addLedger()` method
+2. **Network Issues**: Connection to 0G Galileo Testnet may be unstable
+3. **Balance Issues**: Wallet may not have enough balance for gas fees
+4. **Account Already Exists**: Account may have been created previously
 
 ---
 
-## 🚀 Cara Menggunakan AI Feed (Tanpa Account Creation)
+## ✅ SOLUTION: Skip Account Creation
+
+### **GOOD NEWS: You DON'T NEED to create account to use AI Feed!**
+
+AI Feed will work perfectly in **simulation mode** without needing account creation.
+
+---
+
+## 🚀 How to Use AI Feed (Without Account Creation)
 
 ### **Step 1: Skip Account Creation**
-Abaikan notifikasi error dan langsung klik tombol:
+Ignore the error notification and directly click the button:
 ```
 "Deploy AI Feed"
 ```
 
-### **Step 2: AI Feed Akan Deploy**
-AI Feed akan deploy dalam simulation mode dan berfungsi 100%:
+### **Step 2: AI Feed Will Deploy**
+AI Feed will deploy in simulation mode and function 100%:
 - ✅ Generate recommendations
 - ✅ Personalized content
 - ✅ Smart filtering
 - ✅ All AI features work
 
 ### **Step 3: Enjoy!**
-Semua fitur AI akan bekerja dengan sempurna!
+All AI features will work perfectly!
 
 ---
 
-## 💡 Perbedaan Mode
+## 💡 Mode Differences
 
-### **Simulation Mode** (Recommended untuk sekarang)
+### **Simulation Mode** (Recommended for now)
 ```
 ✅ All AI features work
 ✅ No account creation needed
@@ -71,20 +71,20 @@ Semua fitur AI akan bekerja dengan sempurna!
 
 ---
 
-## 🎯 Rekomendasi
+## 🎯 Recommendation
 
-### **UNTUK SEKARANG: Gunakan Simulation Mode**
+### **FOR NOW: Use Simulation Mode**
 
-Alasan:
+Reasons:
 1. ✅ **Works perfectly** - All features functional
 2. ✅ **No hassle** - No account creation needed
 3. ✅ **Instant** - Deploy immediately
 4. ✅ **Free** - No gas fees
 5. ✅ **Reliable** - No network issues
 
-### **NANTI: Real 0G Compute**
+### **LATER: Real 0G Compute**
 
-Ketika:
+When:
 - 0G Compute mainnet launch (Q2-Q3 2025)
 - SDK issues resolved
 - Network more stable
@@ -94,60 +94,60 @@ Ketika:
 
 ## 📋 Step-by-Step Guide
 
-### **Menggunakan AI Feed (Simulation Mode)**
+### **Using AI Feed (Simulation Mode)**
 
 1. **Connect Wallet**
-   - Klik "Connect Wallet" di header
-   - Pilih wallet Anda (MetaMask, etc)
+   - Click "Connect Wallet" in header
+   - Select your wallet (MetaMask, etc)
    - Approve connection
 
 2. **Deploy AI Feed**
-   - Scroll ke sidebar kanan
-   - Lihat card "Your Personal AI Feed"
-   - Klik tombol "Deploy AI Feed"
-   - Tunggu beberapa detik
+   - Scroll to right sidebar
+   - See "Your Personal AI Feed" card
+   - Click "Deploy AI Feed" button
+   - Wait a few seconds
 
 3. **Done!**
-   - AI Feed sekarang active
-   - Recommendations akan muncul
-   - Semua fitur AI ready to use
+   - AI Feed is now active
+   - Recommendations will appear
+   - All AI features ready to use
 
 ---
 
 ## 🔧 Troubleshooting
 
-### **Q: Apakah simulation mode kurang bagus?**
-**A:** Tidak! Simulation mode menggunakan OpenAI GPT-4o yang sangat powerful. Kualitas recommendations sama baiknya.
+### **Q: Is simulation mode less good?**
+**A:** No! Simulation mode uses OpenAI GPT-4o which is very powerful. Recommendation quality is equally good.
 
-### **Q: Kapan harus create account?**
-**A:** Hanya jika Anda ingin:
+### **Q: When should I create account?**
+**A:** Only if you want:
 - Verifiable AI processing on blockchain
 - Support 0G Compute Network development
 - Use authentic decentralized infrastructure
 
-### **Q: Bagaimana jika tetap ingin create account?**
-**A:** Tunggu hingga:
+### **Q: What if I still want to create account?**
+**A:** Wait until:
 1. 0G Compute mainnet launch
 2. SDK issues resolved
 3. Network more stable
 
-Atau gunakan manual setup (advanced users only).
+Or use manual setup (advanced users only).
 
-### **Q: Apakah data saya aman di simulation mode?**
-**A:** Ya! Data tetap aman. Simulation mode hanya berarti AI processing menggunakan OpenAI instead of 0G Compute Network.
+### **Q: Is my data safe in simulation mode?**
+**A:** Yes! Data remains safe. Simulation mode only means AI processing uses OpenAI instead of 0G Compute Network.
 
 ---
 
-## 🎉 Kesimpulan
+## 🎉 Conclusion
 
-### **JANGAN KHAWATIR TENTANG ACCOUNT CREATION!**
+### **DON'T WORRY ABOUT ACCOUNT CREATION!**
 
-**Langkah Mudah:**
+**Easy Steps:**
 1. ❌ Skip "Create Account" button
-2. ✅ Klik "Deploy AI Feed" langsung
+2. ✅ Click "Deploy AI Feed" directly
 3. ✅ Enjoy all AI features!
 
-**Hasil:**
+**Result:**
 - ✅ AI Feed works perfectly
 - ✅ All features functional
 - ✅ No errors
@@ -186,19 +186,19 @@ Atau gunakan manual setup (advanced users only).
 
 ## 💬 User Message
 
-**Kepada User:**
+**To User:**
 
-Jangan khawatir tentang error "Account Creation Issue"! 
+Don't worry about the "Account Creation Issue" error! 
 
-Anda TIDAK PERLU create account untuk menggunakan AI Feed. 
+You DON'T NEED to create account to use AI Feed. 
 
-Cukup:
+Just:
 1. Skip error message
-2. Klik "Deploy AI Feed"
-3. Semua fitur AI akan bekerja sempurna!
+2. Click "Deploy AI Feed"
+3. All AI features will work perfectly!
 
-AI Feed dalam simulation mode sama powerful-nya dengan real mode. 
-Anda akan mendapat recommendations berkualitas tinggi tanpa hassle!
+AI Feed in simulation mode is equally powerful as real mode. 
+You'll get high-quality recommendations without hassle!
 
 Happy using DeSocialAI! 🚀
 
@@ -206,4 +206,4 @@ Happy using DeSocialAI! 🚀
 
 **Status: WORKING SOLUTION** ✅
 
-User dapat menggunakan semua fitur AI tanpa perlu create account!
+User can use all AI features without needing to create account!
