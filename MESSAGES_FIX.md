@@ -1,21 +1,21 @@
 # Messages Conversation Fix
 
-## Masalah
-Chat conversations tidak muncul di halaman messages karena:
-1. `getConversations()` mencari participant di users table
-2. Jika participant tidak ditemukan, conversation di-skip (return null)
-3. Semua conversations ter-filter karena participant tidak ada
+## Problem
+Chat conversations don't appear on messages page because:
+1. `getConversations()` searches for participant in users table
+2. If participant not found, conversation is skipped (return null)
+3. All conversations get filtered because participant doesn't exist
 
 ## Root Cause
 ```typescript
 // BEFORE (BROKEN):
 if (!participant) {
   console.log(`Skipping conversation - participant not found`);
-  return null; // ❌ Conversation hilang
+  return null; // ❌ Conversation lost
 }
 ```
 
-## Solusi
+## Solution
 ```typescript
 // AFTER (FIXED):
 if (!participant) {
@@ -53,9 +53,9 @@ fetch('/api/messages/conversations')
 ```
 
 ## Expected Behavior
-- ✅ Conversations muncul meskipun participant tidak ada di users table
-- ✅ Placeholder user ditampilkan untuk missing participants
-- ✅ Conversations tidak di-skip/filter
+- ✅ Conversations appear even if participant doesn't exist in users table
+- ✅ Placeholder user displayed for missing participants
+- ✅ Conversations not skipped/filtered
 
 ## Files Modified
 - `server/storage.ts` - `getConversations()` method
@@ -63,4 +63,4 @@ fetch('/api/messages/conversations')
 ## Related Issues
 - Missing user records in database
 - Wallet-based users without user profiles
-- Conversation participants yang sudah dihapus
+- Conversation participants that have been deleted
