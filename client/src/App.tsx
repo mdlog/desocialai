@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { RainbowKitProviderWrapper } from "@/providers/rainbowkit-provider";
+import LandingPage from "./pages/landing";
 import Home from "./pages/home";
 import { ProfilePage } from "./pages/profile";
 import { AIRecommendationsPage } from "./pages/ai-recommendations";
@@ -23,7 +24,8 @@ function Router() {
 
   return (
     <Switch>
-      <Route path="/" component={Home} />
+      <Route path="/" component={LandingPage} />
+      <Route path="/home" component={Home} />
       <Route path="/nft-gallery" component={NFTGalleryPage} />
       <Route path="/wallet" component={WalletPage} />
       <Route path="/profile/:username" component={ProfilePage} />

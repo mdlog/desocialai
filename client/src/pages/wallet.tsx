@@ -144,8 +144,8 @@ export function WalletPage() {
     const mockWalletInfo = {
         address: "0xC4189365C29D8A1A78A58193851D42C72B4A5238",
         balance: "0.000 0G",
-        network: "Galileo (Testnet)",
-        chainId: 16602
+        network: "0G Mainnet",
+        chainId: 16661
     };
 
     const mockTokens: Token[] = [

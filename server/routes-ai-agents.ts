@@ -489,4 +489,10 @@ export function registerAIAgentRoutes(app: Express) {
       const posts = agents.scheduling.getScheduledPosts();
       res.json({ posts });
     } catch (error: any) {
-      console.error('[Scheduling Agent] Get posts failed:', e
+      console.error('[Scheduling Agent] Get posts failed:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  console.log('[AI Agents] ✅ All AI Agent routes registered successfully');
+}

@@ -114,7 +114,8 @@ function LeftSidebarBase() {
 
   const { data: chainStatus, isLoading: isLoadingChain } = useQuery<{ network: string; blockHeight: number; gasPrice: string }>({
     queryKey: ["/api/web3/status"],
-    refetchInterval: 10000,
+    refetchInterval: 2000, // Update every 2 seconds for real-time block height
+    staleTime: 1000, // Consider data stale after 1 second
   });
 
   // Query for unread message count
@@ -345,11 +346,11 @@ function LeftSidebarBase() {
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between py-2">
                   <span className="text-muted-foreground">Network:</span>
-                  <span className="text-foreground font-mono">{chainStatus?.network || "0G Galileo"}</span>
+                  <span className="text-foreground font-mono">{chainStatus?.network || "0G Mainnet"}</span>
                 </div>
                 <div className="flex justify-between py-2">
                   <span className="text-muted-foreground">Block:</span>
-                  <span className="text-foreground font-mono">{chainStatus?.blockHeight?.toLocaleString() || "5,610,000"}</span>
+                  <span className="text-foreground font-mono">{chainStatus?.blockHeight?.toLocaleString() || "Loading..."}</span>
                 </div>
                 <div className="flex justify-between py-2">
                   <span className="text-muted-foreground">Gas:</span>

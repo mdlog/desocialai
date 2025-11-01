@@ -54,7 +54,7 @@ class ZGComputeRealService {
   constructor() {
     this.hasPrivateKey = !!process.env.ZG_PRIVATE_KEY;
     this.provider = new ethers.JsonRpcProvider(
-      process.env.ZG_RPC_URL || "https://evmrpc-testnet.0g.ai"
+      process.env.ZG_RPC_URL || "https://evmrpc.0g.ai"
     );
 
     if (this.hasPrivateKey) {

@@ -1,7 +1,7 @@
 // 0G Chain API Service
-// Fetches real blockchain data from 0G Chain testnet
+// Fetches real blockchain data from 0G Chain mainnet
 
-const ZG_CHAIN_API_BASE = "https://chainscan-test.0g.ai/open";
+const ZG_CHAIN_API_BASE = "https://chainscan.0g.ai/open";
 
 interface BlockData {
   blockNumber: number;
@@ -25,7 +25,7 @@ interface BlockNumberResponse {
 }
 
 export class ZGChainService {
-  private lastBlockHeight: number = 5175740; // Fallback value
+  private lastBlockHeight: number = 1000000; // Fallback value for mainnet
   private lastFetchTime: number = 0;
   private readonly CACHE_DURATION = 1000; // 1 second cache for real-time updates
 
@@ -38,44 +38,55 @@ export class ZGChainService {
     }
 
     try {
-      // Get latest block data from gas statistics (most reliable endpoint)
-      const response = await fetch(`${ZG_CHAIN_API_BASE}/statistics/block/gas-used?limit=1`);
+      // Use RPC directly for most accurate block height
+      const rpcUrl = process.env.ZG_RPC_URL || process.env.COMBINED_SERVER_CHAIN_RPC || 'https://evmrpc.0g.ai';
+
+      const response = await fetch(rpcUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'eth_blockNumber',
+          params: [],
+          id: 1
+        })
+      });
 
       if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
+        throw new Error(`RPC request failed: ${response.status}`);
       }
 
-      const data: ChainStatsResponse = await response.json();
+      const data = await response.json();
 
-      if (data.status === "1" && data.result.list.length > 0) {
-        this.lastBlockHeight = data.result.list[0].blockNumber;
+      if (data.result) {
+        // Convert hex to decimal
+        this.lastBlockHeight = parseInt(data.result, 16);
         this.lastFetchTime = now;
-        console.log(`✓ Real-time block height update: ${this.lastBlockHeight}`);
+        console.log(`✓ Real-time block height from RPC: ${this.lastBlockHeight}`);
         return this.lastBlockHeight;
       }
 
-      throw new Error("Invalid response format");
+      throw new Error("Invalid RPC response format");
     } catch (error) {
-      console.warn(`Failed to fetch block height from 0G Chain API:`, error);
+      console.warn(`Failed to fetch block height from RPC:`, error);
 
-      // Try alternative endpoint
+      // Try explorer API as fallback
       try {
-        const timestamp = Math.floor(Date.now() / 1000);
-        const altResponse = await fetch(
-          `${ZG_CHAIN_API_BASE}/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`
-        );
+        const response = await fetch(`${ZG_CHAIN_API_BASE}/statistics/block/gas-used?limit=1`);
 
-        if (altResponse.ok) {
-          const altData: BlockNumberResponse = await altResponse.json();
-          if (altData.status === "1" && typeof altData.result === 'number') {
-            this.lastBlockHeight = altData.result;
+        if (response.ok) {
+          const data: ChainStatsResponse = await response.json();
+          if (data.status === "1" && data.result.list.length > 0) {
+            this.lastBlockHeight = data.result.list[0].blockNumber;
             this.lastFetchTime = now;
-            console.log(`✓ Real-time block height from alternative API: ${this.lastBlockHeight}`);
+            console.log(`✓ Real-time block height from explorer API: ${this.lastBlockHeight}`);
             return this.lastBlockHeight;
           }
         }
-      } catch (altError) {
-        console.warn(`Alternative endpoint also failed:`, altError);
+      } catch (apiError) {
+        console.warn(`Explorer API also failed:`, apiError);
       }
 
       // Return cached value or fallback
@@ -142,10 +153,10 @@ export class ZGChainService {
     const gasPrice = await this.getGasPrice();
 
     return {
-      chainId: 16602,
-      networkName: "Galileo (Testnet)",
-      rpcUrl: "https://evmrpc-testnet.0g.ai",
-      blockExplorer: "https://chainscan-galileo.0g.ai",
+      chainId: 16661,
+      networkName: "0G Mainnet",
+      rpcUrl: "https://evmrpc.0g.ai",
+      blockExplorer: "https://chainscan.0g.ai",
       blockHeight,
       gasPrice,
     };

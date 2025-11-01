@@ -505,60 +505,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // TEMPORARY: Bypass signature verification to test media upload
-      console.log("[DEBUG] TEMPORARILY BYPASSING signature verification for testing");
-      if (false && postData.signature && postData.message && postData.address) {
-        const ethers = await import('ethers');
+      // ✅ SECURITY FIX: Signature verification is now REQUIRED for all posts
+      // This prevents unauthorized posting and ensures wallet ownership
+      console.log("[SIGNATURE] Verifying wallet signature for post creation...");
 
-        console.log("[SIGNATURE DEBUG] Verifying signature:");
-        console.log("[SIGNATURE DEBUG] Message:", postData.message);
-        console.log("[SIGNATURE DEBUG] Signature:", postData.signature);
-        console.log("[SIGNATURE DEBUG] Expected address:", postData.address);
-
-        try {
-          // Verify the signature matches the expected address
-          // MetaMask personal_sign already includes the Ethereum message prefix
-          const recoveredAddress = ethers.verifyMessage(postData.message, postData.signature);
-          console.log("[SIGNATURE DEBUG] Recovered address:", recoveredAddress);
-
-          if (recoveredAddress.toLowerCase() !== postData.address.toLowerCase()) {
-            console.log("[SIGNATURE DEBUG] ❌ Address mismatch!");
-            console.log("[SIGNATURE DEBUG] Expected:", postData.address.toLowerCase());
-            console.log("[SIGNATURE DEBUG] Recovered:", recoveredAddress.toLowerCase());
-            return res.status(401).json({
-              message: "Invalid signature",
-              details: "Signature does not match the provided address"
-            });
+      // Check if signature data is provided
+      if (!postData.signature || !postData.message || !postData.address || !postData.timestamp) {
+        console.log("[SIGNATURE] ❌ Missing signature data");
+        return res.status(400).json({
+          message: "Signature required",
+          details: "All posts must be signed with your wallet. Please ensure your wallet is connected and try again.",
+          code: "SIGNATURE_REQUIRED",
+          missingFields: {
+            signature: !postData.signature,
+            message: !postData.message,
+            address: !postData.address,
+            timestamp: !postData.timestamp
           }
+        });
+      }
 
-          // Verify the signature is recent (within 5 minutes)
-          const signatureAge = Date.now() - (postData.timestamp || 0);
-          if (signatureAge > 5 * 60 * 1000) {
-            return res.status(401).json({
-              message: "Signature expired",
-              details: "Signature must be created within the last 5 minutes"
-            });
-          }
+      // Verify the signature
+      try {
+        console.log("[SIGNATURE] Verifying signature:");
+        console.log("[SIGNATURE] Message:", postData.message);
+        console.log("[SIGNATURE] Signature:", postData.signature.substring(0, 20) + '...');
+        console.log("[SIGNATURE] Expected address:", postData.address);
 
-          // Verify the signed message contains the post content
-          if (!postData.message.includes(postData.content)) {
-            return res.status(401).json({
-              message: "Invalid signature content",
-              details: "Signed message does not contain the post content"
-            });
-          }
+        // Verify the signature matches the expected address
+        // MetaMask personal_sign already includes the Ethereum message prefix
+        const recoveredAddress = ethers.verifyMessage(postData.message, postData.signature);
+        console.log("[SIGNATURE] Recovered address:", recoveredAddress);
 
-          console.log(`✅ Valid signature verified for address: ${postData.address}`);
-
-        } catch (signatureError: any) {
+        if (recoveredAddress.toLowerCase() !== postData.address.toLowerCase()) {
+          console.log("[SIGNATURE] ❌ Address mismatch!");
+          console.log("[SIGNATURE] Expected:", postData.address.toLowerCase());
+          console.log("[SIGNATURE] Recovered:", recoveredAddress.toLowerCase());
           return res.status(401).json({
-            message: "Signature verification failed",
-            details: signatureError.message
+            message: "Invalid signature",
+            details: "The signature does not match your wallet address. Please try signing again.",
+            code: "SIGNATURE_MISMATCH"
           });
         }
-      } else {
-        // BYPASS: Skip signature requirement for testing
-        console.log("[DEBUG] Skipping signature requirement for testing");
+
+        // Verify the signature is recent (within 5 minutes to prevent replay attacks)
+        const signatureAge = Date.now() - postData.timestamp;
+        if (signatureAge > 5 * 60 * 1000) {
+          console.log("[SIGNATURE] ❌ Signature expired (age:", signatureAge, "ms)");
+          return res.status(401).json({
+            message: "Signature expired",
+            details: "Your signature has expired. Please try posting again.",
+            code: "SIGNATURE_EXPIRED",
+            signatureAge: Math.floor(signatureAge / 1000) + " seconds"
+          });
+        }
+
+        // Verify the signature is not from the future (clock skew protection)
+        if (signatureAge < -60000) { // Allow 1 minute clock skew
+          console.log("[SIGNATURE] ❌ Signature timestamp is in the future");
+          return res.status(401).json({
+            message: "Invalid signature timestamp",
+            details: "Signature timestamp is invalid. Please check your system clock.",
+            code: "INVALID_TIMESTAMP"
+          });
+        }
+
+        // Verify the signed message contains the post content (if content exists)
+        if (postData.content && postData.content.trim() && !postData.message.includes(postData.content)) {
+          console.log("[SIGNATURE] ❌ Message content mismatch");
+          return res.status(401).json({
+            message: "Invalid signature content",
+            details: "The signed message does not match your post content. Please try again.",
+            code: "SIGNATURE_CONTENT_MISMATCH"
+          });
+        }
+
+        // Verify the address matches the connected wallet
+        if (postData.address.toLowerCase() !== walletData.address.toLowerCase()) {
+          console.log("[SIGNATURE] ❌ Address doesn't match connected wallet");
+          return res.status(401).json({
+            message: "Wallet address mismatch",
+            details: "The signature address does not match your connected wallet.",
+            code: "WALLET_MISMATCH"
+          });
+        }
+
+        console.log(`[SIGNATURE] ✅ Valid signature verified for address: ${postData.address}`);
+        console.log(`[SIGNATURE] ✅ Signature age: ${Math.floor(signatureAge / 1000)} seconds`);
+
+      } catch (signatureError: any) {
+        console.error("[SIGNATURE] ❌ Signature verification failed:", signatureError);
+        return res.status(401).json({
+          message: "Signature verification failed",
+          details: "Failed to verify your wallet signature. Please try again.",
+          code: "SIGNATURE_VERIFICATION_ERROR",
+          error: signatureError.message
+        });
       }
 
       // Get user by wallet address to get their proper user ID
@@ -1908,7 +1950,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Check if 0G Storage service is properly configured
       const hasPrivateKey = !!process.env.ZG_PRIVATE_KEY;
-      const rpcUrl = process.env.ZG_RPC_URL || 'https://evmrpc-testnet.0g.ai';
+      const rpcUrl = process.env.ZG_RPC_URL || 'https://evmrpc.0g.ai';
       const indexerUrl = process.env.ZG_INDEXER_RPC || 'http://38.96.255.34:6789/';
 
       // Try to test connection to indexer
@@ -2403,11 +2445,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         infrastructureConnected: true, // We can still connect to 0G Chain
         connected: walletConnection.connected,
-        network: walletConnection.network || "Galileo (Testnet)",
-        chainId: walletConnection.chainId || 16602,
-        blockExplorer: "https://chainscan-galileo.0g.ai",
-        rpcUrl: "https://evmrpc-testnet.0g.ai",
-        blockHeight: 5175740, // Latest known block
+        network: walletConnection.network || "0G Mainnet",
+        chainId: walletConnection.chainId || 16661,
+        blockExplorer: "https://chainscan.0g.ai",
+        rpcUrl: "https://evmrpc.0g.ai",
+        blockHeight: 1000000, // Fallback block height for mainnet
         gasPrice: "0.1 gwei",
       });
     }
@@ -2429,7 +2471,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     (async () => {
       try {
-        const rpcUrl = process.env.COMBINED_SERVER_CHAIN_RPC || process.env.ZG_RPC_URL || 'https://evmrpc-testnet.0g.ai';
+        const rpcUrl = process.env.COMBINED_SERVER_CHAIN_RPC || process.env.ZG_RPC_URL || 'https://evmrpc.0g.ai';
         const provider = new ethers.JsonRpcProvider(rpcUrl);
         const raw = await provider.getBalance(walletConnection.address);
         const og = ethers.formatEther(raw);
@@ -2443,8 +2485,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           address: walletConnection.address,
           balance: balanceDisplay,
           connected: walletConnection.connected,
-          network: walletConnection.network || 'Galileo (Testnet)',
-          chainId: walletConnection.chainId || 16602,
+          network: walletConnection.network || '0G Mainnet',
+          chainId: walletConnection.chainId || 16661,
         });
       } catch (err) {
         console.error('[WEB3] Failed to fetch on-chain balance:', err);
@@ -2453,8 +2495,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           address: walletConnection.address,
           balance: walletConnection.balance || '0.000 0G',
           connected: walletConnection.connected,
-          network: walletConnection.network || 'Galileo (Testnet)',
-          chainId: walletConnection.chainId || 16602,
+          network: walletConnection.network || '0G Mainnet',
+          chainId: walletConnection.chainId || 16661,
         });
       }
     })();
@@ -2468,7 +2510,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(200).json([]);
       }
 
-      const rpcUrl = process.env.COMBINED_SERVER_CHAIN_RPC || process.env.ZG_RPC_URL || 'https://evmrpc-testnet.0g.ai';
+      const rpcUrl = process.env.COMBINED_SERVER_CHAIN_RPC || process.env.ZG_RPC_URL || 'https://evmrpc.0g.ai';
       const provider = new ethers.JsonRpcProvider(rpcUrl);
       const raw = await provider.getBalance(walletConnection.address);
       const og = parseFloat(ethers.formatEther(raw));
@@ -2817,8 +2859,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       walletConnection.connected = true;
       walletConnection.address = address;
       walletConnection.balance = mockBalance;
-      walletConnection.network = network || "Galileo (Testnet)";
-      walletConnection.chainId = chainId || "16602";
+      walletConnection.network = network || "0G Mainnet";
+      walletConnection.chainId = chainId || "16661";
 
       // Force session save with promise wrapper and timeout
       const saveSession = () => new Promise((resolve, reject) => {
@@ -4735,9 +4777,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...post,
         // Blockchain verification URLs
         blockchainUrls: {
-          storageHash: post.storageHash ? `https://chainscan-galileo.0g.ai/tx/${post.storageHash}` : null,
-          transactionHash: post.transactionHash ? `https://chainscan-galileo.0g.ai/tx/${post.transactionHash}` : null,
-          mediaHash: post.mediaStorageHash ? `https://chainscan-galileo.0g.ai/tx/${post.mediaStorageHash}` : null
+          storageHash: post.storageHash ? `https://chainscan.0g.ai/tx/${post.storageHash}` : null,
+          transactionHash: post.transactionHash ? `https://chainscan.0g.ai/tx/${post.transactionHash}` : null,
+          mediaHash: post.mediaStorageHash ? `https://chainscan.0g.ai/tx/${post.mediaStorageHash}` : null
         },
         // Verification status
         verification: {

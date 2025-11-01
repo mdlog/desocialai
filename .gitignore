@@ -4,10 +4,13 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+
 # env
 .env
 *.env
 .env.*
-
-
 !.env.example
+
+# Documentation - ignore all .md files except README.md
+*.md
+!README.md

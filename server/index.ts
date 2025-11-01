@@ -4,6 +4,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import MemoryStore from "memorystore";
 import { registerRoutes } from "./routes";
+import { registerAIAgentRoutes } from "./routes-ai-agents";
 import { setupVite, serveStatic, log } from "./vite";
 import { InputSanitizer } from "./security/input-sanitizer";
 import { CSRFProtection } from "./security/csrf-protection";
@@ -116,6 +117,9 @@ app.use((req, res, next) => {
     log('Starting server with in-memory storage...');
 
     const server = await registerRoutes(app);
+
+    // Register AI Agent routes
+    registerAIAgentRoutes(app);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
       const status = err.status || err.statusCode || 500;

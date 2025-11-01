@@ -79,9 +79,16 @@ export function useWebSocket() {
     if (ws.current?.readyState === WebSocket.OPEN) return;
 
     try {
+      // Ensure window.location.host is defined
+      if (!window.location.host) {
+        console.error('window.location.host is undefined, cannot connect WebSocket');
+        return;
+      }
+
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const wsUrl = `${protocol}//${window.location.host}/ws`;
 
+      console.log('🔌 Attempting WebSocket connection to:', wsUrl);
       ws.current = new WebSocket(wsUrl);
 
       ws.current.onopen = () => {

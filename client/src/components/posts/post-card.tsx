@@ -378,7 +378,7 @@ function PostCardBase({ post }: PostCardProps) {
                       {post.transactionHash.slice(0, 8)}...{post.transactionHash.slice(-6)}
                     </code>
                     <a
-                      href={`https://chainscan-galileo.0g.ai/tx/${post.transactionHash}`}
+                      href={`https://chainscan.0g.ai/tx/${post.transactionHash}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 transition-colors"

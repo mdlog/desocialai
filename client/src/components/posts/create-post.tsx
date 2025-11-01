@@ -337,7 +337,7 @@ export function CreatePost() {
       if (data.storageStatus === "pending") {
         toast({
           title: "Post created successfully",
-          description: "Your post is visible in your feed. 0G Storage upload will retry when the Galileo testnet is available. You may need tokens from https://faucet.0g.ai",
+          description: "Your post is visible in your feed. 0G Storage upload will retry when the mainnet is available.",
           variant: "default",
         });
       } else {
@@ -369,8 +369,8 @@ export function CreatePost() {
       } else if (error.message?.includes("timeout after 65 seconds")) {
         errorMessage = "Upload took longer than expected due to 0G network sync delay. Your post may have been created successfully. Please refresh to check.";
         shouldRefresh = true;
-      } else if (error.message?.includes("Galileo")) {
-        errorMessage = "0G Galileo testnet is temporarily unavailable. Your post will still be created.";
+      } else if (error.message?.includes("Mainnet") || error.message?.includes("0G")) {
+        errorMessage = "0G Mainnet is temporarily unavailable. Your post will still be created.";
       } else {
         errorMessage = error.message || "Failed to create post";
       }
