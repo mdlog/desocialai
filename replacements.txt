@@ -1,2 +1,0 @@
-regex:(?i)sk-(?:live|test|proj|key|[^'"\s]{2,})-[A-Za-z0-9_\-]{16,}==?==>OPENAI_KEY_REDACTED
-regex:(?i)(OPENAI_API_KEY\s*=\s*)['"]?sk-[A-Za-z0-9_\-]{5,}[^'"\s]*['"]?==>\1<REDACTED>

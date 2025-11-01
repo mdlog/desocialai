@@ -1270,8 +1270,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Schedule content for an AI agent
   app.post("/api/ai/agents/:agentId/schedule", async (req, res) => {
     try {
-      const user = req.session.user;
-      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      const userId = req.session.userId;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const { agentId } = req.params;
       const { content, scheduledTime } = req.body;
       const { aiAgentService } = await import('./services/ai-agent-service');
@@ -1310,10 +1310,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // DAC: Proposals
   app.post('/api/dac/proposals', async (req, res) => {
     try {
-      const user = req.session.user;
-      if (!user) return res.status(401).json({ message: 'Unauthorized' });
+      const userId = req.session.userId;
+      if (!userId) return res.status(401).json({ message: 'Unauthorized' });
       const { dacService } = await import('./services/dac');
-      const proposal = dacService.createProposal(user.id, req.body);
+      const proposal = dacService.createProposal(userId, req.body);
       res.json(proposal);
     } catch (e) {
       console.error('[DAC] Create proposal failed:', e);

@@ -245,7 +245,7 @@ export const conversations = pgTable("conversations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   participant1Id: varchar("participant1_id").notNull().references(() => users.id),
   participant2Id: varchar("participant2_id").notNull().references(() => users.id),
-  lastMessageId: varchar("last_message_id"),
+  lastMessageId: varchar("last_message_id").references((): any => messages.id),
   lastMessageTimestamp: timestamp("last_message_timestamp"),
   unreadCount1: integer("unread_count1").default(0).notNull(), // Unread count for participant1
   unreadCount2: integer("unread_count2").default(0).notNull(), // Unread count for participant2
