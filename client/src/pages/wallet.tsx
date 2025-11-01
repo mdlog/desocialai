@@ -140,125 +140,18 @@ export function WalletPage() {
         },
     });
 
-    // Mock data for demonstration
-    const mockWalletInfo = {
-        address: "0xC4189365C29D8A1A78A58193851D42C72B4A5238",
+
+
+    // Use real data from API, fallback to empty/default values
+    const displayWalletInfo = walletInfo || {
+        address: "Not connected",
         balance: "0.000 0G",
         network: "0G Mainnet",
         chainId: 16661
     };
-
-    const mockTokens: Token[] = [
-        {
-            symbol: "0G",
-            name: "0G Token",
-            balance: "1,250.50",
-            usdValue: "$1,250.50",
-            change24h: 2.5,
-            price: 1.0,
-            marketCap: "$2.1B",
-            contractAddress: "0x1234...5678"
-        },
-        {
-            symbol: "ETH",
-            name: "Ethereum",
-            balance: "0.25",
-            usdValue: "$625.00",
-            change24h: -1.2,
-            price: 2500.0,
-            marketCap: "$300B"
-        },
-        {
-            symbol: "USDC",
-            name: "USD Coin",
-            balance: "500.00",
-            usdValue: "$500.00",
-            change24h: 0.0,
-            price: 1.0,
-            marketCap: "$32B"
-        },
-        {
-            symbol: "BTC",
-            name: "Bitcoin",
-            balance: "0.015",
-            usdValue: "$900.00",
-            change24h: 3.2,
-            price: 60000.0,
-            marketCap: "$1.2T"
-        },
-        {
-            symbol: "SOL",
-            name: "Solana",
-            balance: "5.5",
-            usdValue: "$550.00",
-            change24h: 5.8,
-            price: 100.0,
-            marketCap: "$45B"
-        }
-    ];
-
-    const mockPortfolioStats: PortfolioStats = {
-        totalValue: 3825.50,
-        change24h: 1.8,
-        change7d: 5.2,
-        change30d: 12.5,
-        bestPerformer: "SOL (+5.8%)",
-        worstPerformer: "ETH (-1.2%)",
-        totalTransactions: 47,
-        activeStakes: 3
-    };
-
-    const mockDeFiPositions: DeFiPosition[] = [];
-
-    const mockTransactions: Transaction[] = [
-        {
-            id: '1',
-            type: 'receive',
-            amount: '100.0',
-            currency: '0G',
-            from: '0x1234...5678',
-            timestamp: '2024-01-15T10:30:00Z',
-            status: 'completed',
-            hash: '0xabcd...efgh',
-            description: 'Received from DeSocial reward'
-        },
-        {
-            id: '2',
-            type: 'send',
-            amount: '50.0',
-            currency: '0G',
-            to: '0x9876...5432',
-            timestamp: '2024-01-14T15:45:00Z',
-            status: 'completed',
-            hash: '0x1234...5678',
-            description: 'Payment for NFT'
-        },
-        {
-            id: '3',
-            type: 'mint',
-            amount: '1',
-            currency: 'NFT',
-            timestamp: '2024-01-13T09:15:00Z',
-            status: 'completed',
-            hash: '0x5678...9abc',
-            description: 'Minted DeSocial Avatar #042'
-        },
-        {
-            id: '4',
-            type: 'swap',
-            amount: '0.1',
-            currency: 'ETH',
-            timestamp: '2024-01-12T14:20:00Z',
-            status: 'pending',
-            hash: '0x9abc...def0',
-            description: 'Swapped 0.1 ETH for 250 0G'
-        }
-    ];
-
-    const displayWalletInfo = walletInfo || mockWalletInfo;
-    const displayTokens = tokens.length > 0 ? tokens : mockTokens;
-    const displayTransactions = transactions.length > 0 ? transactions : mockTransactions;
-    const displayDeFi = (defiPositions as DeFiPosition[]).length > 0 ? defiPositions as DeFiPosition[] : mockDeFiPositions;
+    const displayTokens = tokens.length > 0 ? tokens : [];
+    const displayTransactions = transactions.length > 0 ? transactions : [];
+    const displayDeFi = (defiPositions as DeFiPosition[]).length > 0 ? defiPositions as DeFiPosition[] : [];
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
@@ -401,23 +294,23 @@ export function WalletPage() {
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                     <div className="text-center">
                                         <p className="text-sm text-gray-500">Total Balance</p>
-                                        <p className="text-2xl font-bold">{walletLoading ? '—' : `${totalOG.toFixed(6)} 0G`}</p>
-                                        <div className="flex items-center justify-center gap-1 text-sm">
-                                            <TrendingUp className="w-3 h-3 text-green-500" />
-                                            <span className="text-green-500">{totalValue > 0 ? `+$${totalValue.toFixed(2)}` : '+0.00%'}</span>
-                                        </div>
+                                        <p className="text-2xl font-bold">{walletLoading ? '—' : (displayWalletInfo.balance || '0.000 0G')}</p>
+                                        <p className="text-xs text-gray-400 mt-1">On-chain balance</p>
                                     </div>
                                     <div className="text-center">
-                                        <p className="text-sm text-gray-500">7D Change</p>
-                                        <p className="text-lg font-semibold">+{mockPortfolioStats.change7d}%</p>
+                                        <p className="text-sm text-gray-500">Total Assets</p>
+                                        <p className="text-lg font-semibold">{displayTokens.length}</p>
+                                        <p className="text-xs text-gray-400 mt-1">Token types</p>
                                     </div>
                                     <div className="text-center">
-                                        <p className="text-sm text-gray-500">30D Change</p>
-                                        <p className="text-lg font-semibold">+{mockPortfolioStats.change30d}%</p>
+                                        <p className="text-sm text-gray-500">Transactions</p>
+                                        <p className="text-lg font-semibold">{displayTransactions.length}</p>
+                                        <p className="text-xs text-gray-400 mt-1">Total history</p>
                                     </div>
                                     <div className="text-center">
-                                        <p className="text-sm text-gray-500">Active Stakes</p>
-                                        <p className="text-lg font-semibold">{mockPortfolioStats.activeStakes}</p>
+                                        <p className="text-sm text-gray-500">DeFi Positions</p>
+                                        <p className="text-lg font-semibold">{displayDeFi.length}</p>
+                                        <p className="text-xs text-gray-400 mt-1">Active stakes</p>
                                     </div>
                                 </div>
                             </CardContent>
@@ -614,24 +507,20 @@ export function WalletPage() {
                                         </CardHeader>
                                         <CardContent className="space-y-4">
                                             <div className="flex justify-between items-center">
-                                                <span className="text-sm text-gray-500">Best Performer</span>
-                                                <Badge variant="default" className="bg-green-100 text-green-800">
-                                                    {mockPortfolioStats.bestPerformer}
-                                                </Badge>
-                                            </div>
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-sm text-gray-500">Worst Performer</span>
-                                                <Badge variant="secondary">
-                                                    {mockPortfolioStats.worstPerformer}
-                                                </Badge>
-                                            </div>
-                                            <div className="flex justify-between items-center">
                                                 <span className="text-sm text-gray-500">Total Transactions</span>
-                                                <span className="font-semibold">{mockPortfolioStats.totalTransactions}</span>
+                                                <span className="font-semibold">{displayTransactions.length}</span>
                                             </div>
                                             <div className="flex justify-between items-center">
-                                                <span className="text-sm text-gray-500">Network Fees Paid</span>
-                                                <span className="font-semibold">$23.45</span>
+                                                <span className="text-sm text-gray-500">Total Assets</span>
+                                                <span className="font-semibold">{displayTokens.length}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-sm text-gray-500">DeFi Positions</span>
+                                                <span className="font-semibold">{displayDeFi.length}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-sm text-gray-500">Network</span>
+                                                <span className="font-semibold">{displayWalletInfo.network}</span>
                                             </div>
                                         </CardContent>
                                     </Card>
