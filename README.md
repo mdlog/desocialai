@@ -1,6 +1,15 @@
-# DeSocialAI
-
-Decentralized social media platform with AI built on 0G Chain infrastructure - where users truly own their data, AI, and social experience.
+<div align="center">
+  <img src="./desocialai-logo.png" alt="DeSocialAI Logo" width="200"/>
+  
+  # DeSocialAI
+  
+  Decentralized social media platform with AI built on 0G Chain infrastructure - where users truly own their data, AI, and social experience.
+  
+  [![Live Platform](https://img.shields.io/badge/🚀_Live-desocialai.xyz-blue)](https://desocialai.xyz/)
+  [![0G Chain](https://img.shields.io/badge/⛓️_Chain-0G_Mainnet-green)](https://chainscan.0g.ai)
+  [![License](https://img.shields.io/badge/📄_License-MIT-yellow)](LICENSE)
+  
+</div>
 
 ## 🌟 Key Features
 
@@ -60,12 +69,14 @@ Decentralized social media platform with AI built on 0G Chain infrastructure - w
 **Real-time**: WebSocket + React Query + Optimistic Updates + Event-driven Refetch  
 
 ## 📊 Production Metrics
-- **Block Height**: ~781K+ (Real-time sync every 2 seconds)
+- **Network**: 0G Chain Mainnet (Chain ID: 16661)
+- **Block Height**: Real-time sync every 2 seconds
 - **API Performance**: <100ms average response
 - **WebSocket**: Stable real-time connection with auto-reconnect
 - **Authentication**: Wallet-based with session management
 - **Database**: PostgreSQL with Drizzle ORM
 - **Cache**: React Query with intelligent caching
+- **AI Processing**: 0G Compute Network (Primary) + OpenAI (Fallback)
 
 ## 🚀 Quick Start
 
@@ -141,6 +152,7 @@ Decentralized social media platform with AI built on 0G Chain infrastructure - w
 - Error handling with graceful fallbacks
 
 **🔧 Recent Updates:**
+- **Mainnet Migration**: Successfully migrated to 0G Chain Mainnet (Chain ID: 16661)
 - **Wave 4 Implementation**: Full AI Agent & DAC features with background processing
 - **0G Compute Priority**: AI generation using decentralized network as primary choice
 - **Background Scheduler**: Auto-posting system with queue and 30s worker
@@ -149,6 +161,7 @@ Decentralized social media platform with AI built on 0G Chain infrastructure - w
 - **DAC Tools**: Governance, voting, treasury, and moderation systems
 - **Moderation System**: AI-powered content filtering with policy-based rules
 - **Performance Improvements**: Optimized query caching and session management
+- **Repository Cleanup**: Removed temporary files and documentation for cleaner structure
 
 ## 🌐 API Endpoints
 
@@ -214,32 +227,25 @@ Decentralized social media platform with AI built on 0G Chain infrastructure - w
 
 DeSocialAI is now running on **0G Chain Mainnet** (Chain ID: 16661)!
 
-### 📋 Migration Documentation
-- **[Migration Complete](./MAINNET_MIGRATION_COMPLETE.md)** - Status & Overview
-- **[Migration Guide](./MAINNET_MIGRATION.md)** - Detailed technical guide
-- **[Deployment Checklist](./DEPLOYMENT_CHECKLIST.md)** - Step-by-step deployment
-- **[User Guide](./USER_GUIDE_MAINNET.md)** - Instructions for users
-- **[Quick Reference](./MAINNET_QUICK_REFERENCE.md)** - Network details & commands
-- **[Developer Notes](./DEVELOPER_NOTES_MAINNET.md)** - Technical reference
-- **[Changelog](./CHANGELOG_MAINNET.md)** - Complete change history
-- **[Docs Index](./MIGRATION_DOCS_INDEX.md)** - Documentation navigation
-
-### 🔄 What Changed
+### 🔄 Network Configuration
 ```
-Chain ID:     16602 → 16661
-Network:      Galileo (Testnet) → 0G Mainnet
-RPC:          evmrpc-testnet.0g.ai → evmrpc.0g.ai
-Explorer:     chainscan-galileo.0g.ai → chainscan.0g.ai
+Chain ID:     16661 (0G Mainnet)
+Network:      0G Mainnet
+RPC:          https://evmrpc.0g.ai
+Explorer:     https://chainscan.0g.ai
+Storage:      https://indexer-storage-turbo.0g.ai
 ```
 
-### ⚡ Quick Start (Mainnet)
+### ⚡ Environment Setup
 ```bash
-# Update environment variables
+# Mainnet Configuration
 ZG_RPC_URL=https://evmrpc.0g.ai
 ZG_INDEXER_RPC=https://indexer-storage-turbo.0g.ai
 COMBINED_SERVER_CHAIN_RPC=https://evmrpc.0g.ai
+ZG_DA_CLIENT_ENDPOINT=localhost:51001
+ZG_DA_ENTRANCE_CONTRACT=0x857C0A28A8634614BB2C96039Cf4a20AFF709Aa9
 
-# Use mainnet private keys (NOT testnet!)
+# Use mainnet private keys
 ZG_PRIVATE_KEY=your-mainnet-private-key
 COMBINED_SERVER_PRIVATE_KEY=your-mainnet-private-key
 
