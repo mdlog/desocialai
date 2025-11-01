@@ -54,7 +54,7 @@ Decentralized social media platform with AI built on 0G Chain infrastructure - w
 
 **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui + React Query  
 **Backend**: Express.js + PostgreSQL + Drizzle ORM + WebSocket  
-**Blockchain**: 0G Chain (Galileo Testnet) + RainbowKit + Wagmi  
+**Blockchain**: 0G Chain (Mainnet) + RainbowKit + Wagmi  
 **AI**: 0G Compute Network (Priority) + OpenAI GPT-4 (Fallback) + @0glabs/0g-serving-broker v0.5.4  
 **Encryption**: AES-256-GCM + ECDH + Web Crypto API  
 **Real-time**: WebSocket + React Query + Optimistic Updates + Event-driven Refetch  
@@ -81,7 +81,7 @@ Decentralized social media platform with AI built on 0G Chain infrastructure - w
    DATABASE_URL=postgresql://username:password@localhost:5432/desocialai
    OPENAI_API_KEY=your_openai_api_key
    COMBINED_SERVER_PRIVATE_KEY=your_0g_private_key
-   COMBINED_SERVER_CHAIN_RPC=https://evmrpc-testnet.0g.ai
+   COMBINED_SERVER_CHAIN_RPC=https://evmrpc.0g.ai
    SESSION_SECRET=your_session_secret
    ZG_DA_CLIENT_ENDPOINT=localhost:51001
    ZG_DA_ENTRANCE_CONTRACT=0x857C0A28A8634614BB2C96039Cf4a20AFF709Aa9
@@ -204,11 +204,52 @@ Decentralized social media platform with AI built on 0G Chain infrastructure - w
 
 - **🚀 Live Platform**: https://desocialai.xyz/
 - **📚 0G Chain Docs**: https://docs.0g.ai
-- **🔗 0G Chain Explorer**: https://chainscan-galileo.0g.ai
+- **🔗 0G Chain Explorer**: https://chainscan.0g.ai
 
 ---
 
-**✅ Live in Production** - Built with ❤️ using authentic 0G Chain infrastructure
+## 🎉 Mainnet Migration (v2.0.0)
+
+**Status**: ✅ **MIGRATED TO MAINNET** (2025-01-11)
+
+DeSocialAI is now running on **0G Chain Mainnet** (Chain ID: 16661)!
+
+### 📋 Migration Documentation
+- **[Migration Complete](./MAINNET_MIGRATION_COMPLETE.md)** - Status & Overview
+- **[Migration Guide](./MAINNET_MIGRATION.md)** - Detailed technical guide
+- **[Deployment Checklist](./DEPLOYMENT_CHECKLIST.md)** - Step-by-step deployment
+- **[User Guide](./USER_GUIDE_MAINNET.md)** - Instructions for users
+- **[Quick Reference](./MAINNET_QUICK_REFERENCE.md)** - Network details & commands
+- **[Developer Notes](./DEVELOPER_NOTES_MAINNET.md)** - Technical reference
+- **[Changelog](./CHANGELOG_MAINNET.md)** - Complete change history
+- **[Docs Index](./MIGRATION_DOCS_INDEX.md)** - Documentation navigation
+
+### 🔄 What Changed
+```
+Chain ID:     16602 → 16661
+Network:      Galileo (Testnet) → 0G Mainnet
+RPC:          evmrpc-testnet.0g.ai → evmrpc.0g.ai
+Explorer:     chainscan-galileo.0g.ai → chainscan.0g.ai
+```
+
+### ⚡ Quick Start (Mainnet)
+```bash
+# Update environment variables
+ZG_RPC_URL=https://evmrpc.0g.ai
+ZG_INDEXER_RPC=https://indexer-storage-turbo.0g.ai
+COMBINED_SERVER_CHAIN_RPC=https://evmrpc.0g.ai
+
+# Use mainnet private keys (NOT testnet!)
+ZG_PRIVATE_KEY=your-mainnet-private-key
+COMBINED_SERVER_PRIVATE_KEY=your-mainnet-private-key
+
+# Start development
+npm run dev
+```
+
+---
+
+**✅ Live in Production** - Built with ❤️ using authentic 0G Chain Mainnet infrastructure
 
 ## 📝 Development Notes
 

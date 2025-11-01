@@ -38,7 +38,7 @@ export function RainbowKitWallet() {
 
       toast({
         title: "Wallet Connected",
-        description: "Successfully connected to 0G Chain Galileo testnet",
+        description: "Successfully connected to 0G Chain Mainnet",
       });
     },
     onError: (error: any) => {

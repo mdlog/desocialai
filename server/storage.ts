@@ -1880,7 +1880,7 @@ export class DatabaseStorage implements IStorage {
               displayName: `User ${otherParticipantId.substring(0, 8)}`,
               username: `user_${otherParticipantId.substring(0, 6)}`,
               avatar: null,
-            isOnline: false
+              isOnline: false
             };
           }
 
@@ -1929,9 +1929,28 @@ export class DatabaseStorage implements IStorage {
 
   async getMessages(conversationId: string, userId: string): Promise<any[]> {
     try {
-      // Return empty array - messages will be fetched from DM storage service
-      // In a real implementation, you would query a messages table
-      console.log(`[Get Messages] No messages found for conversation ${conversationId}`);
+      console.log(`[Get Messages] Fetching messages for conversation ${conversationId}`);
+
+      // Query messages from database
+      const messages = await db.select({
+        id: messages.id,
+        conversationId: messages.conversationId,
+        senderId: messages.senderId,
+        receiverId: messages.receiverId,
+        encryptedContent: messages.encryptedContent,
+        iv: messages.iv,
+        tag: messages.tag,
+        messageType: messages.messageType,
+        read: messages.read,
+        storageHash: messages.storageHash,
+        createdAt: messages.createdAt
+      })
+        .from(messages)
+        .where(eq(messages.conversationId, conversationId))
+        .orderBy(desc(messages.createdAt));
+
+      console.log(`[Get Messages] Found ${messages.length} messages for conversation ${conversationId}`);
+      return messages;
     } catch (error) {
       console.error('[Get Messages Error]', error);
       return [];
@@ -1940,18 +1959,50 @@ export class DatabaseStorage implements IStorage {
 
   async sendMessage(senderId: string, conversationId: string, content: string): Promise<any> {
     try {
-      // For now, return mock data since we don't have a messages table yet
-      // In a real implementation, you would insert into a messages table
-      const message = {
-        id: `msg_${Date.now()}`,
-        senderId,
+      console.log(`[Send Message] Sending message from ${senderId} to conversation ${conversationId}`);
+
+      // Get conversation to find receiver
+      const [conversation] = await db.select()
+        .from(conversations)
+        .where(eq(conversations.id, conversationId));
+
+      if (!conversation) {
+        throw new Error('Conversation not found');
+      }
+
+      const receiverId = conversation.participant1Id === senderId
+        ? conversation.participant2Id
+        : conversation.participant1Id;
+
+      // For now, store unencrypted content (in production, this should be encrypted)
+      const messageData = {
         conversationId,
-        content,
-        timestamp: new Date(),
+        senderId,
+        receiverId,
+        encryptedContent: content, // TODO: Implement proper encryption
+        iv: 'demo_iv', // TODO: Generate proper IV
+        tag: 'demo_tag', // TODO: Generate proper tag
+        messageType: 'text',
         read: false,
+        storageHash: null
       };
 
-      return message;
+      // Insert message into database
+      const [newMessage] = await db.insert(messages)
+        .values(messageData)
+        .returning();
+
+      // Update conversation with last message
+      await db.update(conversations)
+        .set({
+          lastMessageId: newMessage.id,
+          lastMessageTimestamp: newMessage.createdAt,
+          updatedAt: new Date()
+        })
+        .where(eq(conversations.id, conversationId));
+
+      console.log(`[Send Message] Message sent successfully: ${newMessage.id}`);
+      return newMessage;
     } catch (error) {
       console.error('[Send Message Error]', error);
       throw error;
@@ -1960,9 +2011,36 @@ export class DatabaseStorage implements IStorage {
 
   async markMessagesAsRead(conversationId: string, userId: string): Promise<void> {
     try {
-      // For now, just log since we don't have a messages table yet
-      // In a real implementation, you would update the read status in the messages table
-      console.log(`Marking messages as read for conversation ${conversationId} by user ${userId}`);
+      console.log(`[Mark Messages As Read] Marking messages as read for conversation ${conversationId} by user ${userId}`);
+
+      // Update all unread messages in the conversation for this user
+      await db.update(messages)
+        .set({ read: true })
+        .where(
+          and(
+            eq(messages.conversationId, conversationId),
+            eq(messages.receiverId, userId),
+            eq(messages.read, false)
+          )
+        );
+
+      // Update conversation unread count
+      const [conversation] = await db.select()
+        .from(conversations)
+        .where(eq(conversations.id, conversationId));
+
+      if (conversation) {
+        const isParticipant1 = conversation.participant1Id === userId;
+        const updateData = isParticipant1
+          ? { unreadCount1: 0 }
+          : { unreadCount2: 0 };
+
+        await db.update(conversations)
+          .set(updateData)
+          .where(eq(conversations.id, conversationId));
+      }
+
+      console.log(`[Mark Messages As Read] Messages marked as read successfully`);
     } catch (error) {
       console.error('[Mark Messages As Read Error]', error);
       throw error;
@@ -1971,17 +2049,45 @@ export class DatabaseStorage implements IStorage {
 
   async startConversation(userId: string, recipientId: string): Promise<any> {
     try {
-      // Generate consistent conversation ID for the two users
-      const conversationId = `conv_${[userId, recipientId].sort().join('_')}`;
+      console.log(`[Start Conversation] Starting conversation between ${userId} and ${recipientId}`);
+
+      // Check if conversation already exists
+      const existingConversation = await db.select()
+        .from(conversations)
+        .where(
+          or(
+            and(
+              eq(conversations.participant1Id, userId),
+              eq(conversations.participant2Id, recipientId)
+            ),
+            and(
+              eq(conversations.participant1Id, recipientId),
+              eq(conversations.participant2Id, userId)
+            )
+          )
+        );
+
+      if (existingConversation.length > 0) {
+        console.log(`[Start Conversation] Found existing conversation: ${existingConversation[0].id}`);
+        return existingConversation[0];
+      }
+
+      // Create new conversation
+      const [newConversation] = await db.insert(conversations)
+        .values({
+          participant1Id: userId,
+          participant2Id: recipientId,
+          unreadCount1: 0,
+          unreadCount2: 0
+        })
+        .returning();
 
       // Get recipient user info
       const recipientUser = await this.getUser(recipientId);
 
-      // For now, return conversation data
-      // In a real implementation, you would create or find a conversation in database
       const conversation = {
-        id: conversationId,
-        conversationId: conversationId, // Also include as conversationId for compatibility
+        id: newConversation.id,
+        conversationId: newConversation.id, // Also include as conversationId for compatibility
         participant: {
           id: recipientId,
           displayName: recipientUser?.displayName || 'Unknown User',
@@ -1991,10 +2097,10 @@ export class DatabaseStorage implements IStorage {
         },
         lastMessage: null,
         unreadCount: 0,
-        updatedAt: new Date()
+        updatedAt: newConversation.createdAt
       };
 
-      console.log(`[Start Conversation] Created conversation ${conversationId} between ${userId} and ${recipientId}`);
+      console.log(`[Start Conversation] Created new conversation ${newConversation.id} between ${userId} and ${recipientId}`);
       return conversation;
     } catch (error) {
       console.error('[Start Conversation Error]', error);

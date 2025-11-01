@@ -42,8 +42,8 @@ export function BlockchainVerification({ storageHash, transactionHash, postId }:
 
   const openChainExplorer = () => {
     if (transactionHash) {
-      // 0G Galileo Testnet Explorer
-      window.open(`https://chainscan-galileo.0g.ai/tx/${transactionHash}`, '_blank');
+      // 0G Mainnet Explorer
+      window.open(`https://chainscan.0g.ai/tx/${transactionHash}`, '_blank');
     }
   };
 

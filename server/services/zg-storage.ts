@@ -53,9 +53,9 @@ class ZGStorageService {
   private indexer: Indexer | null = null;
 
   constructor() {
-    // 0G Galileo Testnet configuration following official SDK documentation
-    this.rpcUrl = process.env.ZG_RPC_URL || 'https://evmrpc-testnet.0g.ai/';
-    this.indexerRpc = process.env.ZG_INDEXER_RPC || 'https://indexer-storage-testnet-turbo.0g.ai';
+    // 0G Mainnet configuration following official SDK documentation
+    this.rpcUrl = process.env.ZG_RPC_URL || 'https://evmrpc.0g.ai';
+    this.indexerRpc = process.env.ZG_INDEXER_RPC || 'https://indexer-storage-turbo.0g.ai';
 
     console.log(`[0G Storage] Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`[0G Storage] RPC URL: ${this.rpcUrl}`);

@@ -66,10 +66,26 @@ export class Web3Service {
   }
 
   async getChainStatus(): Promise<ChainStatus> {
-    // 0G-Galileo-Testnet chain status
+    // 0G Mainnet chain status
+    // Fetch real block height from API
+    try {
+      const response = await fetch('/api/web3/status');
+      if (response.ok) {
+        const data = await response.json();
+        return {
+          network: data.network || "0G Mainnet",
+          blockHeight: data.blockHeight || 1000000,
+          gasPrice: data.gasPrice || "0.1 gwei",
+        };
+      }
+    } catch (error) {
+      console.warn('Failed to fetch chain status:', error);
+    }
+
+    // Fallback to default values
     return {
-      network: "Galileo (Testnet)",
-      blockHeight: 1847392 + Math.floor(Math.random() * 100),
+      network: "0G Mainnet",
+      blockHeight: 1000000,
       gasPrice: "0.1 gwei",
     };
   }
