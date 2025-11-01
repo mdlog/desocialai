@@ -9,6 +9,11 @@ interface AIFeedStatus {
 declare module "express-session" {
   interface SessionData {
     userId?: string;
+    user?: {
+      id: string;
+      username: string;
+      walletAddress?: string;
+    };
     walletConnection?: {
       connected: boolean;
       address: string | null;

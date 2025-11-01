@@ -104,7 +104,7 @@ export class ZGChatServiceAuthentic {
           console.log(`[0G Chat] Insufficient balance: ${balanceOG} OG, adding funds...`);
 
           try {
-            await broker.ledger.addLedger(ethers.parseEther("0.1").toString()); // Add 0.1 OG as recommended
+            await broker.ledger.addLedger(Number(ethers.parseEther("0.1"))); // Add 0.1 OG as recommended
             console.log(`[0G Chat] ✅ Added 0.1 OG to ledger`);
 
             // Check new balance
@@ -121,7 +121,7 @@ export class ZGChatServiceAuthentic {
         // Try to add funds even if balance check failed
         try {
           console.log(`[0G Chat] Attempting to add funds despite balance check failure...`);
-          await broker.ledger.addLedger(ethers.parseEther("0.05").toString());
+          await broker.ledger.addLedger(Number(ethers.parseEther("0.05")));
           console.log(`[0G Chat] ✅ Added 0.05 OG emergency funds`);
         } catch (emergencyError: any) {
           console.log(`[0G Chat] Emergency funding failed: ${emergencyError.message}`);
