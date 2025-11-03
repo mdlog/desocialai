@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -6,18 +5,13 @@ import { UserPlus, UserCheck } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 interface FollowButtonProps {
-  userId: string;
-  currentUserId?: string;
-  className?: string;
-  size?: "sm" | "default" | "lg";
+  readonly userId: string;
+  readonly currentUserId?: string;
+  readonly className?: string;
+  readonly size?: "sm" | "default" | "lg";
 }
 
 export function FollowButton({ userId, currentUserId, className, size = "sm" }: FollowButtonProps) {
-  // Don't show follow button for own profile - check this before any hooks
-  if (!currentUserId || currentUserId === userId) {
-    return null;
-  }
-
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -33,6 +27,7 @@ export function FollowButton({ userId, currentUserId, className, size = "sm" }: 
       }
       return response.json();
     },
+    enabled: !!currentUserId && currentUserId !== userId, // Only run query if valid
   });
 
   const isFollowing = followStatus?.isFollowing || false;
@@ -49,11 +44,11 @@ export function FollowButton({ userId, currentUserId, className, size = "sm" }: 
       queryClient.invalidateQueries({ queryKey: ["/api/follows/check", userId] });
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
-      
+
       toast({
         title: isFollowing ? "Unfollowed" : "Following",
-        description: isFollowing 
-          ? "You are no longer following this user" 
+        description: isFollowing
+          ? "You are no longer following this user"
           : "You are now following this user",
       });
     },
@@ -66,12 +61,17 @@ export function FollowButton({ userId, currentUserId, className, size = "sm" }: 
     },
   });
 
+  // Don't show follow button for own profile - check this AFTER all hooks
+  if (!currentUserId || currentUserId === userId) {
+    return null;
+  }
+
   if (isLoading) {
     return (
-      <Button 
-        variant="outline" 
+      <Button
+        variant="outline"
         size={size}
-        disabled 
+        disabled
         className={className}
         data-testid={`button-follow-loading-${userId}`}
       >

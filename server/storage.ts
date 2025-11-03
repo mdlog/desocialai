@@ -1,7 +1,7 @@
 import { type User, type Post, type Follow, type Like, type Comment, type Repost, type InsertUser, type InsertPost, type InsertFollow, type InsertLike, type InsertComment, type InsertRepost, type PostWithAuthor, type UserProfile, type UpdateUserProfile, type Share, type CommentLike, type Bookmark, type Collection, type InsertShare, type InsertCommentLike, type InsertBookmark, type InsertCollection, users, posts, follows, likes, comments, reposts, shares, commentLikes, bookmarks, collections, notifications, conversations, messages } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { eq, desc, and, sql, isNull, or } from "drizzle-orm";
+import { eq, desc, asc, and, sql, isNull, or } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -128,10 +128,10 @@ export interface IStorage {
   // Direct Messages
   getConversations(userId: string): Promise<any[]>;
   getMessages(conversationId: string, userId: string): Promise<any[]>;
-  sendMessage(senderId: string, conversationId: string, content: string): Promise<any>;
+  sendMessage(senderId: string, receiverId: string, conversationId: string | undefined, content: string, metadata?: any): Promise<any>;
   markMessagesAsRead(conversationId: string, userId: string): Promise<void>;
   startConversation(userId: string, recipientId: string): Promise<any>;
-  
+
   // User Stats
   getUserStats(userId: string): Promise<{ postsCount: number; followersCount: number; followingCount: number; likesReceived: number } | undefined>;
 }
@@ -680,16 +680,16 @@ export class MemStorage implements IStorage {
       const totalLikes = await db.select({ count: sql<number>`count(*)` }).from(likes);
       const totalComments = await db.select({ count: sql<number>`count(*)` }).from(comments);
       const totalReposts = await db.select({ count: sql<number>`count(*)` }).from(reposts);
-      const aiInteractions = Number(totalLikes[0]?.count || 0) + 
-                            Number(totalComments[0]?.count || 0) + 
-                            Number(totalReposts[0]?.count || 0);
+      const aiInteractions = Number(totalLikes[0]?.count || 0) +
+        Number(totalComments[0]?.count || 0) +
+        Number(totalReposts[0]?.count || 0);
 
       // Calculate data stored (estimate based on posts and messages)
       const totalPosts = await db.select({ count: sql<number>`count(*)` }).from(posts);
       const totalMessages = await db.select({ count: sql<number>`count(*)` }).from(messages);
-      const estimatedDataMB = (Number(totalPosts[0]?.count || 0) * 0.5) + 
-                              (Number(totalMessages[0]?.count || 0) * 0.1);
-      
+      const estimatedDataMB = (Number(totalPosts[0]?.count || 0) * 0.5) +
+        (Number(totalMessages[0]?.count || 0) * 0.1);
+
       let dataStored: string;
       if (estimatedDataMB < 1024) {
         dataStored = `${estimatedDataMB.toFixed(1)} MB`;
@@ -1565,11 +1565,14 @@ export class DatabaseStorage implements IStorage {
     return postLikes;
   }
 
-  async createComment(comment: InsertComment): Promise<Comment> {
+  async createComment(comment: InsertComment & { authorId: string }): Promise<Comment> {
     // Create new comment
     const [newComment] = await db
       .insert(comments)
-      .values(comment)
+      .values({
+        ...comment,
+        authorId: comment.authorId
+      })
       .returning();
 
     // Update post comments count
@@ -1915,7 +1918,7 @@ export class DatabaseStorage implements IStorage {
               avatar: users.avatar,
               isOnline: users.isOnline
             }).from(users).where(eq(users.id, otherParticipantId)).limit(1);
-            
+
             participant = participantResult[0] || null;
             console.log(`[Get Conversations] Participant query result:`, {
               found: !!participant,
@@ -1931,7 +1934,7 @@ export class DatabaseStorage implements IStorage {
           // If participant not found, try alternative methods
           if (!participant) {
             console.warn(`[Get Conversations] ⚠️  Participant ${otherParticipantId} not found in database!`);
-            
+
             // Try to get user using getUser method as fallback
             try {
               const fallbackUser = await this.getUser(otherParticipantId);
@@ -1948,7 +1951,7 @@ export class DatabaseStorage implements IStorage {
             } catch (fallbackError) {
               console.error(`[Get Conversations] Fallback getUser also failed:`, fallbackError);
             }
-            
+
             // If still not found, create placeholder
             if (!participant) {
               console.warn(`[Get Conversations] Creating placeholder for ${otherParticipantId}`);
@@ -2007,15 +2010,30 @@ export class DatabaseStorage implements IStorage {
 
   async getMessages(conversationId: string, userId: string): Promise<any[]> {
     try {
-      console.log(`[Get Messages] Fetching messages for conversation ${conversationId}`);
+      console.log(`[Get Messages] Fetching messages for conversation ${conversationId}, user ${userId}`);
 
-      // Query messages from database
-      const messages = await db.select({
+      // First, let's check if there are ANY messages in the database
+      const allMessages = await db.select().from(messages);
+      console.log(`[Get Messages] Total messages in database: ${allMessages.length}`);
+
+      if (allMessages.length > 0) {
+        console.log(`[Get Messages] Sample message:`, {
+          id: allMessages[0].id,
+          conversationId: allMessages[0].conversationId,
+          senderId: allMessages[0].senderId,
+          receiverId: allMessages[0].receiverId,
+          hasContent: !!allMessages[0].content,
+          hasEncryptedContent: !!allMessages[0].encryptedContent
+        });
+      }
+
+      // Query messages from database with proper alias
+      const conversationMessages = await db.select({
         id: messages.id,
         conversationId: messages.conversationId,
         senderId: messages.senderId,
         receiverId: messages.receiverId,
-        encryptedContent: messages.encryptedContent,
+        encryptedContent: messages.encryptedContent,  // ✅ Only field that exists in schema
         iv: messages.iv,
         tag: messages.tag,
         messageType: messages.messageType,
@@ -2025,50 +2043,107 @@ export class DatabaseStorage implements IStorage {
       })
         .from(messages)
         .where(eq(messages.conversationId, conversationId))
-        .orderBy(desc(messages.createdAt));
+        .orderBy(asc(messages.createdAt)); // ASC for chat (oldest first)
 
-      console.log(`[Get Messages] Found ${messages.length} messages for conversation ${conversationId}`);
-      return messages;
+      console.log(`[Get Messages] Found ${conversationMessages.length} messages for conversation ${conversationId}`);
+      console.log(`[Get Messages] Query details:`, {
+        conversationId,
+        messagesFound: conversationMessages.length,
+        firstMessageId: conversationMessages[0]?.id
+      });
+
+      // Enrich messages with sender info
+      const enrichedMessages = await Promise.all(
+        conversationMessages.map(async (msg) => {
+          const sender = await this.getUser(msg.senderId);
+          return {
+            ...msg,
+            content: msg.encryptedContent,  // ✅ Add content alias for frontend compatibility
+            sender: sender ? {
+              id: sender.id,
+              displayName: sender.displayName,
+              username: sender.username,
+              avatar: sender.avatar
+            } : null
+          };
+        })
+      );
+
+      console.log(`[Get Messages] Returning ${enrichedMessages.length} enriched messages`);
+      return enrichedMessages;
     } catch (error) {
       console.error('[Get Messages Error]', error);
+      console.error('[Get Messages Error Stack]', (error as Error).stack);
       return [];
     }
   }
 
-  async sendMessage(senderId: string, conversationId: string, content: string): Promise<any> {
+  async sendMessage(
+    senderId: string,
+    receiverId: string,
+    conversationId: string | undefined,
+    content: string,
+    metadata?: any
+  ): Promise<any> {
     try {
-      console.log(`[Send Message] Sending message from ${senderId} to conversation ${conversationId}`);
+      console.log(`[Send Message] Sending message from ${senderId} to ${receiverId}`);
+      console.log(`[Send Message] Conversation ID: ${conversationId}`);
+      console.log(`[Send Message] Metadata:`, metadata);
 
-      // Get conversation to find receiver
+      // If no conversationId, create or find existing conversation
+      let finalConversationId = conversationId;
+
+      if (!finalConversationId) {
+        console.log(`[Send Message] No conversation ID, creating/finding conversation`);
+        const conversation = await this.startConversation(senderId, receiverId);
+        finalConversationId = conversation.id;
+        console.log(`[Send Message] Using conversation: ${finalConversationId}`);
+      }
+
+      // Verify conversation exists
       const [conversation] = await db.select()
         .from(conversations)
-        .where(eq(conversations.id, conversationId));
+        .where(eq(conversations.id, finalConversationId));
 
       if (!conversation) {
         throw new Error('Conversation not found');
       }
 
-      const receiverId = conversation.participant1Id === senderId
-        ? conversation.participant2Id
-        : conversation.participant1Id;
+      // Verify sender is participant
+      if (conversation.participant1Id !== senderId && conversation.participant2Id !== senderId) {
+        throw new Error('Sender is not a participant in this conversation');
+      }
 
-      // For now, store unencrypted content (in production, this should be encrypted)
-      const messageData = {
-        conversationId,
+      // Prepare message data with encryption metadata
+      // IMPORTANT: iv and tag are NOT NULL in schema, so we must provide values
+      const messageData: any = {
+        conversationId: finalConversationId,
         senderId,
         receiverId,
-        encryptedContent: content, // TODO: Implement proper encryption
-        iv: 'demo_iv', // TODO: Generate proper IV
-        tag: 'demo_tag', // TODO: Generate proper tag
+        encryptedContent: metadata?.encryptedContent || content,
+        iv: metadata?.iv || 'default_iv',  // ✅ Provide default if missing
+        tag: metadata?.tag || 'default_tag',  // ✅ Provide default if missing
         messageType: 'text',
         read: false,
         storageHash: null
       };
 
+      console.log(`[Send Message] Inserting message with data:`, {
+        conversationId: messageData.conversationId,
+        senderId: messageData.senderId,
+        receiverId: messageData.receiverId,
+        hasContent: !!messageData.content,
+        hasEncryptedContent: !!messageData.encryptedContent,
+        hasIv: !!messageData.iv,
+        hasTag: !!messageData.tag
+      });
+
       // Insert message into database
       const [newMessage] = await db.insert(messages)
         .values(messageData)
         .returning();
+
+      console.log(`[Send Message] Message inserted with ID: ${newMessage.id}`);
 
       // Update conversation with last message
       await db.update(conversations)
@@ -2077,7 +2152,18 @@ export class DatabaseStorage implements IStorage {
           lastMessageTimestamp: newMessage.createdAt,
           updatedAt: new Date()
         })
-        .where(eq(conversations.id, conversationId));
+        .where(eq(conversations.id, finalConversationId));
+
+      // Increment unread count for receiver
+      const isParticipant1 = conversation.participant1Id === receiverId;
+      const unreadCountField = isParticipant1 ? 'unreadCount1' : 'unreadCount2';
+      const currentUnreadCount = isParticipant1 ? conversation.unreadCount1 : conversation.unreadCount2;
+
+      await db.update(conversations)
+        .set({
+          [unreadCountField]: (currentUnreadCount || 0) + 1
+        })
+        .where(eq(conversations.id, finalConversationId));
 
       console.log(`[Send Message] Message sent successfully: ${newMessage.id}`);
       return newMessage;
@@ -2128,7 +2214,7 @@ export class DatabaseStorage implements IStorage {
   async getUserStats(userId: string): Promise<{ postsCount: number; followersCount: number; followingCount: number; likesReceived: number } | undefined> {
     const user = await this.getUser(userId);
     if (!user) return undefined;
-    
+
     return {
       postsCount: user.postsCount || 0,
       followersCount: user.followersCount || 0,

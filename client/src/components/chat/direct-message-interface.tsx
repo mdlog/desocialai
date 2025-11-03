@@ -87,26 +87,39 @@ export function DirectMessageInterface({ initialConversationId, targetUserId }: 
     // Create conversation if needed
     const createConversation = async (targetUserId: string) => {
         try {
+            console.log('[DM] Creating conversation with user:', targetUserId);
+
             const response = await fetch('/api/messages/start-conversation', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                credentials: 'include', // Important: include session cookie
                 body: JSON.stringify({
                     recipientId: targetUserId,
                 }),
             });
 
+            console.log('[DM] Start conversation response status:', response.status);
+
             if (!response.ok) {
-                throw new Error('Failed to create conversation');
+                const errorText = await response.text();
+                console.error('[DM] Failed to create conversation:', errorText);
+                throw new Error(`Failed to create conversation: ${response.status}`);
             }
 
             const result = await response.json();
             console.log('[DM] Create conversation response:', result);
-            return result.conversationId;
+
+            return result.conversationId || result.conversation?.id;
         } catch (error) {
-            console.error('Error creating conversation:', error);
-            throw error; // Don't fallback to generated ID
+            console.error('[DM] Error creating conversation:', error);
+            toast({
+                title: "Failed to start conversation",
+                description: error instanceof Error ? error.message : "Please try again",
+                variant: "destructive",
+            });
+            throw error;
         }
     };
 
@@ -684,9 +697,8 @@ export function DirectMessageInterface({ initialConversationId, targetUserId }: 
                                     >
                                         <div className="flex items-center space-x-3">
                                             <div className="relative">
-                                                <Avatar className={`w-10 h-10 ${
-                                                    conversation.unreadCount > 0 ? 'ring-2 ring-red-500' : ''
-                                                }`}>
+                                                <Avatar className={`w-10 h-10 ${conversation.unreadCount > 0 ? 'ring-2 ring-red-500' : ''
+                                                    }`}>
                                                     <AvatarImage src={conversation.participant.avatar} />
                                                     <AvatarFallback>
                                                         {conversation.participant.displayName.charAt(0)}
@@ -701,9 +713,8 @@ export function DirectMessageInterface({ initialConversationId, targetUserId }: 
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center justify-between gap-2">
-                                                    <p className={`text-sm truncate ${
-                                                        conversation.unreadCount > 0 ? 'font-bold' : 'font-medium'
-                                                    }`}>
+                                                    <p className={`text-sm truncate ${conversation.unreadCount > 0 ? 'font-bold' : 'font-medium'
+                                                        }`}>
                                                         {conversation.participant.displayName}
                                                     </p>
                                                     {conversation.unreadCount > 0 && (
@@ -712,9 +723,8 @@ export function DirectMessageInterface({ initialConversationId, targetUserId }: 
                                                         </Badge>
                                                     )}
                                                 </div>
-                                                <p className={`text-xs line-clamp-2 leading-relaxed ${
-                                                    conversation.unreadCount > 0 ? 'text-foreground font-semibold' : 'text-muted-foreground'
-                                                }`}>
+                                                <p className={`text-xs line-clamp-2 leading-relaxed ${conversation.unreadCount > 0 ? 'text-foreground font-semibold' : 'text-muted-foreground'
+                                                    }`}>
                                                     {conversation.lastMessage?.content || 'No messages yet'}
                                                 </p>
                                             </div>

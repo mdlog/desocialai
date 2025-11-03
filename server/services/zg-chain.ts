@@ -64,7 +64,7 @@ export class ZGChainService {
 
       if (data.result) {
         // Convert hex to decimal
-        this.lastBlockHeight = parseInt(data.result, 16);
+        this.lastBlockHeight = Number.parseInt(data.result, 16);
         this.lastFetchTime = now;
         console.log(`✓ Real-time block height from RPC: ${this.lastBlockHeight}`);
         return this.lastBlockHeight;

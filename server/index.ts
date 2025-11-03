@@ -3,7 +3,8 @@ import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import MemoryStore from "memorystore";
-import { registerRoutes } from "./routes";
+import helmet from "helmet";
+import { setupServer } from "./setup-server";
 import { registerAIAgentRoutes } from "./routes-ai-agents";
 import { setupVite, serveStatic, log } from "./vite";
 import { InputSanitizer } from "./security/input-sanitizer";
@@ -11,6 +12,25 @@ import { CSRFProtection } from "./security/csrf-protection";
 import { RateLimiter } from "./security/rate-limiter";
 
 const app = express();
+
+// Security: Helmet for security headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Required for Vite HMR in dev
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      connectSrc: ["'self'", "https://evmrpc.0g.ai", "https://indexer-storage-turbo.0g.ai", "wss:", "ws:"],
+      fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'", "blob:"],
+      frameSrc: ["'none'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false, // Required for some 0G Chain interactions
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
 
 // Security: Rate limiting (excluding avatar and frequently accessed endpoints)
 app.use('/api/', (req, res, next) => {
@@ -115,6 +135,13 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
+// HTTP request logging (only in development, or if LOG_LEVEL is debug)
+if (process.env.NODE_ENV === 'development' || process.env.LOG_LEVEL === 'debug') {
+  import('./utils/logger').then(({ httpLogger }) => {
+    app.use(httpLogger);
+  });
+}
+
 // Security: Input sanitization middleware
 app.use((req, res, next) => {
   if (req.body && typeof req.body === 'object') {
@@ -169,7 +196,7 @@ app.use((req, res, next) => {
   // Ensure session cookie is set correctly
   // express-session middleware runs before this, so we hook into response
   const originalSend = res.send;
-  res.send = function (...args: any[]) {
+  res.send = function (body?: any) {
     // Check if Set-Cookie header will be set by express-session
     if (req.session && req.session.walletConnection) {
       // express-session sets cookie automatically if session was modified
@@ -183,7 +210,7 @@ app.use((req, res, next) => {
         console.log('[SESSION DEBUG] Set-Cookie will be set by express-session middleware');
       }
     }
-    return originalSend.apply(res, args);
+    return originalSend.call(res, body);
   };
 
   next();
@@ -229,7 +256,34 @@ app.use((req, res, next) => {
   try {
     log('Starting server with in-memory storage...');
 
-    const server = await registerRoutes(app);
+    // Health check endpoints (before other routes)
+    const { performHealthCheck, livenessCheck, readinessCheck } = await import('./utils/health-check');
+
+    app.get('/health', async (_req, res) => {
+      try {
+        const health = await performHealthCheck();
+        const statusCode = health.status === 'healthy' ? 200 : health.status === 'degraded' ? 200 : 503;
+        res.status(statusCode).json(health);
+      } catch (error) {
+        res.status(503).json({ status: 'unhealthy', error: 'Health check failed' });
+      }
+    });
+
+    app.get('/health/live', (_req, res) => {
+      res.json(livenessCheck());
+    });
+
+    app.get('/health/ready', async (_req, res) => {
+      try {
+        const ready = await readinessCheck();
+        const statusCode = ready.status === 'ready' ? 200 : 503;
+        res.status(statusCode).json(ready);
+      } catch (error) {
+        res.status(503).json({ status: 'not_ready', error: 'Readiness check failed' });
+      }
+    });
+
+    const server = await setupServer(app);
 
     // Register AI Agent routes
     registerAIAgentRoutes(app);
@@ -262,9 +316,9 @@ app.use((req, res, next) => {
     // Other ports are firewalled. Default to 3005 if not specified.
     // this serves both the API and the client.
     // It is the only port that is not firewalled.
-    const port = parseInt(process.env.PORT || '3005', 10);
+    const port = Number.parseInt(process.env.PORT || '3005', 10);
 
-    // Use the server returned by registerRoutes which includes WebSocket support
+    // Use the server returned by setupServer which includes WebSocket support
     server.listen(port, "0.0.0.0", () => {
       log(`serving on port ${port}`);
       log(`WebSocket server available at ws://localhost:${port}/ws`);
