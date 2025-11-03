@@ -3,7 +3,9 @@
   
   # DeSocialAI
   
-  Decentralized social media platform with AI built on 0G Chain infrastructure - where users truly own their data, AI, and social experience.
+  **Decentralized Social Media with AI on 0G Chain**
+  
+  Where users truly own their data, AI, and social experience.
   
   [![Live Platform](https://img.shields.io/badge/🚀_Live-desocialai.xyz-blue)](https://desocialai.xyz/)
   [![0G Chain](https://img.shields.io/badge/⛓️_Chain-0G_Mainnet-green)](https://chainscan.0g.ai)
@@ -11,372 +13,126 @@
   
 </div>
 
-## 🌟 Key Features
+## ✨ Key Features
 
-### **🤖 AI Personal Assistant System (Wave 4)**
-- **5 specialized AI agent types**: Content Assistant, Engagement Manager, Trend Analyzer, Network Growth, Content Scheduler
-- **0G Compute Network Priority**: AI generation using decentralized network as primary choice
-- **Background Scheduler**: Auto-posting with queue system and 30s worker
-- **Performance Tracking**: Real-time metrics and success analytics
-- **Fallback Chain**: 0G Compute → OpenAI → Simulation Mode
-
-### **🌊 Wave 4 Features (Fully Implemented)**
-- **AI Agent Integration**: Personal AI Assistant, Content Scheduling Agent, Engagement Agent, Research Agent, Network Growth Agent
-- **DAC Tools**: Community Governance Tokens, Voting Mechanisms, Treasury Management, Reputation Systems, Automated Moderation
-- **Background Processing**: Scheduled content with auto-posting capabilities
-- **Moderation System**: AI-powered content moderation with policy-based filtering
-
-### **📊 Analytics & Intelligence**
-- Deep user analytics and trend detection
-- AI viral content predictor
-- Real-time insights and recommendations
-- Advanced engagement metrics
-
-### **🔐 Blockchain Verification**
-- Content authenticity with cryptographic proof
-- Identity verification based on wallet signature
-- All data stored in 0G Storage with verifiable hash
-- Reputation system with blockchain-backed scoring
-
-### **💬 Direct Messaging (E2E Encryption)**
-- End-to-End encryption for all private messages
-- Messages stored in 0G Storage with AES-256-GCM encryption
-- Real-time notifications for incoming messages
-- Profile pictures and user info integration
-
-### **📱 Advanced UI/UX**
-- Infinite scroll feed with pagination
-- Auto-resize textarea for long messages
-- Progressive image loading with skeleton
-- Real-time WebSocket updates
-- Modern dark/light mode support
-- Optimized wallet connection with immediate profile loading
-- Network Activity card with real-time on-chain data (⛓️ indicator)
-- Network Status card with block height & gas price in Gneuron
-- Simplified footer design for better user experience
-
-### **🔄 Real-time Features**
-- Live block height updates from 0G Chain
-- WebSocket for real-time notifications
-- Instant post updates without refresh
-- Optimistic UI updates for optimal performance
-- Event-driven refetch system for wallet connection
+- **🤖 AI Agents** - 5 specialized AI types with 0G Compute Network integration
+- **🔐 E2E Encryption** - Secure direct messaging with AES-256-GCM
+- **⛓️ Real On-Chain Data** - Live stats from 0G Storage, DA, and Chain
+- **💬 Social Features** - Posts, comments, likes, reposts, hashtags
+- **🎨 Modern UI** - Dark/light mode, infinite scroll, real-time updates
+- **🔒 Wallet Auth** - Connect with MetaMask, WalletConnect, etc.
+- **📊 Analytics** - AI-powered insights and viral content prediction
+- **�️ DAaC Tools** - Governance, voting, treasury management
 
 ## 🛠️ Tech Stack
 
-**Frontend**: React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui + React Query  
+**Frontend**: React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui  
 **Backend**: Express.js + PostgreSQL + Drizzle ORM + WebSocket  
-**Blockchain**: 0G Chain (Mainnet) + RainbowKit + Wagmi + ethers.js v6  
-**AI**: 0G Compute Network (Priority) + OpenAI GPT-4 (Fallback) + @0glabs/0g-serving-broker v0.5.4  
+**Blockchain**: 0G Chain Mainnet (Chain ID: 16661) + ethers.js v6  
+**AI**: 0G Compute Network + OpenAI GPT-4 (Fallback)  
 **Storage**: 0G Storage Network + @0glabs/0g-ts-sdk  
-**Encryption**: AES-256-GCM + ECDH + Web Crypto API  
-**Real-time**: WebSocket + React Query + Optimistic Updates + Event-driven Refetch  
+**Encryption**: AES-256-GCM + ECDH  
 
-## 📊 Production Metrics
-- **Network**: 0G Chain Mainnet (Chain ID: 16661)
-- **Gas Unit**: Gneuron (1 Gneuron = 10^9 Neuron)
-- **Block Height**: Real-time sync every 1 second
-- **API Performance**: <100ms average response
-- **WebSocket**: Stable real-time connection with auto-reconnect
-- **Authentication**: Wallet-based with session management
-- **Database**: PostgreSQL with Drizzle ORM
-- **Cache**: React Query with intelligent caching
-- **AI Processing**: 0G Compute Network (Primary) + OpenAI (Fallback)
-- **Storage Stats**: Real data from 0G Storage Indexer
-- **DA Stats**: Real data from 0G DA Network
-- **Chain Stats**: Real-time block height & gas price from RPC
+## 🌐 0G Chain Mainnet
 
-## 🚀 Quick Start
-
-1. **Clone & Install**
-   ```bash
-   git clone <repository-url>
-   cd desocialai
-   npm install
-   ```
-
-2. **Environment Variables**
-   ```env
-   # Database
-   DATABASE_URL=postgresql://username:password@localhost:5432/desocialai
-   
-   # AI Services
-   OPENAI_API_KEY=your_openai_api_key
-   
-   # 0G Chain Configuration
-   ZG_PRIVATE_KEY=your_0g_private_key
-   COMBINED_SERVER_PRIVATE_KEY=your_0g_private_key
-   ZG_RPC_URL=https://evmrpc.0g.ai
-   COMBINED_SERVER_CHAIN_RPC=https://evmrpc.0g.ai
-   
-   # 0G Storage
-   ZG_INDEXER_RPC=https://indexer-storage-turbo.0g.ai
-   
-   # 0G DA (Data Availability)
-   ZG_DA_CLIENT_ENDPOINT=localhost:51001
-   ZG_DA_ENTRANCE_CONTRACT=0x857C0A28A8634614BB2C96039Cf4a20AFF709Aa9
-   
-   # Session
-   SESSION_SECRET=your_session_secret
-   ```
-
-3. **Database Setup**
-   ```bash
-   npm run db:push
-   ```
-
-4. **Start Development**
-   ```bash
-   npm run dev
-   ```
-
-## 📱 Usage
-
-1. **Connect Wallet** - RainbowKit with multi-wallet support
-2. **Create Posts** - Upload media up to 2MB with 0G Storage
-3. **Direct Messages** - Send E2E encrypted messages to other users
-4. **AI Features** - AI agents work automatically for growth
-5. **Analytics** - Monitor performance with AI insights
-6. **Real-time Updates** - All activities update in real-time
-
-## 🔒 Security Features
-
-### **End-to-End Encryption**
-- AES-256-GCM encryption for Direct Messages
-- ECDH key exchange for shared secrets
-- PBKDF2 key derivation
-- Messages stored in 0G Storage with hash verification
-
-### **Blockchain Security**
-- Wallet-based authentication
-- Cryptographic proof for content authenticity
-- 0G Storage with immutable data storage
-- Real transaction hashes from 0G Chain
-
-## 🏆 Production Status
-
-**✅ Live Features:**
-- Complete 0G Chain integration (Storage, DA, Compute, Chain)
-- Multi-agent AI system with authentic processing
-- Advanced analytics with viral prediction
-- Blockchain verification for content authenticity  
-- Real-time WebSocket communication
-- Production authentication with wallet verification
-- End-to-End encrypted Direct Messaging
-- Infinite scroll feed with cache optimization
-- Progressive image loading and auto-resize UI
-- Real-time notifications system
-
-**📊 Monitoring:**
-- Real-time blockchain sync every 2 seconds
-- Zero simulation modes - pure authentic implementation
-- Performance monitoring with detailed logging
-- Error handling with graceful fallbacks
-
-**🔧 Recent Updates (January 2025):**
-- **Real Data from 0G Chain**: All infrastructure stats now use real blockchain data
-  - Storage stats from 0G Storage Indexer (real node count & capacity)
-  - DA stats from actual batches and transactions
-  - Chain stats from RPC (real-time block height & gas price)
-- **Gneuron Gas Unit**: Changed from Gwei to Gneuron (0G Chain native unit)
-- **Simplified Footer**: Removed infrastructure section for cleaner design
-- **Network Activity**: Real-time on-chain data display with ⛓️ indicator
-- **Data Stored Calculation**: Real calculation from posts with storage hashes
-- **Mainnet Migration**: Successfully migrated to 0G Chain Mainnet (Chain ID: 16661)
-- **Wave 4 Implementation**: Full AI Agent & DAC features with background processing
-- **0G Compute Priority**: AI generation using decentralized network as primary choice
-- **Background Scheduler**: Auto-posting system with queue and 30s worker
-- **Wallet Connection Optimization**: Event-driven refetch reduces profile loading delay
-- **Enhanced Error Handling**: Better error messages for AI Content Generation
-- **DAC Tools**: Governance, voting, treasury, and moderation systems
-- **Moderation System**: AI-powered content filtering with policy-based rules
-- **Performance Improvements**: Optimized query caching and session management
-
-## 🔗 Real Data from 0G Chain
-
-### **Infrastructure Stats - 100% Real Data**
-
-All infrastructure statistics displayed in the application are fetched from real 0G Chain sources:
-
-#### **Storage Stats** ✅
-- **Source**: 0G Storage Indexer (`https://indexer-storage-turbo.0g.ai`)
-- **Data**: Real node count, total storage capacity
-- **Calculation**: Total storage = nodes × 10TB per node
-- **Update**: Every 30 seconds
-
-#### **DA (Data Availability) Stats** ✅
-- **Source**: Actual batches and transactions in memory
-- **Data**: Real transaction count, pending transactions, processed batches
-- **Calculation**: From actual DA submissions to 0G DA Network
-- **Update**: Every 5 seconds
-
-#### **Chain Stats** ✅
-- **Source**: 0G Chain RPC (`https://evmrpc.0g.ai`)
-- **Data**: Real-time block height, gas price in Gneuron
-- **Method**: `eth_blockNumber` and `eth_getFeeData`
-- **Update**: Every 1 second
-
-#### **Network Activity** ✅
-- **Source**: Database + 0G Storage hashes
-- **Data**: Posts with `storageHash` or `mediaStorageHash`
-- **Calculation**: 
-  - Text content: ~1KB per post
-  - Media files: ~1MB per post
-- **Display**: Human-readable format (B, KB, MB, GB, TB)
-- **Update**: Every 30 seconds
-
-### **Gas Unit: Gneuron**
-
-0G Chain uses **Gneuron** as the gas unit (not Gwei):
 ```
-1 A0GI = 10^18 Neuron (base unit)
-1 Gneuron = 10^9 Neuron
-1 A0GI = 10^9 Gneuron
-
-Gneuron = Giga-neuron (equivalent to Gwei in decimal places)
-```
-
-**Example Transaction Cost:**
-```
-Gas Used: 21,000 units
-Gas Price: 0.1 Gneuron
-Total Cost: 2,100 Gneuron = 0.0000021 A0GI
-```
-
-## 🌐 API Endpoints
-
-### **Posts & Feed**
-- `GET /api/posts/feed` - Global feed with infinite scroll
-- `POST /api/posts` - Create post with 0G Storage upload
-- `GET /api/posts/user/:userId` - User-specific posts
-
-### **Direct Messages**
-- `GET /api/messages/conversations` - Get user conversations
-- `GET /api/messages/:conversationId` - Get conversation messages
-- `POST /api/messages/send` - Send encrypted message
-- `GET /api/messages/unread-count` - Get unread message count
-- `POST /api/messages/start-conversation` - Start new conversation
-
-### **AI & Content Generation**
-- `POST /api/ai/content/generate-post` - Generate AI-powered posts (0G Compute priority)
-- `POST /api/ai/content/hashtags` - Generate relevant hashtags
-- `POST /api/ai/content/translate` - Translate content
-- `POST /api/ai/content/describe-image` - Generate image descriptions
-- `POST /api/ai/agents` - Create AI agent
-- `GET /api/ai/agents` - List user AI agents
-- `POST /api/ai/agents/:id/generate` - Generate content with specific agent
-- `POST /api/ai/agents/:id/schedule` - Schedule content for auto-posting
-
-### **DAC & Governance**
-- `POST /api/dac/proposals` - Create governance proposal
-- `GET /api/dac/proposals` - List all proposals
-- `POST /api/dac/proposals/:id/vote` - Vote on proposal
-- `GET /api/dac/proposals/:id/tally` - Get vote tally
-- `POST /api/dac/token/issue` - Issue community tokens
-- `GET /api/dac/token/balance/:address` - Get token balance
-- `POST /api/dac/treasury/proposals` - Create treasury proposal
-- `POST /api/dac/treasury/execute/:id` - Execute treasury proposal
-
-### **Moderation**
-- `POST /api/moderation/check` - Check content moderation
-- `GET /api/moderation/policy` - Get moderation policy
-
-### **0G Integration**
-- `GET /api/zg/da/stats` - Data Availability statistics (real from batches)
-- `GET /api/zg/storage/stats` - Storage statistics (real from indexer)
-- `GET /api/zg/compute/stats` - Compute statistics
-- `GET /api/web3/status` - Blockchain connection status (real-time)
-- `GET /api/stats` - Network stats with on-chain data
-
-### **User Management**
-- `GET /api/users/me` - Current user data
-- `GET /api/users/:userId` - Get user by ID
-- `POST /api/web3/connect` - Connect wallet
-- `POST /api/web3/disconnect` - Disconnect wallet
-
-## 📚 Additional Documentation
-
-- **[REAL-DATA-FROM-0G-CHAIN.md](./REAL-DATA-FROM-0G-CHAIN.md)** - Complete guide on real data implementation
-- **[GNEURON-GAS-UNIT.md](./GNEURON-GAS-UNIT.md)** - 0G Chain gas unit explanation
-- **[FIX-NETWORK-STATS-ONCHAIN.md](./FIX-NETWORK-STATS-ONCHAIN.md)** - Network stats calculation details
-
-## 🌐 Links
-
-- **🚀 Live Platform**: https://desocialai.xyz/
-- **📚 0G Chain Docs**: https://docs.0g.ai
-- **🔗 0G Chain Explorer**: https://chainscan.0g.ai
-- **💾 0G Storage Indexer**: https://indexer-storage-turbo.0g.ai
-
----
-
-## 🎉 Mainnet Migration (v2.0.0)
-
-**Status**: ✅ **MIGRATED TO MAINNET** (2025-01-11)
-
-DeSocialAI is now running on **0G Chain Mainnet** (Chain ID: 16661)!
-
-### 🔄 Network Configuration
-```
-Chain ID:     16661 (0G Mainnet)
+Chain ID:     16661
 Network:      0G Mainnet
 Native Token: A0GI
 Gas Unit:     Gneuron (1 Gneuron = 10^9 Neuron)
 RPC:          https://evmrpc.0g.ai
 Explorer:     https://chainscan.0g.ai
-Storage:      https://indexer-storage-turbo.0g.ai
 ```
 
-### ⚡ Environment Setup
+**Real Data Sources:**
+- Storage stats from 0G Storage Indexer
+- DA stats from actual batches and transactions
+- Chain stats from RPC (real-time block height & gas price)
+
+## 🚀 Quick Start
+
 ```bash
-# 0G Chain Mainnet Configuration
-ZG_RPC_URL=https://evmrpc.0g.ai
-ZG_INDEXER_RPC=https://indexer-storage-turbo.0g.ai
-COMBINED_SERVER_CHAIN_RPC=https://evmrpc.0g.ai
+# 1. Clone & Install
+git clone <repository-url>
+cd desocialai
+npm install
 
-# 0G DA Configuration
-ZG_DA_CLIENT_ENDPOINT=localhost:51001
-ZG_DA_ENTRANCE_CONTRACT=0x857C0A28A8634614BB2C96039Cf4a20AFF709Aa9
+# 2. Setup Environment
+cp .env.example .env
+# Edit .env with your values
 
-# Private Keys (use mainnet keys)
-ZG_PRIVATE_KEY=your-mainnet-private-key
-COMBINED_SERVER_PRIVATE_KEY=your-mainnet-private-key
+# 3. Setup Database
+npm run db:push
 
-# Database
-DATABASE_URL=postgresql://username:password@localhost:5432/desocialai
-
-# AI Services
-OPENAI_API_KEY=your_openai_api_key
-
-# Session
-SESSION_SECRET=your_session_secret
-
-# Start development
+# 4. Start Development
 npm run dev
 ```
 
+**Required:**
+- Node.js 18+
+- PostgreSQL 14+
+- 0G Chain wallet with A0GI tokens
+- OpenAI API key (for AI features)
+- WalletConnect Project ID
+
+**See:** [SETUP-MAINNET.md](./SETUP-MAINNET.md) for detailed setup guide
+
+## �  Security
+
+- **E2E Encryption** - AES-256-GCM for direct messages
+- **Wallet Auth** - Cryptographic signature verification
+- **On-Chain Storage** - Immutable data with verifiable hashes
+- **Session Management** - Secure cookie-based sessions
+
+## 📊 Real Data Implementation
+
+All infrastructure stats use **real data from 0G Chain**:
+
+| Component | Source | Update Interval |
+|-----------|--------|-----------------|
+| Storage Stats | 0G Storage Indexer | 30 seconds |
+| DA Stats | Actual batches & transactions | 5 seconds |
+| Chain Stats | RPC (block height & gas) | 1 second |
+| Network Activity | Database + storage hashes | 30 seconds |
+
+**Gas Unit:** Gneuron (not Gwei)
+- 1 A0GI = 10^9 Gneuron
+- 1 Gneuron = 10^9 Neuron
+- Example: 21,000 gas × 0.1 Gneuron = 2,100 Gneuron
+
+
+
+## 📡 Key API Endpoints
+
+**Posts:** `/api/posts/feed`, `/api/posts` (create)  
+**Messages:** `/api/messages/conversations`, `/api/messages/send`  
+**AI:** `/api/ai/content/generate-post`, `/api/ai/agents`  
+**0G Stats:** `/api/zg/storage/stats`, `/api/zg/da/stats`, `/api/web3/status`  
+**User:** `/api/users/me`, `/api/web3/connect`  
+
+See full API documentation in code.
+
+## 📚 Documentation
+
+- **[SETUP-MAINNET.md](./SETUP-MAINNET.md)** - Complete setup guide
+- **[GET-0G-ENDPOINTS.md](./GET-0G-ENDPOINTS.md)** - How to get 0G service endpoints
+- **[REAL-DATA-FROM-0G-CHAIN.md](./REAL-DATA-FROM-0G-CHAIN.md)** - Real data implementation
+- **[GNEURON-GAS-UNIT.md](./GNEURON-GAS-UNIT.md)** - Gas unit explanation
+
+## 🌐 Links
+
+- **Live Platform**: https://desocialai.xyz/
+- **0G Chain Docs**: https://docs.0g.ai
+- **0G Explorer**: https://chainscan.0g.ai
+- **Discord**: https://discord.gg/0glabs
+
 ---
 
-**✅ Live in Production** - Built with ❤️ using authentic 0G Chain Mainnet infrastructure
+<div align="center">
+  
+**Built with ❤️ on 0G Chain Mainnet**
 
-## 📝 Development Notes
+Chain ID: 16661 | Gas Unit: Gneuron | 100% Real On-Chain Data
 
-### **Performance Optimizations**
-- React Query with intelligent caching
-- Infinite scroll for large datasets
-- Progressive image loading
-- WebSocket for real-time updates
-- Optimistic UI updates
-
-### **Security Best Practices**
-- E2E encryption for sensitive data
-- Wallet-based authentication
-- Cryptographic content verification
-- Secure session management
-- CORS protection
-
-### **Monitoring & Debugging**
-- Comprehensive logging system
-- Real-time error tracking
-- Performance metrics
-- Blockchain sync monitoring
+</div>
 - Database query optimization
