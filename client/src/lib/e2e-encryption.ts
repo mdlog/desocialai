@@ -180,21 +180,133 @@ export const clientE2EEncryption = new ClientE2EEncryption();
  */
 export class SimpleE2EEncryption {
     /**
-     * Simple encryption using Web Crypto API
+     * Check if Web Crypto API is available
      */
-    async encryptSimple(message: string, password: string): Promise<EncryptionResult> {
-        const salt = window.crypto.getRandomValues(new Uint8Array(16));
-        const key = await clientE2EEncryption.deriveKeyFromPassword(password, salt);
-        return await clientE2EEncryption.encrypt(message, key);
+    private isCryptoAvailable(): boolean {
+        return typeof window !== 'undefined' &&
+            window.crypto !== undefined &&
+            window.crypto.subtle !== undefined;
     }
 
     /**
-     * Simple decryption using Web Crypto API
+     * Fallback encryption using Base64 (NOT SECURE - for demo only)
+     * This is used when Web Crypto API is not available
+     */
+    private fallbackEncrypt(message: string, password: string): EncryptionResult {
+        console.warn('[E2E] Using fallback encryption (NOT SECURE). Web Crypto API not available.');
+
+        // Simple XOR-based encryption for demo (NOT SECURE)
+        const key = this.simpleHash(password);
+        let encrypted = '';
+        for (let i = 0; i < message.length; i++) {
+            encrypted += String.fromCharCode(message.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+        }
+
+        const encryptedBase64 = btoa(encrypted);
+        const iv = btoa(Math.random().toString(36).substring(2, 15));
+
+        return {
+            encryptedData: encryptedBase64,
+            iv: iv,
+            tag: btoa('fallback')
+        };
+    }
+
+    /**
+     * Fallback decryption using Base64 (NOT SECURE - for demo only)
+     */
+    private fallbackDecrypt(encryptedData: string, password: string, iv: string): DecryptionResult {
+        try {
+            const key = this.simpleHash(password);
+            const encrypted = atob(encryptedData);
+            let decrypted = '';
+
+            for (let i = 0; i < encrypted.length; i++) {
+                decrypted += String.fromCharCode(encrypted.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+            }
+
+            return {
+                decryptedData: decrypted,
+                success: true
+            };
+        } catch (error) {
+            console.error('[E2E] Fallback decryption failed:', error);
+            return {
+                decryptedData: '',
+                success: false
+            };
+        }
+    }
+
+    /**
+     * Simple hash function for fallback encryption
+     */
+    private simpleHash(str: string): string {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+        return Math.abs(hash).toString(36).padEnd(32, '0');
+    }
+
+    /**
+     * Generate deterministic salt from password
+     * This ensures the same password always produces the same salt
+     */
+    private async generateDeterministicSalt(password: string): Promise<Uint8Array> {
+        // Use SHA-256 hash of password to create deterministic salt
+        const encoder = new TextEncoder();
+        const data = encoder.encode(password + '_desocialai_salt_v1');
+        const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+        const hashArray = new Uint8Array(hashBuffer);
+        
+        // Take first 16 bytes for salt
+        return hashArray.slice(0, 16);
+    }
+
+    /**
+     * Simple encryption using Web Crypto API with fallback
+     */
+    async encryptSimple(message: string, password: string): Promise<EncryptionResult> {
+        // Check if Web Crypto API is available
+        if (!this.isCryptoAvailable()) {
+            return this.fallbackEncrypt(message, password);
+        }
+
+        try {
+            // Use deterministic salt based on password
+            const salt = await this.generateDeterministicSalt(password);
+            const key = await clientE2EEncryption.deriveKeyFromPassword(password, salt);
+            const result = await clientE2EEncryption.encrypt(message, key);
+            
+            // Include salt in IV for backward compatibility (but we'll use deterministic salt)
+            return result;
+        } catch (error) {
+            console.error('[E2E] Web Crypto encryption failed, using fallback:', error);
+            return this.fallbackEncrypt(message, password);
+        }
+    }
+
+    /**
+     * Simple decryption using Web Crypto API with fallback
      */
     async decryptSimple(encryptedData: string, password: string, iv: string): Promise<DecryptionResult> {
-        const salt = window.crypto.getRandomValues(new Uint8Array(16)); // In real app, salt should be stored
-        const key = await clientE2EEncryption.deriveKeyFromPassword(password, salt);
-        return await clientE2EEncryption.decrypt(encryptedData, key, iv);
+        // Check if this is fallback encrypted data
+        if (!this.isCryptoAvailable()) {
+            return this.fallbackDecrypt(encryptedData, password, iv);
+        }
+
+        try {
+            // Use the same deterministic salt that was used for encryption
+            const salt = await this.generateDeterministicSalt(password);
+            const key = await clientE2EEncryption.deriveKeyFromPassword(password, salt);
+            return await clientE2EEncryption.decrypt(encryptedData, key, iv);
+        } catch (error) {
+            console.error('[E2E] Web Crypto decryption failed, trying fallback:', error);
+            return this.fallbackDecrypt(encryptedData, password, iv);
+        }
     }
 }
 

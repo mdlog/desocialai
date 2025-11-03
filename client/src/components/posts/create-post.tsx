@@ -44,7 +44,7 @@ export function CreatePost() {
   const WARNING_THRESHOLD = Math.floor(CHARACTER_LIMIT * 0.9); // 90% = 252 characters
 
   // Check wallet connection status
-  const { data: walletStatus } = useQuery({
+  const { data: walletStatus, refetch: refetchWalletStatus } = useQuery({
     queryKey: ["/api/web3/wallet"],
     queryFn: async () => {
       const response = await fetch("/api/web3/wallet");
@@ -54,10 +54,11 @@ export function CreatePost() {
       return response.json();
     },
     refetchInterval: 5000, // Check every 5 seconds
+    staleTime: 5000, // Consider data fresh for 5 seconds
   });
 
   // Get user data to check verified status
-  const { data: userData } = useQuery({
+  const { data: userData, refetch: refetchUserData } = useQuery({
     queryKey: ["/api/users/me"],
     enabled: walletStatus?.connected,
     queryFn: async () => {
@@ -68,7 +69,33 @@ export function CreatePost() {
       return response.json();
     },
     refetchInterval: 30000, // Check every 30 seconds
+    staleTime: 10000, // Match sidebar setting
+    refetchOnMount: true, // Enable refetch on mount
   });
+
+  // Listen for wallet connection events
+  useEffect(() => {
+    const handleWalletConnect = async () => {
+      console.log("[CREATE-POST] Wallet connected, refetching wallet status and user data...");
+
+      // Refetch wallet status first
+      const walletResult = await refetchWalletStatus();
+
+      // Wait a bit for backend to complete wallet sync
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Then refetch user data if wallet is connected
+      if (walletResult.data?.connected) {
+        await refetchUserData();
+      }
+    };
+
+    window.addEventListener('walletConnected', handleWalletConnect);
+
+    return () => {
+      window.removeEventListener('walletConnected', handleWalletConnect);
+    };
+  }, [refetchWalletStatus, refetchUserData]);
 
   // Calculate character count and status
   const characterCount = content.length;
@@ -168,9 +195,18 @@ export function CreatePost() {
           throw new Error(`Account mismatch! Please switch MetaMask to account: ${sessionAccount}`);
         }
 
-        // Use the active account (prioritize session account for consistency)
-        const account = sessionAccount || currentAccount;
+        // Use the active account (prioritize current MetaMask account)
+        // This ensures we sign with the currently active wallet
+        const account = currentAccount || sessionAccount;
+        console.log('[FRONTEND DEBUG] ========== SIGNATURE DEBUG ==========');
+        console.log('[FRONTEND DEBUG] Session account:', sessionAccount);
+        console.log('[FRONTEND DEBUG] Current MetaMask account:', currentAccount);
         console.log('[FRONTEND DEBUG] Using account for signature:', account);
+        console.log('[FRONTEND DEBUG] =====================================');
+
+        if (!account) {
+          throw new Error('No wallet account available. Please connect your wallet.');
+        }
 
         // Create message to sign
         const timestamp = Date.now();
@@ -186,7 +222,8 @@ export function CreatePost() {
           params: [message, account],
         });
 
-        console.log('[FRONTEND DEBUG] Signature received:', signature);
+        console.log('[FRONTEND DEBUG] ✅ Signature received:', signature.substring(0, 20) + '...');
+        console.log('[FRONTEND DEBUG] Signature length:', signature.length);
 
         // MetaMask signature completed - now progress bar can start
         setIsSigningMetaMask(false);

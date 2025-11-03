@@ -13,6 +13,13 @@ export function useAuth() {
         }
       });
       console.log('[useAuth] Response status:', response.status);
+
+      if (response.status === 401) {
+        // Return null when wallet not connected
+        console.log('[useAuth] 401 - Wallet not connected, returning null');
+        return null;
+      }
+
       if (!response.ok) {
         throw new Error('Failed to fetch user');
       }
@@ -21,7 +28,9 @@ export function useAuth() {
       return userData;
     },
     retry: false,
-    staleTime: 30000, // 30 seconds
+    staleTime: 10000, // Match sidebar setting
+    refetchOnMount: true, // Enable refetch on mount
+    refetchOnWindowFocus: false, // Disable refetch on window focus
   });
 
   console.log('[useAuth] Hook state:', { user, isLoading, error, isAuthenticated: !!user });

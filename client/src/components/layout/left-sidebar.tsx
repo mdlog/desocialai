@@ -7,11 +7,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LoadingCard, LoadingSpinner } from "@/components/ui/loading";
 import { Badge } from "@/components/ui/badge";
 import { Link, useLocation } from "wouter";
-import { useMemo, memo, useEffect } from "react";
+import { useMemo, memo, useEffect, useState } from "react";
 
 function LeftSidebarBase() {
   const [location] = useLocation();
   const queryClient = useQueryClient();
+  const [avatarKey, setAvatarKey] = useState(0); // Force re-render key
 
   const { data: currentUser, isError, refetch, isLoading: isLoadingUser } = useQuery<{
     id: string;
@@ -36,79 +37,84 @@ function LeftSidebarBase() {
     createdAt: Date | null;
   }>({
     queryKey: ["/api/users/me"],
-    retry: false, // Don't retry on 401 errors
-    staleTime: 5000, // Cache for 5 seconds to reduce requests
-    gcTime: 30000, // Keep in cache for 30 seconds
-    networkMode: 'always', // Always fetch from network
-    refetchInterval: 10000, // Check every 10 seconds (reduced from 2s)
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
+    retry: false,
+    staleTime: 2000, // Reduced to 2 seconds
+    gcTime: 300000,
+    networkMode: 'online',
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnMount: 'always', // Always refetch on mount
     refetchOnReconnect: true,
+    enabled: true,
     queryFn: async () => {
       console.log("[SIDEBAR] Query function called for key:", ["/api/users/me"]);
-      const res = await fetch("/api/users/me", {
+      console.log("[SIDEBAR] Current URL:", window.location.href);
+      console.log("[SIDEBAR] Fetch options:", {
         credentials: "include",
-        cache: "no-cache", // Prevent browser caching
-        headers: {
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          "Pragma": "no-cache",
-          "Expires": "0"
-        }
+        url: "/api/users/me"
       });
 
-      if (res.status === 401) {
-        // Return null when wallet not connected instead of throwing error
-        return null;
-      }
-
-      if (!res.ok) {
-        throw new Error(`${res.status}: ${res.statusText}`);
-      }
-
-      const userData = await res.json();
-      console.log("[SIDEBAR] Fetched user data:", userData);
-      console.log("[SIDEBAR] Avatar value:", userData?.avatar);
-      console.log("[SIDEBAR] Avatar type:", typeof userData?.avatar);
-      console.log("[SIDEBAR] Avatar is null:", userData?.avatar === null);
-      console.log("[SIDEBAR] Avatar is empty string:", userData?.avatar === "");
-      console.log("[SIDEBAR] Avatar length:", userData?.avatar?.length);
-
-      // Test avatar URL accessibility
-      if (userData?.avatar) {
-        const avatarUrl = `${userData.avatar}?cache=${userData.id}`;
-        console.log("[SIDEBAR] Full avatar URL:", avatarUrl);
-        console.log("[SIDEBAR] Avatar URL construction:", {
-          base: userData.avatar,
-          cache: userData.id,
-          final: avatarUrl
+      try {
+        const res = await fetch("/api/users/me", {
+          credentials: "include", // CRITICAL: Must include credentials for session cookies
+          cache: "no-cache", // Prevent browser caching
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+          }
         });
 
-        // Test if image loads with detailed error handling
-        const img = new Image();
-        img.onload = () => {
-          console.log("[SIDEBAR] ✅ Avatar image loaded successfully");
-          console.log("[SIDEBAR] Image dimensions:", img.width, "x", img.height);
-        };
-        img.onerror = (e) => {
-          console.log("[SIDEBAR] ❌ Avatar image failed to load");
-          console.log("[SIDEBAR] Error event:", e);
-          console.log("[SIDEBAR] Failed URL:", img.src);
+        console.log("[SIDEBAR] Response status:", res.status, res.statusText);
+        console.log("[SIDEBAR] Response headers:", Object.fromEntries(res.headers.entries()));
 
-          // Try to fetch the URL directly to see what happens
-          fetch(img.src)
-            .then(response => {
-              console.log("[SIDEBAR] Direct fetch response:", response.status, response.statusText);
-              return response.text();
-            })
-            .then(text => console.log("[SIDEBAR] Response text:", text.substring(0, 200)))
-            .catch(fetchError => console.log("[SIDEBAR] Fetch error:", fetchError));
-        };
-        img.src = avatarUrl;
-      } else {
-        console.log("[SIDEBAR] No avatar data found in userData");
+        if (res.status === 401) {
+          // Return null when wallet not connected instead of throwing error
+          const errorData = await res.json().catch(() => ({}));
+          console.log("[SIDEBAR] 401 - Wallet not connected:", errorData);
+          console.log("[SIDEBAR] This means session walletConnection is not set or not connected");
+          return null;
+        }
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error("[SIDEBAR] Error response:", res.status, res.statusText, errorText);
+          throw new Error(`${res.status}: ${res.statusText}`);
+        }
+
+        const userData = await res.json();
+        console.log("[SIDEBAR] ✅ User data received successfully:", {
+          id: userData?.id,
+          username: userData?.username,
+          displayName: userData?.displayName,
+          walletAddress: userData?.walletAddress
+        });
+
+        // Decode HTML entities in avatar path if present
+        if (userData?.avatar && typeof userData.avatar === 'string') {
+          const originalAvatar = userData.avatar;
+          userData.avatar = userData.avatar
+            .replace(/&#x2F;/g, '/')
+            .replace(/&#x5C;/g, '\\')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#x27;/g, "'");
+
+          if (originalAvatar !== userData.avatar) {
+            console.log("[SIDEBAR] Decoded HTML entities in avatar:", {
+              original: originalAvatar,
+              decoded: userData.avatar
+            });
+          }
+        }
+
+        return userData;
+      } catch (error) {
+        console.error("[SIDEBAR] ❌ Fetch error:", error);
+        throw error;
       }
-
-      return userData;
     },
   });
 
@@ -163,20 +169,96 @@ function LeftSidebarBase() {
     [isAdmin, baseNavItems]
   );
 
-  // Listen for wallet connection events and refetch user data immediately
+  // Listen for wallet connection, disconnect, and avatar update events
   useEffect(() => {
-    const handleWalletConnect = () => {
-      console.log("[SIDEBAR] Wallet connected, refetching user data...");
+    const handleWalletConnect = async () => {
+      console.log("[SIDEBAR] 🔗 Wallet connected event received, refetching user data...");
+
+      // Clear cache immediately
+      queryClient.removeQueries({ queryKey: ["/api/users/me"] });
+
+      // Small delay to ensure session cookie is set
+      await new Promise(resolve => setTimeout(resolve, 100)); // Minimal 100ms delay
+
+      // Try to fetch with simple retry (max 3 attempts)
+      let retries = 3;
+      let success = false;
+
+      while (retries > 0 && !success) {
+        try {
+          console.log(`[SIDEBAR] 🔄 Fetching user data (attempt ${4 - retries}/3)...`);
+
+          queryClient.invalidateQueries({ queryKey: ["/api/users/me"] });
+          const result = await refetch();
+
+          if (result.data && result.data.id) {
+            console.log("[SIDEBAR] ✅ User data loaded:", result.data.username);
+            success = true;
+
+            // Force UI update by invalidating cache
+            queryClient.invalidateQueries({ queryKey: ["/api/users/me"] });
+          } else {
+            console.warn(`[SIDEBAR] ⚠️ No data, retrying... (${retries - 1} left)`);
+            retries--;
+            if (retries > 0) {
+              await new Promise(resolve => setTimeout(resolve, 500)); // 500ms between retries
+            }
+          }
+        } catch (error) {
+          console.error(`[SIDEBAR] ❌ Fetch error:`, error);
+          retries--;
+          if (retries > 0) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+      }
+
+      if (!success) {
+        console.error("[SIDEBAR] ❌ Failed to load profile. Check session cookies in DevTools.");
+      }
+    };
+
+    const handleWalletDisconnect = () => {
+      console.log("[SIDEBAR] Wallet disconnected, clearing user data...");
+      // Clear cache immediately
+      queryClient.removeQueries({ queryKey: ["/api/users/me"] });
+      // Force refetch to show "Connect Wallet" state
       refetch();
     };
 
-    // Listen for custom wallet connect event
+    const handleAvatarUpdate = () => {
+      console.log("[SIDEBAR] Avatar updated, force refetching user data...");
+      // Force re-render by updating key
+      setAvatarKey(prev => prev + 1);
+      // Remove cache and refetch immediately
+      queryClient.removeQueries({ queryKey: ["/api/users/me"] });
+      setTimeout(() => {
+        refetch();
+      }, 100);
+    };
+
+    // Listen for custom events
     window.addEventListener('walletConnected', handleWalletConnect);
+    window.addEventListener('walletDisconnected', handleWalletDisconnect);
+    window.addEventListener('avatarUpdated', handleAvatarUpdate);
 
     return () => {
       window.removeEventListener('walletConnected', handleWalletConnect);
+      window.removeEventListener('walletDisconnected', handleWalletDisconnect);
+      window.removeEventListener('avatarUpdated', handleAvatarUpdate);
     };
-  }, [refetch]);
+  }, [refetch, queryClient]);
+
+  // Debug logging for current state
+  useEffect(() => {
+    console.log("[SIDEBAR] Current state:", {
+      hasCurrentUser: !!currentUser,
+      currentUser: currentUser ? { id: currentUser.id, username: currentUser.username } : null,
+      isLoadingUser,
+      isError,
+      error: isError ? 'Query error' : null
+    });
+  }, [currentUser, isLoadingUser, isError]);
 
   // Always show all components, but with different content based on wallet connection
 
@@ -193,7 +275,7 @@ function LeftSidebarBase() {
                 <>
                   <Avatar className="w-20 h-20 mx-auto mb-4 ring-4 ring-primary ring-opacity-20">
                     <AvatarImage
-                      src={currentUser.avatar ? `${currentUser.avatar}?cache=${currentUser.id}&t=${Date.now()}&v=${Math.random()}` : ""}
+                      src={currentUser.avatar ? `${currentUser.avatar}?v=${avatarKey}` : ""}
                       alt={currentUser.displayName}
                       className="object-cover"
                       onLoad={() => {
@@ -272,10 +354,38 @@ function LeftSidebarBase() {
                     </div>
                   </div>
 
-                  <Button className="w-full" variant="outline">
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    onClick={async () => {
+                      console.log("[SIDEBAR] Manual refresh button clicked");
+                      console.log("[SIDEBAR] Clearing cache and refetching...");
+                      queryClient.removeQueries({ queryKey: ["/api/users/me"] });
+                      queryClient.invalidateQueries({ queryKey: ["/api/users/me"] });
+                      await refetch();
+                    }}
+                  >
                     <Wallet className="w-4 h-4 mr-2" />
                     Connect Wallet
                   </Button>
+
+                  {/* Debug: Manual refresh button */}
+                  {process.env.NODE_ENV === 'development' && (
+                    <Button
+                      className="w-full mt-2"
+                      variant="ghost"
+                      size="sm"
+                      onClick={async () => {
+                        console.log("[SIDEBAR DEBUG] Manual refresh triggered");
+                        console.log("[SIDEBAR DEBUG] Current state:", { currentUser, isLoadingUser });
+                        queryClient.removeQueries({ queryKey: ["/api/users/me"] });
+                        const result = await refetch();
+                        console.log("[SIDEBAR DEBUG] Refetch result:", result);
+                      }}
+                    >
+                      🔄 Debug: Refresh Profile
+                    </Button>
+                  )}
                 </>
               )}
             </div>
@@ -354,7 +464,7 @@ function LeftSidebarBase() {
                 </div>
                 <div className="flex justify-between py-2">
                   <span className="text-muted-foreground">Gas:</span>
-                  <span className="text-foreground font-mono">{chainStatus?.gasPrice || "0.1 Gwei"}</span>
+                  <span className="text-foreground font-mono">{chainStatus?.gasPrice || "0.1 Gneuron"}</span>
                 </div>
               </div>
             )}

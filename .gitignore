@@ -14,3 +14,22 @@ vite.config.ts.*
 # Documentation - ignore all .md files except README.md
 *.md
 !README.md
+
+# Test files and folders
+test/
+tests/
+*.test.js
+*.test.ts
+*.test.tsx
+*.spec.js
+*.spec.ts
+*.spec.tsx
+__tests__/
+
+# Temporary files and folders
+tmp/
+temp/
+*.tmp
+*.temp
+.tmp/
+.temp/

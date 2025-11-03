@@ -57,26 +57,20 @@ export function EditProfileDialog({ user, trigger }: EditProfileDialogProps) {
     },
     onSuccess: (result) => {
       console.log("Profile update successful:", result);
-      // Invalidate all user-related queries to update display names everywhere
-      queryClient.invalidateQueries({ queryKey: ["/api/users/me"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/posts/feed"] });
-      queryClient.invalidateQueries({ queryKey: ["posts"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
-
-      // Force refresh all comment data that might contain user info
-      queryClient.invalidateQueries({
-        predicate: (query) => {
-          return query.queryKey[0] && typeof query.queryKey[0] === 'string' &&
-            query.queryKey[0].includes('/comments');
-        }
-      });
 
       setOpen(false);
       setAvatarPreview(null);
+
       toast({
         title: "Profile Updated",
-        description: "Your profile has been updated successfully.",
+        description: "Your profile has been updated successfully. Refreshing...",
       });
+
+      // Clear cache and reload to ensure all data is fresh
+      queryClient.clear();
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
     },
     onError: (error: any) => {
       console.error("Profile update error:", error);
@@ -122,74 +116,144 @@ export function EditProfileDialog({ user, trigger }: EditProfileDialogProps) {
       };
       reader.readAsDataURL(file);
 
+      console.log("[AVATAR UPLOAD] Starting upload process...");
+
       // Get upload URL
-      const response = await apiRequest("POST", "/api/objects/upload");
+      let response;
+      try {
+        response = await apiRequest("POST", "/api/objects/upload");
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Failed to get upload URL: ${response.status} - ${errorText}`);
+        }
+      } catch (error: any) {
+        console.error("[AVATAR UPLOAD] Failed to get upload URL:", error);
+        throw new Error(`Failed to connect to server. Please check your connection.`);
+      }
+
       const uploadData = await response.json();
+      console.log("[AVATAR UPLOAD] Got upload URL:", uploadData.uploadURL);
+
+      // Extract objectId from uploadURL
+      const objectId = uploadData.uploadURL.split('/').pop();
+
+      // Use relative URL to avoid CORS issues with tunnel
+      const relativeUploadURL = `/api/objects/upload-direct/${objectId}`;
+      const relativeMultipartURL = `/api/objects/upload-multipart/${objectId}`;
+
+      console.log("[AVATAR UPLOAD] Using relative URL:", relativeUploadURL);
 
       // Try direct upload first
-      let uploadResponse = await fetch(uploadData.uploadURL, {
-        method: "PUT",
-        body: file,
-        headers: {
-          "Content-Type": file.type,
-        },
-      });
+      let uploadResponse;
+      try {
+        uploadResponse = await fetch(relativeUploadURL, {
+          method: "PUT",
+          body: file,
+          headers: {
+            "Content-Type": file.type,
+          },
+          credentials: 'include', // Important for session cookies
+        });
+
+        console.log("[AVATAR UPLOAD] Direct upload response:", uploadResponse.status);
+      } catch (fetchError: any) {
+        console.error("[AVATAR UPLOAD] Direct upload fetch error:", fetchError);
+        throw new Error(`Network error during upload. Please check your connection.`);
+      }
 
       // If direct upload fails, try multipart upload as fallback
       if (!uploadResponse.ok) {
         console.log("[AVATAR UPLOAD] Direct upload failed, trying multipart...");
-        const formData = new FormData();
-        formData.append('file', file);
+        try {
+          const formData = new FormData();
+          formData.append('file', file);
 
-        // Use the multipart endpoint instead
-        const multipartURL = uploadData.uploadURL.replace('/upload-direct/', '/upload-multipart/');
-        uploadResponse = await fetch(multipartURL, {
-          method: "PUT",
-          body: formData,
-        });
+          uploadResponse = await fetch(relativeMultipartURL, {
+            method: "PUT",
+            body: formData,
+            credentials: 'include',
+          });
+
+          console.log("[AVATAR UPLOAD] Multipart upload response:", uploadResponse.status);
+        } catch (fetchError: any) {
+          console.error("[AVATAR UPLOAD] Multipart upload fetch error:", fetchError);
+          throw new Error(`Network error during upload. Please check your connection.`);
+        }
       }
 
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
+        console.error("[AVATAR UPLOAD] Upload failed:", errorText);
         throw new Error(`Upload failed: ${uploadResponse.status} - ${errorText}`);
       }
 
-      console.log("[AVATAR UPLOAD] Updating avatar with URL:", uploadData.uploadURL);
+      console.log("[AVATAR UPLOAD] Upload successful, updating user avatar...");
+      console.log("[AVATAR UPLOAD] Sending avatarURL to server:", relativeUploadURL);
+      console.log("[AVATAR UPLOAD] avatarURL type:", typeof relativeUploadURL);
 
-      // Update avatar on backend
+      // Update avatar on backend - use relative URL
       const avatarResponse = await apiRequest("PUT", "/api/users/me/avatar", {
-        avatarURL: uploadData.uploadURL
+        avatarURL: relativeUploadURL
       });
+
+      if (!avatarResponse.ok) {
+        const errorText = await avatarResponse.text();
+        throw new Error(`Failed to update avatar: ${avatarResponse.status} - ${errorText}`);
+      }
+
       const avatarData = await avatarResponse.json();
 
-      console.log("[AVATAR UPLOAD] Avatar update response:", avatarData);
+      console.log("[AVATAR UPLOAD] ✅ Avatar update response:", avatarData);
+      console.log("[AVATAR UPLOAD] ✅ New avatar URL:", avatarData.avatar);
+      console.log("[AVATAR UPLOAD] ✅ Debug info:", avatarData.debug);
+
+      // Verify avatar was actually saved
+      if (!avatarData.avatar) {
+        console.error("[AVATAR UPLOAD] ❌ Avatar is null in response!");
+        throw new Error("Avatar was not saved properly");
+      }
 
       // Update form value
       form.setValue("avatar", avatarData.avatar);
-      console.log("[AVATAR UPLOAD] Updated form with avatar:", avatarData.avatar);
 
-      // Force complete cache refresh to ensure avatar shows immediately
-      console.log("[AVATAR UPLOAD] Invalidating user cache...");
+      // Close dialog
+      setOpen(false);
 
-      await queryClient.invalidateQueries({ queryKey: ["/api/users/me"] });
-      await queryClient.refetchQueries({ queryKey: ["/api/users/me"] });
-
-      // Additional cache invalidation for all user-related queries
-      await queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      await queryClient.invalidateQueries({ queryKey: ["/api/posts/feed"] });
-      await queryClient.invalidateQueries({ queryKey: ["posts"] });
-
-      console.log("[AVATAR UPLOAD] Cache invalidation completed");
-
-      // Close dialog after successful upload
-      setTimeout(() => {
-        setOpen(false);
-      }, 1000);
-
+      // Show success message
       toast({
         title: "Avatar uploaded",
-        description: "Your profile picture has been updated.",
+        description: "Refreshing to show your new avatar...",
       });
+
+      // Force complete cache refresh
+      console.log("[AVATAR UPLOAD] Clearing all caches...");
+
+      // Clear React Query cache completely
+      queryClient.clear();
+
+      // Wait a bit for cache to clear
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Refetch user data
+      console.log("[AVATAR UPLOAD] Refetching user data...");
+      await queryClient.refetchQueries({
+        queryKey: ["/api/users/me"],
+        type: 'active'
+      });
+
+      // Wait for refetch to complete
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Verify data was refetched
+      const userData = queryClient.getQueryData(["/api/users/me"]);
+      console.log("[AVATAR UPLOAD] User data after refetch:", userData);
+
+      // Force hard reload to clear browser cache
+      console.log("[AVATAR UPLOAD] Forcing hard reload...");
+      setTimeout(() => {
+        // Hard reload with cache clear
+        window.location.href = window.location.href.split('?')[0] + '?_t=' + Date.now();
+      }, 500);
 
     } catch (error: any) {
       console.error("Avatar upload error:", error);

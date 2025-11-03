@@ -21,8 +21,6 @@ export function ReputationSystem({ user, isLoading = false }: ReputationSystemPr
   }
 
   const reputation = user.reputationScore || 0;
-  const posts = user.postsCount || 0;
-  const followers = user.followersCount || 0;
 
   // Calculate reputation level and tier
   const getReputationTier = (score: number) => {
@@ -54,12 +52,15 @@ export function ReputationSystem({ user, isLoading = false }: ReputationSystemPr
 
   const { progress, nextLevel } = getNextLevelProgress(reputation);
 
-  // Calculate reputation breakdown
+  // Use real reputation score from database
+  // Reputation is automatically calculated and stored when:
+  // - User creates posts
+  // - User gains followers
+  // - User earns badges
+  // - User performs on-chain activities
   const reputationBreakdown = {
-    posts: Math.floor(posts * 10), // 10 points per post
-    engagement: Math.floor(followers * 5), // 5 points per follower
-    verification: user.walletAddress ? 100 : 0, // 100 points for wallet verification
-    onChain: Math.floor(reputation * 0.3), // 30% from on-chain activity
+    total: reputation,
+    display: reputation.toLocaleString()
   };
 
   return (
@@ -102,34 +103,17 @@ export function ReputationSystem({ user, isLoading = false }: ReputationSystemPr
           </div>
         )}
 
-        {/* Reputation Breakdown */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Content</span>
-              <span className="text-sm font-medium text-gray-900 dark:text-white">
-                +{reputationBreakdown.posts}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Engagement</span>
-              <span className="text-sm font-medium text-gray-900 dark:text-white">
-                +{reputationBreakdown.engagement}
-              </span>
-            </div>
-          </div>
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Verification</span>
-              <span className="text-sm font-medium text-gray-900 dark:text-white">
-                +{reputationBreakdown.verification}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600 dark:text-gray-400">On-Chain</span>
-              <span className="text-sm font-medium text-gray-900 dark:text-white">
-                +{reputationBreakdown.onChain}
-              </span>
+        {/* Reputation Info */}
+        <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950 rounded-lg">
+          <div className="text-center">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+              Reputation is earned through:
+            </p>
+            <div className="flex flex-wrap justify-center gap-2 text-xs">
+              <span className="px-2 py-1 bg-white dark:bg-gray-800 rounded-full">Creating Posts</span>
+              <span className="px-2 py-1 bg-white dark:bg-gray-800 rounded-full">Gaining Followers</span>
+              <span className="px-2 py-1 bg-white dark:bg-gray-800 rounded-full">Earning Badges</span>
+              <span className="px-2 py-1 bg-white dark:bg-gray-800 rounded-full">On-Chain Activity</span>
             </div>
           </div>
         </div>
