@@ -21,6 +21,8 @@ import { zgChatServiceAuthentic } from "./services/zg-chat-authentic.js";
 import { dmStorageService } from "./services/dm-storage";
 import { zgDAService } from "./services/zg-da";
 import { zgChainService } from "./services/zg-chain";
+import { nftService } from "./services/nft-service";
+import { badgeService } from "./services/badge-service";
 import { ethers, verifyMessage } from "ethers";
 import crypto from "crypto";
 
@@ -127,6 +129,19 @@ function generateHashtagsForCategory(category: string, content: string): string[
 
 // Helper function to get wallet connection from session
 function getWalletConnection(req: any) {
+  // Don't initialize if session doesn't exist - let express-session handle it
+  if (!req.session) {
+    console.warn('[getWalletConnection] No session object found');
+    return {
+      connected: false,
+      address: null,
+      balance: null,
+      network: null,
+      chainId: null
+    };
+  }
+
+  // If walletConnection doesn't exist, initialize it
   if (!req.session.walletConnection) {
     req.session.walletConnection = {
       connected: false,
@@ -153,6 +168,47 @@ function broadcastToAll(message: any) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // CRITICAL: Ensure CORS headers are set correctly for all routes
+  // This middleware runs AFTER main CORS middleware in index.ts
+  // But we need to ensure it doesn't override with '*'
+  app.use((req, res, next) => {
+    // Only set CORS headers if they're not already set or if they're '*'
+    const currentOrigin = res.getHeader('Access-Control-Allow-Origin');
+    if (!currentOrigin || currentOrigin === '*') {
+      const origin = req.headers.origin;
+      const allowedOrigins = [
+        'http://localhost:5000',
+        'http://localhost:3005',
+        'https://desocialai.live',
+        'https://desocialai.xyz',
+        process.env.ALLOWED_ORIGIN
+      ].filter(Boolean);
+
+      // CRITICAL: Never use '*' when credentials are required
+      let finalOrigin: string;
+      if (origin && allowedOrigins.includes(origin)) {
+        finalOrigin = origin;
+      } else if (process.env.NODE_ENV === 'development') {
+        if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
+          finalOrigin = origin;
+        } else {
+          finalOrigin = 'http://localhost:5000';
+        }
+      } else {
+        finalOrigin = origin || 'https://desocialai.live';
+      }
+
+      res.header('Access-Control-Allow-Origin', finalOrigin);
+      res.header('Access-Control-Allow-Credentials', 'true');
+
+      // Log for debugging
+      if (req.path.startsWith('/api/')) {
+        console.log(`[CORS ROUTES] ${req.method} ${req.path} - Set origin to: ${finalOrigin} (was: ${currentOrigin || 'not set'})`);
+      }
+    }
+    next();
+  });
+
   // Debug middleware to log all requests
   app.use((req, res, next) => {
     if (req.path.includes('/api/posts/user/')) {
@@ -225,12 +281,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/users/me", async (req, res) => {
     const walletConnection = getWalletConnection(req);
 
+    // Debug logging
+    console.log('[USERS/ME] Session ID:', req.sessionID);
+    console.log('[USERS/ME] Session walletConnection:', JSON.stringify(walletConnection));
+    console.log('[USERS/ME] Request headers:', {
+      cookie: req.headers.cookie ? 'present' : 'missing',
+      origin: req.headers.origin,
+      referer: req.headers.referer
+    });
+
+    // CRITICAL: Verify session from store
+    if (req.sessionStore && typeof req.sessionStore.get === 'function') {
+      req.sessionStore.get(req.sessionID, (storeErr: any, storeSession: any) => {
+        if (storeErr) {
+          console.error('[USERS/ME] Store get error:', storeErr);
+        } else if (storeSession) {
+          console.log('[USERS/ME] ✅ Store session found');
+          console.log('[USERS/ME] Store walletConnection:', JSON.stringify(storeSession.walletConnection));
+        } else {
+          console.warn('[USERS/ME] ⚠️ Store session NOT found for session ID:', req.sessionID);
+        }
+      });
+    }
+
     if (!walletConnection.connected || !walletConnection.address) {
+      console.log('[USERS/ME] ❌ Wallet not connected:', {
+        connected: walletConnection.connected,
+        address: walletConnection.address,
+        sessionId: req.sessionID
+      });
       // Return 401 when no wallet connected to indicate authentication required
       return res.status(401).json({
         message: "Wallet connection required",
         details: "Please connect your wallet to access user profile",
-        code: "WALLET_NOT_CONNECTED"
+        code: "WALLET_NOT_CONNECTED",
+        sessionId: req.sessionID,
+        debug: {
+          hasWalletConnection: !!req.session.walletConnection,
+          walletConnection: req.session.walletConnection
+        }
       });
     }
 
@@ -281,6 +370,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(user);
   });
 
+  // Search users endpoints - MUST be before /api/users/:id to avoid route conflict
+  // Search users by query parameter (for new message dialog)
+  app.get("/api/users/search", async (req, res) => {
+    const query = req.query.q as string;
+    console.log('[USER SEARCH] Query received:', query);
+
+    if (!query || query.trim().length < 2) {
+      console.log('[USER SEARCH] Query too short, returning empty array');
+      return res.json([]);
+    }
+
+    const users = await storage.searchUsers(query);
+    console.log('[USER SEARCH] Found users:', users.length);
+    res.json(users);
+  });
+
+  // Legacy endpoint with path parameter
+  app.get("/api/users/search/:query", async (req, res) => {
+    const users = await storage.searchUsers(req.params.query);
+    res.json(users);
+  });
+
+  // User by ID - MUST be after search routes
   app.get("/api/users/:id", async (req, res) => {
     const user = await storage.getUser(req.params.id);
     if (!user) {
@@ -297,11 +409,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       res.status(400).json({ message: error.message });
     }
-  });
-
-  app.get("/api/users/search/:query", async (req, res) => {
-    const users = await storage.searchUsers(req.params.query);
-    res.json(users);
   });
 
   // Profile endpoints
@@ -323,11 +430,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit as string) || 10;
       const offset = parseInt(req.query.offset as string) || 0;
       console.log(`[ROUTES DEBUG] Calling storage.getPostsByUser with userId=${req.params.userId}, limit=${limit}, offset=${offset}`);
+
+      // Get posts by user
       const posts = await storage.getPostsByUser(req.params.userId, limit, offset);
-      console.log(`[ROUTES DEBUG] Returning ${posts.length} posts`);
-      res.json(posts);
+      console.log(`[ROUTES DEBUG] Got ${posts.length} posts`);
+
+      // Get current user ID for like/repost status
+      const walletConnection = getWalletConnection(req);
+      const currentUserId = walletConnection.connected && walletConnection.address
+        ? (await storage.getUserByWalletAddress(walletConnection.address))?.id
+        : undefined;
+
+      // Enrich posts with author info and interaction status
+      const enrichedPosts = await Promise.all(
+        posts.map(async (post) => {
+          const author = await storage.getUser(post.authorId);
+          const isLiked = currentUserId ? await storage.isPostLiked(currentUserId, post.id) : false;
+          const isReposted = currentUserId ? await storage.isPostReposted(currentUserId, post.id) : false;
+
+          return {
+            ...post,
+            author: author || {
+              id: post.authorId,
+              username: 'unknown',
+              displayName: 'Unknown User',
+              avatar: null,
+              bio: null,
+              walletAddress: null,
+              isVerified: false,
+              followingCount: 0,
+              followersCount: 0,
+              postsCount: 0,
+              createdAt: new Date()
+            },
+            isLiked,
+            isReposted
+          };
+        })
+      );
+
+      console.log(`[ROUTES DEBUG] Returning ${enrichedPosts.length} enriched posts`);
+      res.json(enrichedPosts);
     } catch (error: any) {
       console.error(`[ROUTES ERROR] Error in /api/posts/user/:userId:`, error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get suggested users to follow
+  app.get("/api/users/suggested", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 5;
+
+      // Get current user if logged in
+      const walletConnection = getWalletConnection(req);
+      let currentUserId: string | undefined;
+
+      if (walletConnection.connected && walletConnection.address) {
+        const currentUser = await storage.getUserByWalletAddress(walletConnection.address);
+        currentUserId = currentUser?.id;
+      }
+
+      // Get recent active users (users who posted recently)
+      const recentPosts = await storage.getPosts(100, 0);
+      const userIds = Array.from(new Set(recentPosts.map((post: any) => post.authorId)));
+
+      // Fetch user details and sort by followers
+      const usersPromises = userIds.map((id: string) => storage.getUser(id));
+      const users = (await Promise.all(usersPromises)).filter(Boolean);
+
+      // Filter out current user and get users with most followers
+      const suggestedUsers = users
+        .filter((user: any) => user.id !== currentUserId)
+        .sort((a: any, b: any) => (b.followersCount || 0) - (a.followersCount || 0))
+        .slice(0, limit)
+        .map((user: any) => ({
+          id: user.id,
+          username: user.username,
+          displayName: user.displayName,
+          avatar: user.avatar,
+          bio: user.bio,
+          isVerified: user.isVerified,
+          followersCount: user.followersCount,
+          postsCount: user.postsCount,
+          isFollowing: false // Will be updated if currentUserId exists
+        }));
+
+      // Check if current user is following these users
+      if (currentUserId) {
+        for (const user of suggestedUsers) {
+          const isFollowing = await storage.isFollowing(currentUserId, user.id);
+          user.isFollowing = isFollowing;
+        }
+      }
+
+      res.json(suggestedUsers);
+    } catch (error: any) {
+      console.error('[Suggested Users] Error:', error);
       res.status(500).json({ message: error.message });
     }
   });
@@ -413,6 +612,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const follow = await storage.followUser(currentUser.id, targetUserId);
+
+      // Check badges for the user being followed (they gained a follower)
+      badgeService.checkAndAwardBadges(targetUserId).catch(err =>
+        console.error('[Badge] Error checking badges after follow:', err)
+      );
+
+      // Update reputation score for gaining follower (+5 points)
+      const targetUser = await storage.getUser(targetUserId);
+      if (targetUser) {
+        await storage.updateUser(targetUserId, {
+          reputationScore: (targetUser.reputationScore || 0) + 5
+        });
+      }
+
       res.json(follow);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -509,8 +722,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // This prevents unauthorized posting and ensures wallet ownership
       console.log("[SIGNATURE] Verifying wallet signature for post creation...");
 
+      // Allow bypassing signature in development if DISABLE_SIGNATURE_CHECK is set
+      const skipSignature = process.env.DISABLE_SIGNATURE_CHECK === 'true' && process.env.NODE_ENV === 'development';
+
+      if (skipSignature) {
+        console.log("[SIGNATURE] ⚠️ Signature check DISABLED (development mode)");
+      }
+
       // Check if signature data is provided
-      if (!postData.signature || !postData.message || !postData.address || !postData.timestamp) {
+      if (!skipSignature && (!postData.signature || !postData.message || !postData.address || !postData.timestamp)) {
         console.log("[SIGNATURE] ❌ Missing signature data");
         return res.status(400).json({
           message: "Signature required",
@@ -525,82 +745,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Verify the signature
-      try {
-        console.log("[SIGNATURE] Verifying signature:");
-        console.log("[SIGNATURE] Message:", postData.message);
-        console.log("[SIGNATURE] Signature:", postData.signature.substring(0, 20) + '...');
-        console.log("[SIGNATURE] Expected address:", postData.address);
+      // Verify the signature (skip if disabled in development)
+      if (!skipSignature) {
+        try {
+          console.log("[SIGNATURE] Verifying signature:");
+          console.log("[SIGNATURE] Message:", postData.message);
+          console.log("[SIGNATURE] Signature:", postData.signature.substring(0, 20) + '...');
+          console.log("[SIGNATURE] Expected address:", postData.address);
 
-        // Verify the signature matches the expected address
-        // MetaMask personal_sign already includes the Ethereum message prefix
-        const recoveredAddress = ethers.verifyMessage(postData.message, postData.signature);
-        console.log("[SIGNATURE] Recovered address:", recoveredAddress);
+          // Verify the signature matches the expected address
+          // MetaMask personal_sign already includes the Ethereum message prefix
+          const recoveredAddress = ethers.verifyMessage(postData.message, postData.signature);
+          console.log("[SIGNATURE] Recovered address:", recoveredAddress);
+          console.log("[SIGNATURE] Expected address (from form):", postData.address);
+          console.log("[SIGNATURE] Connected wallet address:", walletData.address);
 
-        if (recoveredAddress.toLowerCase() !== postData.address.toLowerCase()) {
-          console.log("[SIGNATURE] ❌ Address mismatch!");
-          console.log("[SIGNATURE] Expected:", postData.address.toLowerCase());
-          console.log("[SIGNATURE] Recovered:", recoveredAddress.toLowerCase());
+          // Check if recovered address matches either the form address OR the connected wallet
+          const matchesFormAddress = recoveredAddress.toLowerCase() === postData.address.toLowerCase();
+          const matchesWalletAddress = recoveredAddress.toLowerCase() === walletData.address.toLowerCase();
+
+          if (!matchesFormAddress && !matchesWalletAddress) {
+            console.log("[SIGNATURE] ❌ Address mismatch!");
+            console.log("[SIGNATURE] Expected (form):", postData.address.toLowerCase());
+            console.log("[SIGNATURE] Expected (wallet):", walletData.address.toLowerCase());
+            console.log("[SIGNATURE] Recovered:", recoveredAddress.toLowerCase());
+            return res.status(401).json({
+              message: "Invalid signature",
+              details: "The signature does not match your wallet address. Please try signing again.",
+              code: "SIGNATURE_MISMATCH",
+              debug: {
+                recoveredAddress: recoveredAddress.toLowerCase(),
+                formAddress: postData.address.toLowerCase(),
+                walletAddress: walletData.address.toLowerCase()
+              }
+            });
+          }
+
+          // If signature is valid but addresses don't match, use the recovered address
+          if (!matchesFormAddress) {
+            console.log("[SIGNATURE] ⚠️ Using recovered address instead of form address");
+            postData.address = recoveredAddress;
+          }
+
+          // Verify the signature is recent (within 5 minutes to prevent replay attacks)
+          const signatureAge = Date.now() - (postData.timestamp || 0);
+          if (signatureAge > 5 * 60 * 1000) {
+            console.log("[SIGNATURE] ❌ Signature expired (age:", signatureAge, "ms)");
+            return res.status(401).json({
+              message: "Signature expired",
+              details: "Your signature has expired. Please try posting again.",
+              code: "SIGNATURE_EXPIRED",
+              signatureAge: Math.floor(signatureAge / 1000) + " seconds"
+            });
+          }
+
+          // Verify the signature is not from the future (clock skew protection)
+          if (signatureAge < -60000) { // Allow 1 minute clock skew
+            console.log("[SIGNATURE] ❌ Signature timestamp is in the future");
+            return res.status(401).json({
+              message: "Invalid signature timestamp",
+              details: "Signature timestamp is invalid. Please check your system clock.",
+              code: "INVALID_TIMESTAMP"
+            });
+          }
+
+          // Verify the signed message contains the post content (if content exists)
+          if (postData.content && postData.content.trim() && !postData.message.includes(postData.content)) {
+            console.log("[SIGNATURE] ❌ Message content mismatch");
+            return res.status(401).json({
+              message: "Invalid signature content",
+              details: "The signed message does not match your post content. Please try again.",
+              code: "SIGNATURE_CONTENT_MISMATCH"
+            });
+          }
+
+          // Verify the address matches the connected wallet
+          if (postData.address.toLowerCase() !== walletData.address.toLowerCase()) {
+            console.log("[SIGNATURE] ❌ Address doesn't match connected wallet");
+            return res.status(401).json({
+              message: "Wallet address mismatch",
+              details: "The signature address does not match your connected wallet.",
+              code: "WALLET_MISMATCH"
+            });
+          }
+
+          console.log(`[SIGNATURE] ✅ Valid signature verified for address: ${postData.address}`);
+          console.log(`[SIGNATURE] ✅ Signature age: ${Math.floor(signatureAge / 1000)} seconds`);
+
+        } catch (signatureError: any) {
+          console.error("[SIGNATURE] ❌ Signature verification failed:", signatureError);
           return res.status(401).json({
-            message: "Invalid signature",
-            details: "The signature does not match your wallet address. Please try signing again.",
-            code: "SIGNATURE_MISMATCH"
+            message: "Signature verification failed",
+            details: "Failed to verify your wallet signature. Please try again.",
+            code: "SIGNATURE_VERIFICATION_ERROR",
+            error: signatureError.message
           });
         }
-
-        // Verify the signature is recent (within 5 minutes to prevent replay attacks)
-        const signatureAge = Date.now() - postData.timestamp;
-        if (signatureAge > 5 * 60 * 1000) {
-          console.log("[SIGNATURE] ❌ Signature expired (age:", signatureAge, "ms)");
-          return res.status(401).json({
-            message: "Signature expired",
-            details: "Your signature has expired. Please try posting again.",
-            code: "SIGNATURE_EXPIRED",
-            signatureAge: Math.floor(signatureAge / 1000) + " seconds"
-          });
-        }
-
-        // Verify the signature is not from the future (clock skew protection)
-        if (signatureAge < -60000) { // Allow 1 minute clock skew
-          console.log("[SIGNATURE] ❌ Signature timestamp is in the future");
-          return res.status(401).json({
-            message: "Invalid signature timestamp",
-            details: "Signature timestamp is invalid. Please check your system clock.",
-            code: "INVALID_TIMESTAMP"
-          });
-        }
-
-        // Verify the signed message contains the post content (if content exists)
-        if (postData.content && postData.content.trim() && !postData.message.includes(postData.content)) {
-          console.log("[SIGNATURE] ❌ Message content mismatch");
-          return res.status(401).json({
-            message: "Invalid signature content",
-            details: "The signed message does not match your post content. Please try again.",
-            code: "SIGNATURE_CONTENT_MISMATCH"
-          });
-        }
-
-        // Verify the address matches the connected wallet
-        if (postData.address.toLowerCase() !== walletData.address.toLowerCase()) {
-          console.log("[SIGNATURE] ❌ Address doesn't match connected wallet");
-          return res.status(401).json({
-            message: "Wallet address mismatch",
-            details: "The signature address does not match your connected wallet.",
-            code: "WALLET_MISMATCH"
-          });
-        }
-
-        console.log(`[SIGNATURE] ✅ Valid signature verified for address: ${postData.address}`);
-        console.log(`[SIGNATURE] ✅ Signature age: ${Math.floor(signatureAge / 1000)} seconds`);
-
-      } catch (signatureError: any) {
-        console.error("[SIGNATURE] ❌ Signature verification failed:", signatureError);
-        return res.status(401).json({
-          message: "Signature verification failed",
-          details: "Failed to verify your wallet signature. Please try again.",
-          code: "SIGNATURE_VERIFICATION_ERROR",
-          error: signatureError.message
-        });
+      } else {
+        console.log("[SIGNATURE] ⚠️ Skipping signature verification (development mode)");
       }
 
       // Get user by wallet address to get their proper user ID
@@ -735,6 +977,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const post = await storage.createPost(newPost as any);
 
       console.log('[Post Creation DEBUG] Created post result:', JSON.stringify(post, null, 2));
+
+      // Check and award badges after post creation
+      badgeService.checkAndAwardBadges(user.id).catch(err =>
+        console.error('[Badge] Error checking badges after post:', err)
+      );
+
+      // Update reputation score for creating post (+10 points)
+      const currentUser = await storage.getUser(user.id);
+      if (currentUser) {
+        await storage.updateUser(user.id, {
+          reputationScore: (currentUser.reputationScore || 0) + 10
+        });
+      }
 
       // Broadcast new post to all connected WebSocket clients for real-time updates
       console.log('[Real-time] 📨 Broadcasting new post to all clients...');
@@ -1012,6 +1267,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log(`[0G DA] ✅ Like recorded for user ${user.id} on post ${likeData.postId}`);
+
+      // Check badges for post author (they received a like)
+      if (post && post.authorId !== user.id) {
+        badgeService.checkAndAwardBadges(post.authorId).catch(err =>
+          console.error('[Badge] Error checking badges after like:', err)
+        );
+
+        // Update reputation score for receiving like (+2 points)
+        const postAuthor = await storage.getUser(post.authorId);
+        if (postAuthor) {
+          await storage.updateUser(post.authorId, {
+            reputationScore: (postAuthor.reputationScore || 0) + 2
+          });
+        }
+      }
+
       res.json(like);
     } catch (error: any) {
       console.error('[Like Error]', error);
@@ -1888,8 +2159,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Network Stats
   app.get("/api/stats", async (req, res) => {
-    const stats = await storage.getNetworkStats();
-    res.json(stats);
+    try {
+      const stats = await storage.getNetworkStats();
+
+      // Get real 0G Storage stats
+      const zgStats = await zgStorageService.getStorageStats();
+
+      // Calculate total data stored from posts with storage hashes
+      const allPosts = await storage.getPosts(10000, 0); // Get all posts
+      const postsWithStorage = allPosts.filter(post => post.storageHash || post.mediaStorageHash);
+
+      // Estimate storage size (rough calculation)
+      let totalBytes = 0;
+      for (const post of postsWithStorage) {
+        // Estimate: text content ~1KB, media ~1MB
+        if (post.storageHash) totalBytes += 1024; // 1KB for text
+        if (post.mediaStorageHash) totalBytes += 1024 * 1024; // 1MB for media
+      }
+
+      // Convert to human readable format
+      const formatBytes = (bytes: number): string => {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+      };
+
+      // Combine stats
+      const combinedStats = {
+        ...stats,
+        dataStored: formatBytes(totalBytes),
+        dataStoredBytes: totalBytes,
+        postsOnChain: postsWithStorage.length,
+        zgStorage: {
+          totalStorage: zgStats.totalStorage,
+          availableSpace: zgStats.availableSpace,
+          networkNodes: zgStats.networkNodes,
+          replicationFactor: zgStats.replicationFactor
+        }
+      };
+
+      res.json(combinedStats);
+    } catch (error: any) {
+      console.error('[Network Stats] Error:', error);
+      // Fallback to basic stats if error
+      const stats = await storage.getNetworkStats();
+      res.json(stats);
+    }
   });
 
   // 0G Chain Infrastructure Endpoints
@@ -2450,7 +2767,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         blockExplorer: "https://chainscan.0g.ai",
         rpcUrl: "https://evmrpc.0g.ai",
         blockHeight: 1000000, // Fallback block height for mainnet
-        gasPrice: "0.1 gwei",
+        gasPrice: "0.1 Gneuron", // 0G Chain uses Gneuron as gas unit
       });
     }
   });
@@ -2459,13 +2776,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const walletConnection = getWalletConnection(req);
 
     // Debug session data
-    console.log('[DEBUG] Session wallet data:', JSON.stringify(walletConnection));
-    console.log('[DEBUG] Session ID:', req.sessionID);
+    console.log('[WEB3/WALLET] Session ID:', req.sessionID);
+    console.log('[WEB3/WALLET] Session wallet data:', JSON.stringify(walletConnection));
+    console.log('[WEB3/WALLET] Full session keys:', Object.keys(req.session || {}));
+    console.log('[WEB3/WALLET] Request headers:', {
+      cookie: req.headers.cookie ? 'present' : 'missing',
+      origin: req.headers.origin,
+      referer: req.headers.referer
+    });
+
+    // CRITICAL: Verify session from store
+    if (req.sessionStore && typeof req.sessionStore.get === 'function') {
+      req.sessionStore.get(req.sessionID, (storeErr: any, storeSession: any) => {
+        if (storeErr) {
+          console.error('[WEB3/WALLET] Store get error:', storeErr);
+        } else if (storeSession) {
+          console.log('[WEB3/WALLET] ✅ Store session found');
+          console.log('[WEB3/WALLET] Store walletConnection:', JSON.stringify(storeSession.walletConnection));
+        } else {
+          console.warn('[WEB3/WALLET] ⚠️ Store session NOT found for session ID:', req.sessionID);
+        }
+      });
+    }
 
     if (!walletConnection.connected || !walletConnection.address) {
-      return res.status(404).json({
+      console.log('[WEB3/WALLET] ❌ No wallet connected in session');
+      console.log('[WEB3/WALLET] Returning 200 with connected: false (not 404)');
+      return res.status(200).json({
         connected: false,
-        message: "No wallet connected"
+        message: "No wallet connected",
+        sessionId: req.sessionID,
+        debug: {
+          hasSession: !!req.session,
+          hasWalletConnection: !!req.session?.walletConnection,
+          walletConnection: req.session?.walletConnection
+        }
       });
     }
 
@@ -2595,136 +2940,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Owned NFTs for the connected wallet - sourced from local storage media for demo purposes
+  // Owned NFTs for the connected wallet - fetch real NFTs from 0G Chain Mainnet
   app.get('/api/wallet/nfts', async (req, res) => {
     try {
       const wallet = getWalletConnection(req);
-      const owner = (wallet && wallet.address) || 'unknown';
-
-      const mediaDir = path.join(process.cwd(), 'storage', 'media');
-      let items: any[] = [];
-
-      if (fs.existsSync(mediaDir)) {
-        const files = fs.readdirSync(mediaDir).filter(f => {
-          // Only include valid image/video files
-          const isValidMedia = /\.(png|jpe?g|webm|gif)$/i.test(f);
-          // Exclude error logs, temporary files, and system files
-          const isNotErrorFile = !f.includes('error') &&
-            !f.includes('failed') &&
-            !f.includes('invalid') &&
-            !f.includes('required') &&
-            !f.includes('sync') &&
-            !f.includes('admin') &&
-            !f.includes('dashboard') &&
-            !f.startsWith('.') &&
-            !f.includes('temp');
-          return isValidMedia && isNotErrorFile;
-        });
-
-        const rarities = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'];
-        const collections = ['DeSocial AI Collection', 'Blockchain Warriors', 'Cyber Punk Collection', 'Digital Art Gallery'];
-
-        items = files.slice(0, 20).map((file, idx) => ({
-          id: `wallet-nft-${file}-${idx}`,
-          name: `My Digital Asset #${String(idx + 1).padStart(3, '0')}`,
-          description: `Owned digital collectible from ${collections[idx % collections.length]}`,
-          image: `/storage/media/${file}`,
-          contractAddress: `0x${Math.random().toString(16).substr(2, 8)}...${Math.random().toString(16).substr(2, 4)}`,
-          tokenId: String(idx + 1),
-          owner,
-          collection: collections[idx % collections.length],
-          rarity: rarities[idx % rarities.length],
-          attributes: [
-            { trait_type: 'Background', value: ['Neon', 'Cyber', 'Abstract', 'Minimal'][idx % 4] },
-            { trait_type: 'Style', value: ['Futuristic', 'Classic', 'Modern', 'Vintage'][idx % 4] }
-          ],
-          likes: Math.floor(Math.random() * 30),
-          views: Math.floor(Math.random() * 100) + 20,
-          isLiked: Math.random() > 0.7,
-          isOwned: true
-        }));
+      if (!wallet || !wallet.connected || !wallet.address) {
+        return res.json([]);
       }
 
-      res.json(items);
+      // Fetch real NFTs from 0G Chain using nftService
+      const nfts = await nftService.getUserNFTs(wallet.address);
+
+      // Fetch metadata for each NFT
+      const nftsWithMetadata = await Promise.all(
+        nfts.map(async (nft) => {
+          const metadata = await nftService.fetchTokenMetadata(nft.tokenURI);
+          return {
+            id: `${nft.contractAddress}-${nft.tokenId}`,
+            name: nft.name,
+            description: metadata?.description || 'No description',
+            image: metadata?.image || '/favicon.png',
+            contractAddress: nft.contractAddress,
+            tokenId: nft.tokenId,
+            owner: nft.owner,
+            collection: nft.collection,
+            rarity: 'Common',
+            attributes: metadata?.attributes || [],
+            likes: 0,
+            views: 0,
+            isLiked: false,
+            isOwned: true
+          };
+        })
+      );
+
+      res.json(nftsWithMetadata);
     } catch (error) {
       console.error('[WALLET] Failed to fetch wallet NFTs:', error);
       res.json([]);
     }
   });
 
-  // NFT Gallery endpoints - list NFTs from local storage as real data source
+  // NFT Gallery endpoints - fetch real NFTs from 0G Chain Mainnet
+  app.get('/api/nft-gallery/user/:address', async (req, res) => {
+    try {
+      const { address } = req.params;
+      const nfts = await nftService.getUserNFTs(address);
+
+      // Fetch metadata for each NFT
+      const nftsWithMetadata = await Promise.all(
+        nfts.map(async (nft) => {
+          const metadata = await nftService.fetchTokenMetadata(nft.tokenURI);
+          return {
+            ...nft,
+            description: metadata?.description || 'No description',
+            image: metadata?.image || '/favicon.png',
+            attributes: metadata?.attributes || [],
+            rarity: 'Common',
+            likes: 0,
+            views: 0
+          };
+        })
+      );
+
+      res.json({ items: nftsWithMetadata, pagination: { total: nftsWithMetadata.length } });
+    } catch (error) {
+      console.error('[NFT] Error fetching user NFTs:', error);
+      res.json({ items: [], pagination: { total: 0 } });
+    }
+  });
+
+  // NFT Gallery endpoints - only show NFTs from 0G Chain Mainnet
   app.get('/api/nft-gallery', async (req, res) => {
     try {
-      const {
-        search = '',
-        collection = 'all',
-        sort = 'recent',
-        page = '1',
-        limit = '12'
-      } = req.query as Record<string, string>;
-
-      const pageNum = parseInt(page) || 1;
-      const limitNum = parseInt(limit) || 12;
-      const offset = (pageNum - 1) * limitNum;
-
-      const mediaDir = path.join(process.cwd(), 'storage', 'media');
-      let items: any[] = [];
-
-      if (fs.existsSync(mediaDir)) {
-        const files = fs.readdirSync(mediaDir).filter(f => {
-          // Only include valid image/video files
-          const isValidMedia = /\.(png|jpe?g|webm|gif)$/i.test(f);
-          // Exclude error logs, temporary files, and system files
-          const isNotErrorFile = !f.includes('error') &&
-            !f.includes('failed') &&
-            !f.includes('invalid') &&
-            !f.includes('required') &&
-            !f.includes('sync') &&
-            !f.includes('admin') &&
-            !f.includes('dashboard') &&
-            !f.startsWith('.') &&
-            !f.includes('temp');
-          return isValidMedia && isNotErrorFile;
-        });
-
-        // Limit to reasonable number and add variety
-        const rarities = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'];
-        const collections = ['DeSocial AI Collection', 'Blockchain Warriors', 'Cyber Punk Collection', 'Digital Art Gallery'];
-
-        items = files.slice(0, 50).map((file, idx) => ({
-          id: `nft-${file}-${idx}`,
-          name: `Digital Asset #${String(idx + 1).padStart(3, '0')}`,
-          description: `Unique digital collectible from ${collections[idx % collections.length]}`,
-          image: `/storage/media/${file}`,
-          contractAddress: `0x${Math.random().toString(16).substr(2, 8)}...${Math.random().toString(16).substr(2, 4)}`,
-          tokenId: String(idx + 1),
-          owner: 'unknown',
-          collection: collections[idx % collections.length],
-          rarity: rarities[idx % rarities.length],
-          attributes: [
-            { trait_type: 'Background', value: ['Neon', 'Cyber', 'Abstract', 'Minimal'][idx % 4] },
-            { trait_type: 'Style', value: ['Futuristic', 'Classic', 'Modern', 'Vintage'][idx % 4] }
-          ],
-          likes: Math.floor(Math.random() * 50),
-          views: Math.floor(Math.random() * 200) + 50,
-          price: idx % 3 === 0 ? (Math.random() * 2 + 0.1).toFixed(2) : undefined,
-          currency: idx % 3 === 0 ? 'ETH' : undefined
-        }));
-      }
-
-      // Filter
-      const s = (search || '').toString().toLowerCase();
-      if (s) {
-        items = items.filter(n => n.name.toLowerCase().includes(s) || n.collection.toLowerCase().includes(s));
-      }
-      if (collection && collection !== 'all') {
-        items = items.filter(n => n.collection === collection);
-      }
-
-      // Sort (basic)
-      if (sort === 'recent') {
-        items = items.reverse();
-      }
+      // Return empty - only use /api/nft-gallery/user/:address for real NFTs from 0G Chain
+      const pageNum = parseInt(req.query.page as string) || 1;
+      const limitNum = parseInt(req.query.limit as string) || 12;
+      const items: any[] = [];
 
       // Pagination
       const totalItems = items.length;
@@ -2844,8 +3136,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { address, chainId, network } = req.body;
 
+      console.log('[WALLET CONNECT] Request received:', { address, chainId, network });
+
+      // Check badges for verified user after wallet connection
+      const user = await storage.getUserByWalletAddress(address);
+      if (user) {
+        badgeService.checkAndAwardBadges(user.id).catch(err =>
+          console.error('[Badge] Error checking badges after wallet connect:', err)
+        );
+
+        // Update reputation score for wallet verification (+100 points, one-time)
+        if (user.isVerified && (user.reputationScore || 0) < 100) {
+          await storage.updateUser(user.id, {
+            reputationScore: (user.reputationScore || 0) + 100
+          });
+        }
+      }
+
       if (!address) {
+        console.error('[WALLET CONNECT] Missing address');
         return res.status(400).json({ message: "Wallet address is required" });
+      }
+
+      // Validate address format
+      if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+        console.error('[WALLET CONNECT] Invalid address format:', address);
+        return res.status(400).json({ message: "Invalid wallet address format" });
       }
 
       // Initialize with placeholder; real balance will be fetched in GET /api/web3/wallet
@@ -2860,36 +3176,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
       walletConnection.address = address;
       walletConnection.balance = mockBalance;
       walletConnection.network = network || "0G Mainnet";
-      walletConnection.chainId = chainId || "16661";
+      walletConnection.chainId = chainId || 16661;
 
-      // Force session save with promise wrapper and timeout
-      const saveSession = () => new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          console.warn('[WALLET CONNECT] Session save timeout, continuing...');
-          resolve(true);
-        }, 2000); // 2 second timeout
-
-        req.session.save((err) => {
-          clearTimeout(timeout);
-          if (err) {
-            console.error('[WALLET CONNECT] Session save error:', err);
-            reject(err);
-          } else {
-            console.log(`[WALLET CONNECT] ✅ Session saved for wallet: ${address}`);
-            resolve(true);
-          }
-        });
+      console.log('[WALLET CONNECT] Session walletConnection set to:', JSON.stringify(walletConnection));
+      console.log('[WALLET CONNECT] Session ID:', req.sessionID);
+      console.log('[WALLET CONNECT] Request headers:', {
+        cookie: req.headers.cookie ? 'present' : 'missing',
+        origin: req.headers.origin,
+        referer: req.headers.referer
       });
 
-      await saveSession();
+      // CRITICAL: Set wallet connection on session
+      req.session.walletConnection = {
+        connected: true,
+        address: address,
+        balance: mockBalance,
+        network: network || "0G Mainnet",
+        chainId: chainId || 16661
+      };
 
-      res.json({
-        success: true,
-        wallet: walletConnection
+      console.log('[WALLET CONNECT] Session walletConnection set to:', JSON.stringify(req.session.walletConnection));
+      console.log('[WALLET CONNECT] Session ID:', req.sessionID);
+
+      // CRITICAL: Save session and send response ONLY after save completes
+      // express-session will automatically set Set-Cookie header when session is saved
+      req.session.save((saveErr: any) => {
+        if (saveErr) {
+          console.error('[WALLET CONNECT] Session save error:', saveErr);
+          return res.status(500).json({
+            success: false,
+            message: 'Failed to save session',
+            error: saveErr.message
+          });
+        }
+
+        console.log('[WALLET CONNECT] ✅ Session saved successfully');
+        console.log('[WALLET CONNECT] ✅ Session ID:', req.sessionID);
+
+        // Verify session was saved by reading from store
+        if (req.sessionStore && typeof req.sessionStore.get === 'function') {
+          req.sessionStore.get(req.sessionID, (storeErr: any, storeSession: any) => {
+            if (storeErr) {
+              console.error('[WALLET CONNECT] Store get error:', storeErr);
+            } else if (storeSession) {
+              console.log('[WALLET CONNECT] ✅ Store verification - Session found in store');
+              console.log('[WALLET CONNECT] ✅ Store walletConnection:', JSON.stringify(storeSession.walletConnection));
+            } else {
+              console.warn('[WALLET CONNECT] ⚠️ Store verification - Session NOT found in store!');
+            }
+          });
+        }
+
+        // Verify Set-Cookie header will be set (express-session handles this)
+        // Note: express-session sets cookie automatically when session is saved
+        console.log('[WALLET CONNECT] ✅ Express-session will set Set-Cookie header automatically');
+
+        // Hook into res.end to verify Set-Cookie header before response is sent
+        const originalEnd = res.end;
+        res.end = function (chunk?: any, encoding?: any, cb?: any) {
+          const setCookie = res.getHeader('Set-Cookie');
+          if (setCookie) {
+            console.log('[WALLET CONNECT] ✅ Set-Cookie header confirmed in res.end');
+          } else {
+            console.warn('[WALLET CONNECT] ⚠️ Set-Cookie header NOT found in res.end!');
+            console.warn('[WALLET CONNECT] This might indicate express-session middleware issue');
+          }
+          return originalEnd.call(this, chunk, encoding, cb);
+        };
+
+        // Send response - express-session middleware will add Set-Cookie header
+        res.json({
+          success: true,
+          wallet: req.session.walletConnection,
+          sessionId: req.sessionID
+        });
       });
     } catch (error: any) {
       console.error('[WALLET CONNECT] Error:', error);
-      res.status(500).json({ message: error.message });
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to connect wallet',
+        error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
     }
   });
 
@@ -3066,12 +3434,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Simplified avatar upload endpoint using multer
   app.post("/api/objects/upload", async (req, res) => {
     console.log("[AVATAR UPLOAD] POST /api/objects/upload called");
+    console.log("[AVATAR UPLOAD] Session ID:", req.session?.id);
     console.log("[AVATAR UPLOAD] Session data:", req.session?.walletConnection);
+    console.log("[AVATAR UPLOAD] Headers:", {
+      origin: req.headers.origin,
+      host: req.headers.host,
+      referer: req.headers.referer
+    });
 
     try {
       // Check wallet connection
       const walletData = req.session.walletConnection;
       if (!walletData || !walletData.connected || !walletData.address) {
+        console.error("[AVATAR UPLOAD] ❌ No wallet connection in session");
         return res.status(401).json({
           message: "Wallet connection required",
           error: "Please connect your wallet to upload avatar"
@@ -3080,13 +3455,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Generate a unique object ID for direct upload
       const objectId = `avatar_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const uploadURL = `${req.protocol}://${req.get('host')}/api/objects/upload-direct/${objectId}`;
+
+      // Use relative URL to avoid CORS issues
+      const uploadURL = `/api/objects/upload-direct/${objectId}`;
 
       console.log("[AVATAR UPLOAD] ✅ Upload URL generated:", uploadURL);
+      console.log("[AVATAR UPLOAD] ✅ Wallet address:", walletData.address);
+
       res.json({ uploadURL });
     } catch (error: any) {
       console.error("[AVATAR UPLOAD] ❌ Upload URL error:", error);
-      res.status(500).json({ error: "Failed to generate upload URL" });
+      res.status(500).json({ error: "Failed to generate upload URL", details: error.message });
     }
   });
 
@@ -3094,14 +3473,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/objects/upload-direct/:objectId", express.raw({ type: '*/*', limit: '10mb' }), async (req, res) => {
     console.log("[AVATAR UPLOAD] PUT /api/objects/upload-direct called");
     console.log("[AVATAR UPLOAD] Object ID:", req.params.objectId);
+    console.log("[AVATAR UPLOAD] Session ID:", req.session?.id);
+    console.log("[AVATAR UPLOAD] Content-Type:", req.headers['content-type']);
+    console.log("[AVATAR UPLOAD] Body type:", typeof req.body);
+    console.log("[AVATAR UPLOAD] Body is Buffer:", Buffer.isBuffer(req.body));
+    console.log("[AVATAR UPLOAD] Body length:", req.body?.length);
 
     try {
       const walletData = req.session.walletConnection;
       if (!walletData || !walletData.connected || !walletData.address) {
+        console.error("[AVATAR UPLOAD] ❌ No wallet connection in session");
         return res.status(401).json({
-          message: "Wallet connection required"
+          message: "Wallet connection required",
+          error: "Please reconnect your wallet"
         });
       }
+
+      console.log("[AVATAR UPLOAD] ✅ Wallet verified:", walletData.address);
 
       // Check if file was uploaded via body (for direct PUT uploads)
       if (!req.file && req.body && Buffer.isBuffer(req.body)) {
@@ -3120,13 +3508,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const fileName = `${objectId}.jpg`;
         const filePath = path.join(storageDir, fileName);
 
+        console.log("[AVATAR UPLOAD] Attempting to save file:", {
+          storageDir,
+          fileName,
+          filePath,
+          bufferSize: fileBuffer.length
+        });
+
         fs.writeFileSync(filePath, fileBuffer);
-        console.log("[AVATAR UPLOAD] ✅ File saved:", filePath);
+
+        // Verify file was saved
+        if (fs.existsSync(filePath)) {
+          const stats = fs.statSync(filePath);
+          console.log("[AVATAR UPLOAD] ✅ File saved successfully:", {
+            path: filePath,
+            size: stats.size,
+            created: stats.birthtime
+          });
+
+          // List all files in directory for debugging
+          const allFiles = fs.readdirSync(storageDir);
+          console.log("[AVATAR UPLOAD] All files in storage/avatars:", allFiles);
+        } else {
+          console.error("[AVATAR UPLOAD] ❌ File was NOT saved!");
+          throw new Error("File save failed");
+        }
 
         res.json({
           success: true,
           message: "Avatar uploaded successfully",
-          objectId
+          objectId,
+          filePath: `/api/objects/avatar/${objectId}`,
+          debug: {
+            fileName,
+            fileSize: fileBuffer.length,
+            savedPath: filePath
+          }
         });
       } else if (req.file) {
         // Handle multipart upload
@@ -3211,6 +3628,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const storageDir = path.join(process.cwd(), 'storage', 'avatars');
 
+      // List all files for debugging
+      if (fs.existsSync(storageDir)) {
+        const allFiles = fs.readdirSync(storageDir);
+        console.log(`[AVATAR SERVE] All files in storage/avatars:`, allFiles);
+        console.log(`[AVATAR SERVE] Looking for: ${objectId}.jpg or ${objectId}`);
+      } else {
+        console.log(`[AVATAR SERVE] ❌ Storage directory does not exist: ${storageDir}`);
+        return res.status(404).json({ error: "Storage directory not found" });
+      }
+
       // Try different filename formats
       let filePath = null;
       let fileName = null;
@@ -3246,7 +3673,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Set proper headers for image serving
       res.setHeader('Content-Type', 'image/jpeg');
       res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
-      res.setHeader('Access-Control-Allow-Origin', '*');
+
+      // CRITICAL: For avatar serving, use origin if available, otherwise '*'
+      // Avatar serving doesn't require credentials, so '*' is OK here
+      const origin = req.headers.origin;
+      if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('desocialai'))) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+      } else {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+      }
 
       // Send the file
       const fileBuffer = fs.readFileSync(filePath);
@@ -3508,15 +3943,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Extract object ID from uploadURL and create proper avatar path
       let avatarPath = req.body.avatarURL;
 
+      console.log(`[AVATAR UPDATE] Raw avatarURL received:`, avatarPath);
+      console.log(`[AVATAR UPDATE] avatarURL type:`, typeof avatarPath);
+      console.log(`[AVATAR UPDATE] avatarURL includes check:`, avatarPath.includes('/api/objects/upload-direct/'));
+
+      // Decode HTML entities if present (e.g., &#x2F; -> /)
+      if (typeof avatarPath === 'string') {
+        avatarPath = avatarPath
+          .replace(/&#x2F;/g, '/')
+          .replace(/&#x5C;/g, '\\')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#x27;/g, "'");
+        console.log(`[AVATAR UPDATE] After HTML decode:`, avatarPath);
+      }
+
       // If it's our direct upload URL, extract the object ID
-      if (avatarPath.includes('/api/objects/upload-direct/')) {
+      if (avatarPath.includes('/api/objects/upload-direct/') || avatarPath.includes('upload-direct')) {
         const urlParts = avatarPath.split('/');
         const objectId = urlParts[urlParts.length - 1];
         avatarPath = `/api/objects/avatar/${objectId}`;
-        console.log(`[AVATAR UPDATE] Extracted objectId: ${objectId}, new avatarPath: ${avatarPath}`);
+        console.log(`[AVATAR UPDATE] ✅ Converted path - objectId: ${objectId}, new avatarPath: ${avatarPath}`);
+      } else {
+        console.log(`[AVATAR UPDATE] ⚠️ Path does not contain 'upload-direct', using as-is:`, avatarPath);
       }
 
-      console.log(`[AVATAR UPDATE] Processing avatar URL from ${req.body.avatarURL} to ${avatarPath}`);
+      console.log(`[AVATAR UPDATE] Final avatar path:`, avatarPath);
 
       // Update user avatar with additional logging
       console.log(`[AVATAR UPDATE] Updating avatar for user ${user.id} with path: ${avatarPath}`);
@@ -3526,23 +3980,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`[AVATAR UPDATE] ✅ Avatar updated successfully. User avatar field:`, updatedUser.avatar);
 
-      // Verify the avatar file exists in storage
+      // Verify the avatar file exists in our storage directory
       try {
-        const objectStorageService = new ObjectStorageService();
-        const testFile = await objectStorageService.getObjectEntityFile(avatarPath.replace('/api', ''));
-        console.log(`[AVATAR UPDATE] Avatar file verification result:`, testFile ? 'EXISTS' : 'NOT FOUND');
+        const objectId = avatarPath.split('/').pop();
+        const storageDir = path.join(process.cwd(), 'storage', 'avatars');
+        const filePath = path.join(storageDir, `${objectId}.jpg`);
 
-        if (!testFile) {
-          console.log(`[AVATAR UPDATE] ⚠️ Avatar file not found in storage, clearing avatar field`);
-          await storage.updateUserProfile(user.id, { avatar: null });
-          return res.json({
-            success: true,
-            avatar: null,
-            message: "Avatar file not found, cleared from profile"
+        console.log(`[AVATAR UPDATE] Verifying file exists:`, filePath);
+
+        if (fs.existsSync(filePath)) {
+          const stats = fs.statSync(filePath);
+          console.log(`[AVATAR UPDATE] ✅ Avatar file verified:`, {
+            path: filePath,
+            size: stats.size,
+            exists: true
           });
+        } else {
+          console.log(`[AVATAR UPDATE] ⚠️ Avatar file not found at:`, filePath);
+          console.log(`[AVATAR UPDATE] Checking alternative paths...`);
+
+          // List all files in directory
+          if (fs.existsSync(storageDir)) {
+            const allFiles = fs.readdirSync(storageDir);
+            console.log(`[AVATAR UPDATE] Files in storage/avatars:`, allFiles);
+
+            // Check if file exists with different name
+            const matchingFile = allFiles.find(f => f.includes(objectId));
+            if (matchingFile) {
+              console.log(`[AVATAR UPDATE] ✅ Found file with different name:`, matchingFile);
+            } else {
+              console.log(`[AVATAR UPDATE] ❌ File not found, but keeping avatar path in DB`);
+              console.log(`[AVATAR UPDATE] File might be uploaded but not yet synced`);
+            }
+          }
         }
       } catch (err) {
-        console.log(`[AVATAR UPDATE] Could not verify avatar file existence:`, err);
+        console.log(`[AVATAR UPDATE] Could not verify avatar file:`, err);
+        // Don't fail the request, just log the error
       }
 
       // Final verification - fetch user again to confirm update
@@ -4995,105 +5469,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const userId = user.id;
 
-      // Get encrypted messages from 0G Storage
+      // Get encrypted messages from database
       const { dmStorageService } = await import('./services/dm-storage');
-      const { e2eEncryptionService } = await import('./services/e2e-encryption');
 
       const encryptedMessages = await dmStorageService.getConversationMessages(conversationId, 50, 0);
 
-      // Decrypt messages for the current user
-      const decryptedMessages = await Promise.all(encryptedMessages.map(async (msg) => {
-        try {
-          // Use the same key derivation as encryption for consistency
-          // In production, this should be derived from actual user keys
-          const userKey = 'demo_sender_key'; // Same as senderKey used during encryption
-          const otherUserPublicKey = 'demo_receiver_key'; // Same as receiverPublicKey used during encryption
+      // Return encrypted messages with user info - client will decrypt
+      const messagesWithUserInfo = await Promise.all(encryptedMessages.map(async (msg) => {
+        const sender = await storage.getUser(msg.senderId);
+        const receiver = await storage.getUser(msg.receiverId);
 
-          console.log(`[DM] Decryption keys for message ${msg.id}:`, {
-            userKey,
-            otherUserPublicKey,
-            encryptedContent: msg.encryptedContent,
-            iv: msg.iv,
-            tag: msg.tag
-          });
-
-          const decryptedResult = e2eEncryptionService.decryptMessage(
-            msg.encryptedContent,
-            userKey,
-            otherUserPublicKey,
-            msg.iv,
-            msg.tag
-          );
-
-          console.log(`[DM] Decrypt result for message ${msg.id}:`, {
-            success: decryptedResult.success,
-            hasDecryptedData: !!decryptedResult.decryptedData,
-            decryptedDataLength: decryptedResult.decryptedData?.length,
-            encryptedContentLength: msg.encryptedContent.length,
-            error: decryptedResult.error
-          });
-
-          // Get sender information for avatar and display name
-          const sender = await storage.getUser(msg.senderId);
-          const receiver = await storage.getUser(msg.receiverId);
-
-          const messageContent = decryptedResult.success ? decryptedResult.decryptedData : '[Encrypted]';
-
-          console.log(`[DM] Final message content for ${msg.id}:`, {
-            content: messageContent,
-            isDecrypted: decryptedResult.success,
-            contentType: typeof messageContent,
-            contentLength: messageContent.length
-          });
-
-          return {
-            id: msg.id,
-            senderId: msg.senderId,
-            receiverId: msg.receiverId,
-            content: messageContent,
-            timestamp: msg.timestamp,
-            read: msg.read,
-            messageType: msg.messageType,
-            sender: {
-              id: sender?.id || msg.senderId,
-              displayName: sender?.displayName || 'Unknown User',
-              username: sender?.username || 'unknown',
-              avatar: sender?.avatar || '/api/objects/avatar/default-avatar.jpg'
-            },
-            receiver: {
-              id: receiver?.id || msg.receiverId,
-              displayName: receiver?.displayName || 'Unknown User',
-              username: receiver?.username || 'unknown',
-              avatar: receiver?.avatar || '/api/objects/avatar/default-avatar.jpg'
-            }
-          };
-        } catch (error) {
-          console.error(`[DM] Error decrypting message ${msg.id}:`, error);
-          return {
-            id: msg.id,
-            senderId: msg.senderId,
-            receiverId: msg.receiverId,
-            content: '[Decryption Failed]',
-            timestamp: msg.timestamp,
-            read: msg.read,
-            messageType: msg.messageType,
-            sender: {
-              id: msg.senderId,
-              displayName: 'Unknown User',
-              username: 'unknown',
-              avatar: '/api/objects/avatar/default-avatar.jpg'
-            },
-            receiver: {
-              id: msg.receiverId,
-              displayName: 'Unknown User',
-              username: 'unknown',
-              avatar: '/api/objects/avatar/default-avatar.jpg'
-            }
-          };
-        }
+        return {
+          id: msg.id,
+          senderId: msg.senderId,
+          receiverId: msg.receiverId,
+          encryptedContent: msg.encryptedContent,
+          iv: msg.iv,
+          tag: msg.tag,
+          timestamp: msg.timestamp,
+          read: msg.read,
+          messageType: msg.messageType,
+          sender: {
+            id: sender?.id || msg.senderId,
+            displayName: sender?.displayName || 'Unknown User',
+            username: sender?.username || 'unknown',
+            avatar: sender?.avatar || '/api/objects/avatar/default-avatar.jpg'
+          },
+          receiver: {
+            id: receiver?.id || msg.receiverId,
+            displayName: receiver?.displayName || 'Unknown User',
+            username: receiver?.username || 'unknown',
+            avatar: receiver?.avatar || '/api/objects/avatar/default-avatar.jpg'
+          }
+        };
       }));
 
-      res.json(decryptedMessages);
+      res.json(messagesWithUserInfo);
     } catch (error: any) {
       console.error("[MESSAGES] Error fetching messages:", error);
       res.status(500).json({ message: "Failed to fetch messages" });
@@ -5123,32 +5534,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Missing required fields: receiverId and content" });
       }
 
-      console.log(`[DM] Request body:`, { conversationId, content, receiverId });
+      console.log(`[DM] Request body:`, { conversationId, content, receiverId, encrypted: req.body.encrypted });
 
-      // Get user's encryption key (simplified for demo)
-      const senderKey = 'demo_sender_key'; // Simplified for demo consistency
-
-      // For demo purposes, we'll use a simple key derivation
-      // In production, this should be derived from user's wallet private key
-      const receiverPublicKey = 'demo_receiver_key'; // Simplified for demo consistency
-
-      console.log(`[DM] Sending encrypted message from ${userId} to user ${receiverId}`);
-
-      // Encrypt the message content
-      const { e2eEncryptionService } = await import('./services/e2e-encryption');
+      // Import services
       const { dmStorageService } = await import('./services/dm-storage');
 
-      const encryptedResult = e2eEncryptionService.encryptMessage(content, senderKey, receiverPublicKey);
+      // Check if message is already encrypted by client
+      let encryptedContent, iv, tag;
 
-      console.log(`[DM] Encryption result for message:`, {
-        originalContent: content,
-        originalContentLength: content.length,
-        encryptedMessage: encryptedResult.encryptedMessage,
-        encryptedMessageLength: encryptedResult.encryptedMessage.length,
-        iv: encryptedResult.iv,
-        tag: encryptedResult.tag,
-        sharedSecret: encryptedResult.sharedSecret,
-        encryptionKey: senderKey
+      if (req.body.encrypted && req.body.iv && req.body.tag) {
+        // Message already encrypted by client - use as is
+        console.log(`[DM] Message already encrypted by client, storing directly`);
+        encryptedContent = content;
+        iv = req.body.iv;
+        tag = req.body.tag;
+      } else {
+        // Fallback: encrypt on server (for backward compatibility)
+        console.log(`[DM] Encrypting message on server (fallback)`);
+        const { e2eEncryptionService } = await import('./services/e2e-encryption');
+        const senderKey = 'demo_sender_key';
+        const receiverPublicKey = 'demo_receiver_key';
+        const encryptedResult = e2eEncryptionService.encryptMessage(content, senderKey, receiverPublicKey);
+        encryptedContent = encryptedResult.encryptedMessage;
+        iv = encryptedResult.iv;
+        tag = encryptedResult.tag;
+      }
+
+      console.log(`[DM] Storing encrypted message:`, {
+        encryptedContentLength: encryptedContent.length,
+        hasIv: !!iv,
+        hasTag: !!tag
       });
 
       // Create or get conversation between users
@@ -5162,9 +5577,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         senderId: userId,
         receiverId: receiverId,
         conversationId: actualConversationId,
-        encryptedContent: encryptedResult.encryptedMessage,
-        iv: encryptedResult.iv,
-        tag: encryptedResult.tag,
+        encryptedContent: encryptedContent,
+        iv: iv,
+        tag: tag,
         timestamp: new Date(),
         read: false,
         messageType: 'text' as const

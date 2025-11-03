@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import { type PostWithAuthor } from "@shared/schema";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ 
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "default_key"
 });
 
@@ -53,7 +53,7 @@ export async function generateAIInsights(userId: string): Promise<AIInsight[]> {
         confidence: 0.8
       },
       {
-        type: 'recommendation', 
+        type: 'recommendation',
         message: 'Recommended: Follow @0g_chain for latest updates',
         confidence: 0.9
       },
@@ -104,39 +104,47 @@ export async function personalizePost(post: PostWithAuthor, userInterests: strin
 
 export async function generateTrendingTopics(): Promise<{ topic: string; posts: string }[]> {
   try {
-    const prompt = `Generate 4 trending topics for a decentralized social media platform focused on blockchain, AI, and Web3. Include post counts. Return as JSON array.`;
+    // Get real trending hashtags from database
+    const { db } = await import("../db");
+    const { hashtags } = await import("@shared/schema");
+    const { desc, sql } = await import("drizzle-orm");
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: "Generate trending topics for 0G Social. Return JSON: [{ 'topic': string, 'posts': string }]",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      response_format: { type: "json_object" },
-    });
+    // Query top 5 trending hashtags from database
+    const trendingHashtags = await db
+      .select({
+        name: hashtags.name,
+        postsCount: hashtags.postsCount,
+        trendingScore: hashtags.trendingScore,
+      })
+      .from(hashtags)
+      .orderBy(desc(hashtags.trendingScore), desc(hashtags.postsCount))
+      .limit(5);
 
-    const result = JSON.parse(response.choices[0].message.content || '{"topics": []}');
-    return result.topics || [
-      { topic: "#0GChain", posts: "12.5K posts" },
-      { topic: "#DecentralizedAI", posts: "8.2K posts" },
-      { topic: "#Web3Storage", posts: "5.7K posts" },
-      { topic: "#ModularBlockchain", posts: "3.4K posts" }
-    ];
+    // If we have real data, use it
+    if (trendingHashtags.length > 0) {
+      return trendingHashtags.map(tag => ({
+        topic: `#${tag.name}`,
+        posts: `${formatPostCount(tag.postsCount)} posts`
+      }));
+    }
+
+    // Fallback: return empty array if no data
+    return [];
   } catch (error) {
-    console.error('Failed to generate trending topics:', error);
-    return [
-      { topic: "#0GChain", posts: "12.5K posts" },
-      { topic: "#DecentralizedAI", posts: "8.2K posts" },
-      { topic: "#Web3Storage", posts: "5.7K posts" },
-      { topic: "#ModularBlockchain", posts: "3.4K posts" }
-    ];
+    console.error('Failed to get trending topics from database:', error);
+    // Return empty array on error instead of mock data
+    return [];
   }
+}
+
+// Helper function to format post count
+function formatPostCount(count: number): string {
+  if (count >= 1000000) {
+    return (count / 1000000).toFixed(1) + 'M';
+  } else if (count >= 1000) {
+    return (count / 1000).toFixed(1) + 'K';
+  }
+  return count.toString();
 }
 
 // Function to generate personalized AI recommendations
@@ -221,7 +229,7 @@ export async function generatePersonalizedRecommendations(walletAddress: string)
     return result.recommendations || [];
   } catch (error) {
     console.error('Error generating personalized recommendations:', error);
-    
+
     // Return fallback recommendations on error
     return [
       {
@@ -234,7 +242,7 @@ export async function generatePersonalizedRecommendations(walletAddress: string)
       },
       {
         id: 'fallback-2',
-        type: 'topic', 
+        type: 'topic',
         title: 'AI-Powered Feeds',
         description: 'Deploy your own AI algorithms for content curation',
         confidence: 0.85,

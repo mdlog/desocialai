@@ -131,6 +131,9 @@ export interface IStorage {
   sendMessage(senderId: string, conversationId: string, content: string): Promise<any>;
   markMessagesAsRead(conversationId: string, userId: string): Promise<void>;
   startConversation(userId: string, recipientId: string): Promise<any>;
+  
+  // User Stats
+  getUserStats(userId: string): Promise<{ postsCount: number; followersCount: number; followingCount: number; likesReceived: number } | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -658,21 +661,68 @@ export class MemStorage implements IStorage {
     aiInteractions: number;
     dataStored: string;
   }> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    try {
+      // Get total active users (users who have connected wallet)
+      const totalUsers = await db.select({ count: sql<number>`count(*)` })
+        .from(users)
+        .where(sql`${users.walletAddress} IS NOT NULL`);
+      const activeUsers = Number(totalUsers[0]?.count || 0);
 
-    const postsToday = Array.from(this.posts.values()).filter(post => {
-      const postDate = new Date(post.createdAt!);
-      postDate.setHours(0, 0, 0, 0);
-      return postDate.getTime() === today.getTime();
-    });
+      // Get posts created today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayPosts = await db.select({ count: sql<number>`count(*)` })
+        .from(posts)
+        .where(sql`${posts.createdAt} >= ${today}`);
+      const postsToday = Number(todayPosts[0]?.count || 0);
 
-    return {
-      activeUsers: this.users.size,
-      postsToday: postsToday.length,
-      aiInteractions: 12500,
-      dataStored: "2.5 PB",
-    };
+      // Get total AI interactions (likes + comments + reposts)
+      const totalLikes = await db.select({ count: sql<number>`count(*)` }).from(likes);
+      const totalComments = await db.select({ count: sql<number>`count(*)` }).from(comments);
+      const totalReposts = await db.select({ count: sql<number>`count(*)` }).from(reposts);
+      const aiInteractions = Number(totalLikes[0]?.count || 0) + 
+                            Number(totalComments[0]?.count || 0) + 
+                            Number(totalReposts[0]?.count || 0);
+
+      // Calculate data stored (estimate based on posts and messages)
+      const totalPosts = await db.select({ count: sql<number>`count(*)` }).from(posts);
+      const totalMessages = await db.select({ count: sql<number>`count(*)` }).from(messages);
+      const estimatedDataMB = (Number(totalPosts[0]?.count || 0) * 0.5) + 
+                              (Number(totalMessages[0]?.count || 0) * 0.1);
+      
+      let dataStored: string;
+      if (estimatedDataMB < 1024) {
+        dataStored = `${estimatedDataMB.toFixed(1)} MB`;
+      } else if (estimatedDataMB < 1024 * 1024) {
+        dataStored = `${(estimatedDataMB / 1024).toFixed(2)} GB`;
+      } else {
+        dataStored = `${(estimatedDataMB / (1024 * 1024)).toFixed(2)} TB`;
+      }
+
+      return {
+        activeUsers,
+        postsToday,
+        aiInteractions,
+        dataStored,
+      };
+    } catch (error) {
+      console.error('[getNetworkStats] Error:', error);
+      // Fallback to in-memory stats
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const postsToday = Array.from(this.posts.values()).filter(post => {
+        const postDate = new Date(post.createdAt!);
+        postDate.setHours(0, 0, 0, 0);
+        return postDate.getTime() === today.getTime();
+      });
+
+      return {
+        activeUsers: this.users.size,
+        postsToday: postsToday.length,
+        aiInteractions: 0,
+        dataStored: "0 MB",
+      };
+    }
   }
 
   // Wave 2: Advanced Social Features Implementation (Stub methods for now)
@@ -1864,24 +1914,52 @@ export class DatabaseStorage implements IStorage {
               username: users.username,
               avatar: users.avatar,
               isOnline: users.isOnline
-            }).from(users).where(eq(users.id, otherParticipantId));
+            }).from(users).where(eq(users.id, otherParticipantId)).limit(1);
+            
             participant = participantResult[0] || null;
-            console.log(`[Get Conversations] Found participant:`, participant);
+            console.log(`[Get Conversations] Participant query result:`, {
+              found: !!participant,
+              participantId: otherParticipantId,
+              resultCount: participantResult.length,
+              participant: participant
+            });
           } catch (error) {
             console.error(`[Get Conversations] Error fetching participant ${otherParticipantId}:`, error);
             participant = null;
           }
 
-          // If participant not found, create placeholder
+          // If participant not found, try alternative methods
           if (!participant) {
-            console.log(`[Get Conversations] Participant ${otherParticipantId} not found, creating placeholder`);
-            participant = {
-              id: otherParticipantId,
-              displayName: `User ${otherParticipantId.substring(0, 8)}`,
-              username: `user_${otherParticipantId.substring(0, 6)}`,
-              avatar: null,
-              isOnline: false
-            };
+            console.warn(`[Get Conversations] ⚠️  Participant ${otherParticipantId} not found in database!`);
+            
+            // Try to get user using getUser method as fallback
+            try {
+              const fallbackUser = await this.getUser(otherParticipantId);
+              if (fallbackUser) {
+                console.log(`[Get Conversations] ✅ Found user via getUser fallback:`, fallbackUser.displayName);
+                participant = {
+                  id: fallbackUser.id,
+                  displayName: fallbackUser.displayName,
+                  username: fallbackUser.username,
+                  avatar: fallbackUser.avatar,
+                  isOnline: fallbackUser.isOnline || false
+                };
+              }
+            } catch (fallbackError) {
+              console.error(`[Get Conversations] Fallback getUser also failed:`, fallbackError);
+            }
+            
+            // If still not found, create placeholder
+            if (!participant) {
+              console.warn(`[Get Conversations] Creating placeholder for ${otherParticipantId}`);
+              participant = {
+                id: otherParticipantId,
+                displayName: `Unknown User`,
+                username: `user_${otherParticipantId.substring(0, 8)}`,
+                avatar: null,
+                isOnline: false
+              };
+            }
           }
 
           // Get last message if exists
@@ -2045,6 +2123,18 @@ export class DatabaseStorage implements IStorage {
       console.error('[Mark Messages As Read Error]', error);
       throw error;
     }
+  }
+
+  async getUserStats(userId: string): Promise<{ postsCount: number; followersCount: number; followingCount: number; likesReceived: number } | undefined> {
+    const user = await this.getUser(userId);
+    if (!user) return undefined;
+    
+    return {
+      postsCount: user.postsCount || 0,
+      followersCount: user.followersCount || 0,
+      followingCount: user.followingCount || 0,
+      likesReceived: 0 // TODO: Calculate from likes table
+    };
   }
 
   async startConversation(userId: string, recipientId: string): Promise<any> {

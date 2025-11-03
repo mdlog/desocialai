@@ -32,6 +32,8 @@ export default defineConfig({
   },
   root: path.resolve(import.meta.dirname, "client"),
   server: {
+    host: '0.0.0.0', // Allow access from network
+    port: 5000,
     fs: {
       strict: true,
       deny: ["**/.*"],

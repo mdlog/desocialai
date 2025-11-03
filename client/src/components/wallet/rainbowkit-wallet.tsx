@@ -1,6 +1,6 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount, useDisconnect } from 'wagmi';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -10,6 +10,8 @@ export function RainbowKitWallet() {
   const { disconnect } = useDisconnect();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const isDisconnecting = useRef(false);
+  const previousConnectedState = useRef(isConnected);
 
   // Mutation untuk sync wallet connection dengan backend
   const syncWalletConnection = useMutation({
@@ -18,22 +20,55 @@ export function RainbowKitWallet() {
       chainId: number;
       network: string;
     }) => {
-      const response = await fetch('/api/web3/connect', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(connectionData),
-      });
-      return response.json();
+      console.log('🔗 Syncing wallet connection:', connectionData);
+      console.log('🔗 Fetch URL:', window.location.origin + '/api/web3/connect');
+
+      try {
+        const response = await fetch('/api/web3/connect', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(connectionData),
+          credentials: 'include', // Important for session cookies
+        });
+
+        console.log('📡 Response status:', response.status, response.statusText);
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+          console.error('❌ Server error:', errorData);
+          throw new Error(errorData.message || `Server error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('✅ Wallet sync response:', data);
+        return data;
+      } catch (error: any) {
+        console.error('❌ Fetch error:', error);
+
+        // Check if it's a network error
+        if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+          throw new Error('Cannot connect to server. Please make sure the server is running on port 5000.');
+        }
+
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
+      console.log('✅ Wallet connected successfully:', data);
+
+      // Remove cache to force fresh fetch
+      queryClient.removeQueries({ queryKey: ['/api/web3/wallet'] });
+      queryClient.removeQueries({ queryKey: ['/api/users/me'] });
+      
       // Invalidate queries terkait wallet dan user
       queryClient.invalidateQueries({ queryKey: ['/api/web3/wallet'] });
       queryClient.invalidateQueries({ queryKey: ['/api/users/me'] });
       queryClient.invalidateQueries({ queryKey: ['/api/web3/status'] });
 
-      // Dispatch custom event to trigger immediate sidebar refetch
+      // Dispatch event immediately - sidebar will handle retry logic
+      console.log('📢 Dispatching walletConnected event...');
       window.dispatchEvent(new CustomEvent('walletConnected'));
 
       toast({
@@ -42,10 +77,23 @@ export function RainbowKitWallet() {
       });
     },
     onError: (error: any) => {
-      console.error('Failed to sync wallet connection:', error);
+      console.error('❌ Failed to sync wallet connection:', error);
+
+      let errorMessage = error.message || "Failed to sync wallet with backend";
+      let errorTitle = "Connection Error";
+
+      // Provide more specific error messages
+      if (error.message?.includes('Cannot connect to server')) {
+        errorTitle = "Server Not Running";
+        errorMessage = "Please start the development server with 'npm run dev'";
+      } else if (error.message?.includes('Network request failed')) {
+        errorTitle = "Network Error";
+        errorMessage = "Please check your internet connection and try again";
+      }
+
       toast({
-        title: "Connection Error",
-        description: "Failed to sync wallet with backend",
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -74,8 +122,11 @@ export function RainbowKitWallet() {
 
   // Sync wallet status dengan backend ketika koneksi berubah
   useEffect(() => {
+    // Handle connection
     if (isConnected && address && chain) {
       console.log('🔗 RainbowKit wallet connected:', { address, chainId: chain.id, network: chain.name });
+      isDisconnecting.current = false; // Reset flag on connect
+      previousConnectedState.current = true;
 
       // Sync dengan backend
       syncWalletConnection.mutate({
@@ -83,11 +134,52 @@ export function RainbowKitWallet() {
         chainId: chain.id,
         network: chain.name,
       });
-    } else if (!isConnected) {
-      console.log('🔌 RainbowKit wallet disconnected');
+    }
+    // Handle disconnection - only if transitioning from connected to disconnected
+    else if (!isConnected && previousConnectedState.current && !isDisconnecting.current) {
+      console.log('🔌 RainbowKit wallet disconnected - performing complete logout');
 
-      // Sync disconnection dengan backend
-      syncWalletDisconnection.mutate();
+      // Set flag to prevent multiple executions
+      isDisconnecting.current = true;
+      previousConnectedState.current = false;
+
+      // Perform logout asynchronously
+      (async () => {
+        try {
+          // 1. Dispatch disconnect event immediately for UI update
+          console.log('[DISCONNECT] Dispatching walletDisconnected event...');
+          window.dispatchEvent(new CustomEvent('walletDisconnected'));
+
+          // 2. Clear backend session and wait for response
+          console.log('[DISCONNECT] Clearing backend session...');
+          await fetch('/api/web3/disconnect', {
+            method: 'POST',
+            credentials: 'include',
+          });
+          console.log('[DISCONNECT] Backend session cleared');
+
+          // 3. Clear all React Query cache
+          console.log('[DISCONNECT] Clearing React Query cache...');
+          queryClient.clear();
+
+          // 4. Show toast
+          toast({
+            title: "Disconnected",
+            description: "You have been logged out successfully",
+          });
+
+          // 5. Wait a bit then reload
+          await new Promise(resolve => setTimeout(resolve, 300));
+
+          // 6. Reload page to reset all state
+          console.log('[DISCONNECT] Reloading page...');
+          window.location.href = '/';
+        } catch (error) {
+          console.error('[DISCONNECT] Error during logout:', error);
+          // Still reload even if there's an error
+          window.location.href = '/';
+        }
+      })();
     }
   }, [isConnected, address, chain?.id]);
 
@@ -175,6 +267,12 @@ export function RainbowKitWallet() {
 
                     <button
                       onClick={() => {
+                        console.log('🔌 Manual disconnect button clicked');
+
+                        // Set flag to let useEffect handle the logout
+                        isDisconnecting.current = true;
+
+                        // Just disconnect - useEffect will handle the rest
                         disconnect();
                       }}
                       type="button"

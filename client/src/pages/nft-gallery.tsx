@@ -56,6 +56,25 @@ export function NFTGalleryPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(12);
 
+    // Get current user wallet address
+    const { data: currentUser } = useQuery({
+        queryKey: ["/api/users/me"],
+    });
+
+    const walletAddress = currentUser?.walletAddress;
+
+    // Fetch NFTs from 0G Chain if wallet connected
+    const { data: userNFTs, isLoading: isLoadingUserNFTs } = useQuery({
+        queryKey: ['/api/nft-gallery/user', walletAddress],
+        queryFn: async () => {
+            if (!walletAddress) return { items: [], pagination: { total: 0 } };
+            const response = await fetch(`/api/nft-gallery/user/${walletAddress}`);
+            if (!response.ok) throw new Error('Failed to fetch user NFTs');
+            return response.json();
+        },
+        enabled: !!walletAddress,
+    });
+
     const { data: nftData, isLoading } = useQuery({
         queryKey: ['/api/nft-gallery', { search: searchQuery, collection: selectedCollection, sort: sortBy, page: currentPage, limit: itemsPerPage }],
         queryFn: async () => {
@@ -72,8 +91,15 @@ export function NFTGalleryPage() {
         },
     });
 
-    const nfts = nftData?.items || [];
-    const pagination = nftData?.pagination || { total: 0, totalPages: 0, hasNext: false, hasPrev: false };
+    // Combine user NFTs from 0G Chain with gallery NFTs
+    const userNFTsList = userNFTs?.items || [];
+    const galleryNFTs = nftData?.items || [];
+    
+    // Prioritize user's NFTs from 0G Chain
+    const nfts = userNFTsList.length > 0 ? userNFTsList : galleryNFTs;
+    const pagination = nftData?.pagination || { total: nfts.length, totalPages: 1, hasNext: false, hasPrev: false };
+    
+    const isLoadingNFTs = isLoading || isLoadingUserNFTs;
 
     const { data: collections = [] } = useQuery({
         queryKey: ['/api/nft-gallery/collections'],
@@ -84,84 +110,9 @@ export function NFTGalleryPage() {
         },
     });
 
-    // Mock data for demonstration
-    const mockNFTs: NFT[] = [
-        {
-            id: '1',
-            name: 'Cyber Punk #001',
-            description: 'A futuristic cyberpunk character with neon lights',
-            image: '/favicon.png',
-            contractAddress: '0x1234...5678',
-            tokenId: '1',
-            owner: '0xabcd...efgh',
-            collection: 'Cyber Punk Collection',
-            rarity: 'Legendary',
-            attributes: [
-                { trait_type: 'Background', value: 'Neon City' },
-                { trait_type: 'Eyes', value: 'Laser Red' },
-                { trait_type: 'Accessory', value: 'Cyber Helmet' }
-            ],
-            price: 2.5,
-            currency: 'ETH',
-            likes: 42,
-            views: 156,
-            isLiked: false,
-            isOwned: false
-        },
-        {
-            id: '2',
-            name: 'DeSocial AI Avatar #042',
-            description: 'AI-generated avatar for DeSocial platform',
-            image: '/favicon.png',
-            contractAddress: '0x9876...5432',
-            tokenId: '42',
-            owner: '0x1234...5678',
-            collection: 'DeSocial AI Collection',
-            rarity: 'Epic',
-            attributes: [
-                { trait_type: 'AI Model', value: 'GPT-4' },
-                { trait_type: 'Style', value: 'Abstract' },
-                { trait_type: 'Color', value: 'Blue Gradient' }
-            ],
-            price: 1.8,
-            currency: 'ETH',
-            likes: 28,
-            views: 89,
-            isLiked: true,
-            isOwned: true
-        },
-        {
-            id: '3',
-            name: 'Blockchain Warrior #777',
-            description: 'A warrior representing the power of blockchain technology',
-            image: '/favicon.png',
-            contractAddress: '0xabcd...efgh',
-            tokenId: '777',
-            owner: '0x5678...9abc',
-            collection: 'Blockchain Warriors',
-            rarity: 'Rare',
-            attributes: [
-                { trait_type: 'Weapon', value: 'Crypto Sword' },
-                { trait_type: 'Armor', value: 'Blockchain Shield' },
-                { trait_type: 'Power', value: 'Mining Strength' }
-            ],
-            price: 0.95,
-            currency: 'ETH',
-            likes: 15,
-            views: 67,
-            isLiked: false,
-            isOwned: false
-        }
-    ];
-
-    const mockCollections = [
-        { id: '1', name: 'Cyber Punk', count: 1000, floorPrice: 2.1 },
-        { id: '2', name: 'DeSocial AI', count: 500, floorPrice: 1.5 },
-        { id: '3', name: 'Blockchain', count: 2500, floorPrice: 0.8 }
-    ];
-
-    const displayNFTs = nfts.length > 0 ? nfts : mockNFTs;
-    const displayCollections = collections.length > 0 ? collections : mockCollections;
+    // Only show real NFTs from 0G Chain Mainnet
+    const displayNFTs = nfts;
+    const displayCollections = collections;
 
     const handleLike = async (nftId: string) => {
         // Implement like functionality
@@ -444,7 +395,7 @@ export function NFTGalleryPage() {
                             ))}
                         </div>
 
-                        {isLoading && (
+                        {isLoadingNFTs && (
                             <div className="flex items-center justify-center py-16">
                                 <div className="flex flex-col items-center gap-4">
                                     <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600"></div>
@@ -454,7 +405,7 @@ export function NFTGalleryPage() {
                         )}
 
                         {/* Pagination Controls */}
-                        {!isLoading && pagination.totalPages > 1 && (
+                        {!isLoadingNFTs && pagination.totalPages > 1 && (
                             <div className="flex items-center justify-center gap-4 py-8">
                                 <Button
                                     variant="outline"

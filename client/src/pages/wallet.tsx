@@ -131,14 +131,7 @@ export function WalletPage() {
         refetchInterval: 30000,
     });
 
-    const { data: ownedNFTs = [], isLoading: ownedNftsLoading } = useQuery({
-        queryKey: ['/api/wallet/nfts'],
-        queryFn: async () => {
-            const response = await fetch('/api/wallet/nfts');
-            if (!response.ok) return [];
-            return response.json();
-        },
-    });
+
 
 
 
@@ -318,12 +311,11 @@ export function WalletPage() {
 
                         {/* Tabs */}
                         <Tabs value={activeTab} onValueChange={setActiveTab}>
-                            <TabsList className="grid w-full grid-cols-5">
+                            <TabsList className="grid w-full grid-cols-4">
                                 <TabsTrigger value="overview">Portfolio</TabsTrigger>
                                 <TabsTrigger value="defi">DeFi</TabsTrigger>
                                 <TabsTrigger value="transactions">History</TabsTrigger>
                                 <TabsTrigger value="analytics">Analytics</TabsTrigger>
-                                <TabsTrigger value="nfts">NFTs</TabsTrigger>
                             </TabsList>
 
                             {/* Tokens Tab */}
@@ -527,116 +519,7 @@ export function WalletPage() {
                                 </div>
                             </TabsContent>
 
-                            {/* NFTs Tab */}
-                            <TabsContent value="nfts" className="space-y-4">
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <Star className="w-5 h-5" />
-                                            Your NFT Collection
-                                            <Badge variant="secondary" className="ml-2">
-                                                {Array.isArray(ownedNFTs) ? (ownedNFTs as any[]).length : 0}
-                                            </Badge>
-                                            <div className="ml-auto flex items-center gap-2">
-                                                {Array.isArray(ownedNFTs) && (ownedNFTs as any[]).length > 8 && (
-                                                    <span className="text-xs text-gray-500">
-                                                        Showing 8 of {(ownedNFTs as any[]).length}
-                                                    </span>
-                                                )}
-                                                <Button size="sm" variant="outline" asChild>
-                                                    <a href="/nft-gallery">View all</a>
-                                                </Button>
-                                            </div>
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="p-4">
-                                        {ownedNftsLoading && (
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                                {Array.from({ length: 6 }).map((_, i) => (
-                                                    <div key={i} className="animate-pulse">
-                                                        <div className="w-full h-32 rounded-lg bg-gray-200" />
-                                                        <div className="h-3 bg-gray-200 rounded mt-3 w-3/4" />
-                                                        <div className="h-3 bg-gray-100 rounded mt-2 w-1/2" />
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
 
-                                        {!ownedNftsLoading && Array.isArray(ownedNFTs) && ownedNFTs.length === 0 && (
-                                            <div className="p-8 text-center">
-                                                <div className="w-14 h-14 mx-auto rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mb-3">
-                                                    <Star className="w-7 h-7 text-white" />
-                                                </div>
-                                                <h3 className="text-lg font-semibold">No NFTs Found</h3>
-                                                <p className="text-gray-500 text-sm">Your NFT collection will appear here.</p>
-                                                <Button className="mt-4 bg-gradient-to-r from-purple-500 to-pink-500" asChild>
-                                                    <a href="/nft-gallery">
-                                                        <Plus className="w-4 h-4 mr-2" /> Explore NFTs
-                                                    </a>
-                                                </Button>
-                                            </div>
-                                        )}
-
-                                        {!ownedNftsLoading && Array.isArray(ownedNFTs) && ownedNFTs.length > 0 && (
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                                {(ownedNFTs as any[]).slice(0, 8).map((nft: any) => (
-                                                    <div key={nft.id} className="group border rounded-xl overflow-hidden bg-white hover:shadow-md transition">
-                                                        <div className="relative">
-                                                            <img src={nft.image} alt={nft.name} className="w-full h-40 object-cover" />
-                                                            <div className="absolute top-2 right-2">
-                                                                <Badge variant="secondary" className="text-[10px]">Owned</Badge>
-                                                            </div>
-                                                        </div>
-                                                        <div className="p-3">
-                                                            <p className="font-medium truncate">{nft.name}</p>
-                                                            <p className="text-xs text-gray-500 truncate">{nft.collection}</p>
-                                                            <div className="flex items-center justify-between mt-3">
-                                                                <Button size="sm" variant="outline" asChild>
-                                                                    <a href={nft.image} target="_blank" rel="noreferrer">
-                                                                        <ExternalLink className="w-4 h-4 mr-1" /> View
-                                                                    </a>
-                                                                </Button>
-                                                                <Button size="sm" variant="ghost" asChild>
-                                                                    <a href="/nft-gallery">Details</a>
-                                                                </Button>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </CardContent>
-                                </Card>
-
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <Award className="w-5 h-5" />
-                                            NFT Stats
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4">
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                            <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                                <p className="text-2xl font-bold">{Array.isArray(ownedNFTs) ? ownedNFTs.length : 0}</p>
-                                                <p className="text-sm text-gray-500">Total NFTs</p>
-                                            </div>
-                                            <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                                <p className="text-2xl font-bold">$0</p>
-                                                <p className="text-sm text-gray-500">Total Value</p>
-                                            </div>
-                                            <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                                <p className="text-2xl font-bold">{Array.isArray(ownedNFTs) ? new Set((ownedNFTs as any[]).map((n: any) => n.collection)).size : 0}</p>
-                                                <p className="text-sm text-gray-500">Collections</p>
-                                            </div>
-                                            <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                                <p className="text-2xl font-bold">0</p>
-                                                <p className="text-sm text-gray-500">Listed</p>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </TabsContent>
                         </Tabs>
                     </main>
 

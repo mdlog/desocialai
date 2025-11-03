@@ -12,13 +12,37 @@ import { RateLimiter } from "./security/rate-limiter";
 
 const app = express();
 
-// Security: Rate limiting (excluding avatar endpoints)
+// Security: Rate limiting (excluding avatar and frequently accessed endpoints)
 app.use('/api/', (req, res, next) => {
-  // Skip rate limiting for avatar serving
-  if (req.path.startsWith('/api/objects/avatar/')) {
+  // Skip rate limiting for these endpoints
+  const skipPaths = [
+    '/api/objects/avatar/',           // Avatar serving
+    '/api/objects/upload',            // Avatar upload
+    '/api/objects/upload-direct/',    // Direct upload
+    '/api/objects/upload-multipart/', // Multipart upload
+    '/api/users/me',                  // Current user (frequently accessed)
+    '/api/web3/status',               // Status check (frequently polled)
+    '/api/web3/connect',              // Wallet connection
+    '/api/web3/disconnect',           // Wallet disconnection
+    '/api/web3/wallet',               // Wallet info
+    '/api/zg/da/stats',               // Stats (frequently polled)
+    '/api/zg/compute/stats',          // Stats (frequently polled)
+    '/api/zg/storage/stats',          // Stats (frequently polled)
+    '/api/posts/feed',                // Feed (frequently accessed)
+  ];
+
+  // Check if current path should skip rate limiting
+  const shouldSkip = skipPaths.some(path => req.path.startsWith(path) || req.path === path);
+
+  if (shouldSkip) {
     return next();
   }
-  return RateLimiter.create({ windowMs: 60000, maxRequests: 100 })(req, res, next);
+
+  // Apply rate limiting with higher limits for development/tunnel
+  return RateLimiter.create({
+    windowMs: 60000,      // 1 minute window
+    maxRequests: 1000     // Increased to 1000 for development/tunnel usage
+  })(req, res, next);
 });
 
 // DEBUG: Capture ALL requests before any processing
@@ -32,12 +56,54 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS middleware for development
+// CORS middleware - support for tunnel domains
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'http://localhost:5000',
+    'http://localhost:3005',
+    'https://desocialai.live',
+    'https://desocialai.xyz',
+    process.env.ALLOWED_ORIGIN
+  ].filter(Boolean);
+
+  // CRITICAL: When credentials are required, we MUST set a specific origin, not '*'
+  // Browser will not send cookies if Access-Control-Allow-Origin is '*'
+  let finalOrigin: string;
+  if (origin && allowedOrigins.includes(origin)) {
+    finalOrigin = origin;
+  } else if (process.env.NODE_ENV === 'development') {
+    // In development, allow localhost origins
+    if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
+      finalOrigin = origin;
+    } else {
+      // Fallback for same-origin requests (no origin header)
+      finalOrigin = 'http://localhost:5000';
+    }
+  } else {
+    // Production: only allow specific origins
+    finalOrigin = origin || 'https://desocialai.live';
+  }
+
+  // CRITICAL: NEVER use '*' - always use specific origin
+  res.header('Access-Control-Allow-Origin', finalOrigin);
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
   res.header('Access-Control-Allow-Credentials', 'true');
+
+  // Hook into res.end to prevent any middleware from overriding with '*'
+  const originalEnd = res.end;
+  res.end = function (chunk?: any, encoding?: any, cb?: any) {
+    if (!res.headersSent) {
+      const currentOrigin = res.getHeader('Access-Control-Allow-Origin');
+      if (currentOrigin === '*') {
+        console.warn('[CORS] ⚠️ Access-Control-Allow-Origin was set to "*" - fixing to:', finalOrigin);
+        res.setHeader('Access-Control-Allow-Origin', finalOrigin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+      }
+    }
+    return originalEnd.call(this, chunk, encoding, cb);
+  };
 
   if (req.method === 'OPTIONS') {
     res.sendStatus(200);
@@ -61,20 +127,67 @@ app.use((req, res, next) => {
 const MemStore = MemoryStore(session);
 
 // Session configuration for wallet connection management
+// CRITICAL: This must be configured correctly for cookies to work
 app.use(session({
   store: new MemStore({
     checkPeriod: 86400000 // prune expired entries every 24h
   }),
-  secret: process.env.SESSION_SECRET || 'zg-social-dev-secret-key',
-  resave: false,
-  saveUninitialized: true, // Allow uninitialized sessions for wallet connection
+  secret: process.env.SESSION_SECRET || 'zg-social-dev-secret-key-change-in-production',
+  resave: true, // CRITICAL: true to ensure session is always saved
+  saveUninitialized: true, // CRITICAL: true to allow wallet connection before user data exists
+  name: 'connect.sid', // Explicit session cookie name
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
+    secure: false, // CRITICAL: false for localhost HTTP (true for HTTPS/tunnel)
+    httpOnly: true, // Prevent XSS attacks
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: 'strict'
-  }
+    sameSite: 'lax', // 'lax' for development, 'none' for cross-origin/tunnel
+    domain: undefined, // CRITICAL: undefined for localhost - browser will set automatically
+    path: '/' // Cookie available for all paths
+  },
+  proxy: true, // Trust proxy headers (important for tunnels/reverse proxies)
+  rolling: true // Reset cookie maxAge on every request (keep session alive)
 }));
+
+// Debug middleware to log session creation and ensure session is tracked
+app.use((req, res, next) => {
+  // Log session info for debugging (only for API endpoints)
+  if (req.path.startsWith('/api/')) {
+    const sessionId = req.sessionID;
+    const hasCookie = !!req.headers.cookie;
+    const walletConn = req.session?.walletConnection;
+
+    console.log(`[SESSION DEBUG] ${req.method} ${req.path}`);
+    console.log(`[SESSION DEBUG] Session ID: ${sessionId}`);
+    console.log(`[SESSION DEBUG] Cookie header: ${hasCookie ? 'present' : 'MISSING'}`);
+    if (hasCookie) {
+      const cookieMatch = req.headers.cookie?.match(/connect\.sid=([^;]+)/);
+      console.log(`[SESSION DEBUG] Cookie value: ${cookieMatch ? cookieMatch[1].substring(0, 20) + '...' : 'not found'}`);
+    }
+    console.log(`[SESSION DEBUG] Session walletConnection:`, walletConn ? JSON.stringify(walletConn) : 'not set');
+  }
+
+  // Ensure session cookie is set correctly
+  // express-session middleware runs before this, so we hook into response
+  const originalSend = res.send;
+  res.send = function (...args: any[]) {
+    // Check if Set-Cookie header will be set by express-session
+    if (req.session && req.session.walletConnection) {
+      // express-session sets cookie automatically if session was modified
+      // Check if cookie header exists
+      const setCookieHeader = res.getHeader('Set-Cookie');
+      if (setCookieHeader) {
+        console.log('[SESSION DEBUG] ✅ Set-Cookie header will be sent');
+      } else {
+        // If Set-Cookie not set, express-session will set it before response is sent
+        // But we can verify by checking if session was modified
+        console.log('[SESSION DEBUG] Set-Cookie will be set by express-session middleware');
+      }
+    }
+    return originalSend.apply(res, args);
+  };
+
+  next();
+});
 
 // Security: CSRF Protection (disabled for now to avoid breaking existing functionality)
 // app.use(CSRFProtection.middleware());

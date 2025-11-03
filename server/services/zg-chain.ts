@@ -1,6 +1,8 @@
 // 0G Chain API Service
 // Fetches real blockchain data from 0G Chain mainnet
 
+import { ethers } from 'ethers';
+
 const ZG_CHAIN_API_BASE = "https://chainscan.0g.ai/open";
 
 interface BlockData {
@@ -97,12 +99,20 @@ export class ZGChainService {
 
   async getGasPrice(): Promise<string> {
     try {
-      // In a real implementation, you might fetch this from the RPC
-      // For now, we'll use a reasonable default for 0G Chain
-      return "0.1 gwei";
+      const rpcUrl = process.env.ZG_RPC_URL || process.env.COMBINED_SERVER_CHAIN_RPC || 'https://evmrpc.0g.ai';
+      const provider = new ethers.JsonRpcProvider(rpcUrl);
+
+      const feeData = await provider.getFeeData();
+      if (feeData.gasPrice) {
+        // Convert from wei to Gneuron (1 Gneuron = 1 Gwei = 10^9 wei)
+        // 0G Chain uses Gneuron as the gas unit
+        const gasPriceGneuron = Number(feeData.gasPrice) / 1e9;
+        return `${gasPriceGneuron.toFixed(2)} Gneuron`;
+      }
+      return "0.1 Gneuron";
     } catch (error) {
       console.warn(`Failed to fetch gas price:`, error);
-      return "0.1 gwei";
+      return "0.1 Gneuron";
     }
   }
 
