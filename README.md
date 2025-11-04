@@ -15,7 +15,11 @@
 
 ## ✨ Key Features
 
-- **🤖 AI Agents** - 5 specialized AI types with 0G Compute Network integration
+- **🤖 AI Content Generation** - Powered by 0G Compute Network + OpenAI fallback
+  - ✍️ Generate posts (professional, casual, enthusiastic, educational)
+  - #️⃣ Auto-generate hashtags
+  - 🌍 Translate to any language
+  - 🎯 AI recommendations
 - **🔐 E2E Encryption** - Secure direct messaging with AES-256-GCM
 - **⛓️ Real On-Chain Data** - Live stats from 0G Storage, DA, and Chain
 - **💬 Social Features** - Posts, comments, likes, reposts, hashtags
@@ -29,9 +33,26 @@
 **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui  
 **Backend**: Express.js + PostgreSQL + Drizzle ORM + WebSocket  
 **Blockchain**: 0G Chain Mainnet (Chain ID: 16661) + ethers.js v6  
-**AI**: 0G Compute Network + OpenAI GPT-4 (Fallback)  
+**AI**: 0G Compute Network (Primary) + OpenAI GPT-4 (Fallback)  
 **Storage**: 0G Storage Network + @0glabs/0g-ts-sdk  
-**Encryption**: AES-256-GCM + ECDH  
+**Encryption**: AES-256-GCM + ECDH
+
+### 🤖 AI Integration Status
+
+**0G Compute Network:**
+- ✅ Full integration implemented
+- ✅ Account created on mainnet (0.5 OG funded)
+- ✅ 2 official providers configured (gpt-oss-120b, deepseek-r1-70b)
+- ⚠️ Currently using OpenAI fallback due to SDK limitations
+- 🔄 Will auto-switch to 0G Compute when SDK is updated
+
+**Transaction Details:**
+- TX Hash: `0xd4ce632982cb1c5b189b185cab4a7bd7ca93cb22f8bad654fcd104f83426e87c`
+- Block: 11,542,506 (Confirmed ✅)
+- Amount: 0.5 OG
+- Wallet: `0x6BbB59c971826380e0DDa7BD527154AC337780e9`
+
+**See:** [AI-CONTENT-GENERATION-0G-COMPUTE.md](./AI-CONTENT-GENERATION-0G-COMPUTE.md) for details  
 
 ## 🌐 0G Chain Mainnet
 
@@ -114,10 +135,18 @@ See full API documentation in code.
 
 ## 📚 Documentation
 
+### Setup & Configuration
 - **[SETUP-MAINNET.md](./SETUP-MAINNET.md)** - Complete setup guide
 - **[GET-0G-ENDPOINTS.md](./GET-0G-ENDPOINTS.md)** - How to get 0G service endpoints
 - **[REAL-DATA-FROM-0G-CHAIN.md](./REAL-DATA-FROM-0G-CHAIN.md)** - Real data implementation
 - **[GNEURON-GAS-UNIT.md](./GNEURON-GAS-UNIT.md)** - Gas unit explanation
+
+### AI & 0G Compute
+- **[AI-CONTENT-GENERATION-0G-COMPUTE.md](./AI-CONTENT-GENERATION-0G-COMPUTE.md)** - Full AI integration guide
+- **[INITIALIZE-0G-COMPUTE.md](./INITIALIZE-0G-COMPUTE.md)** - How to initialize 0G Compute account
+- **[0G-COMPUTE-SDK-ANALYSIS.md](./0G-COMPUTE-SDK-ANALYSIS.md)** - SDK implementation analysis
+- **[WHY-USING-OPENAI-FALLBACK.md](./WHY-USING-OPENAI-FALLBACK.md)** - Current AI status
+- **[FINAL-SDK-LIMITATIONS-SUMMARY.md](./FINAL-SDK-LIMITATIONS-SUMMARY.md)** - Complete SDK analysis
 
 ## 🌐 Links
 

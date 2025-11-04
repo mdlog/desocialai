@@ -19,7 +19,7 @@ export class CSRFProtection {
   }
 
   /**
-   * Verify CSRF token
+   * Verify CSRF token (using constant-time comparison to prevent timing attacks)
    */
   static verifyToken(sessionId: string, token: string): boolean {
     const stored = this.tokens.get(sessionId);
@@ -28,7 +28,11 @@ export class CSRFProtection {
       this.tokens.delete(sessionId);
       return false;
     }
-    return stored.token === token;
+    // Use constant-time comparison to prevent timing attacks
+    return crypto.timingSafeEqual(
+      Buffer.from(stored.token),
+      Buffer.from(token)
+    );
   }
 
   /**
@@ -41,8 +45,13 @@ export class CSRFProtection {
         return next();
       }
 
-      // Skip CSRF for public endpoints
-      const publicPaths = ['/api/web3/connect', '/api/web3/status'];
+      // Skip CSRF for public endpoints (read-only or authentication endpoints)
+      const publicPaths = [
+        '/api/web3/connect',
+        '/api/web3/status',
+        '/api/web3/disconnect',
+        '/api/zg/chat',  // AI chat endpoint
+      ];
       if (publicPaths.some(path => req.path.startsWith(path))) {
         return next();
       }
@@ -51,7 +60,7 @@ export class CSRFProtection {
       const sessionId = req.sessionID;
 
       if (!token || !this.verifyToken(sessionId, token)) {
-        return res.status(403).json({ 
+        return res.status(403).json({
           message: 'Invalid CSRF token',
           code: 'CSRF_VALIDATION_FAILED'
         });

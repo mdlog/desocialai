@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
+import fs from 'fs';
+import path from 'path';
 import { storage } from '../storage.js';
 import { zgStorageService } from '../services/zg-storage.js';
 import { zgDAService } from '../services/zg-da.js';
@@ -203,14 +205,53 @@ router.post('/', upload.single('file'), async (req, res) => {
         let mediaTransactionHash = undefined;
 
         if (req.file) {
+            console.log(`[POST CREATE] Uploading media to 0G Storage: ${req.file.originalname} (${req.file.size} bytes)`);
+
             const mediaResult = await zgStorageService.storeContent(req.file.buffer, {
                 type: 'image',
                 userId: user.id,
                 mimeType: req.file.mimetype
             });
-            if (mediaResult.success && mediaResult.hash) {
-                mediaStorageHash = mediaResult.hash;
-                mediaTransactionHash = mediaResult.transactionHash;
+
+            // ❌ Fail if media upload fails (no fallback)
+            if (!mediaResult.success || !mediaResult.hash) {
+                console.error(`[POST CREATE] ❌ Media upload failed:`, mediaResult.error);
+                return res.status(500).json({
+                    message: "Failed to upload media to 0G Storage",
+                    error: mediaResult.error || "Upload failed",
+                    details: "Please try again or check your network connection"
+                });
+            }
+
+            mediaStorageHash = mediaResult.hash;
+            mediaTransactionHash = mediaResult.transactionHash;
+            console.log(`[POST CREATE] ✅ Media uploaded successfully: ${mediaResult.hash}`);
+
+            // ✅ Save local copy for fast access
+            try {
+                const localMediaDir = path.join(process.cwd(), 'storage', 'media');
+                if (!fs.existsSync(localMediaDir)) {
+                    fs.mkdirSync(localMediaDir, { recursive: true });
+                }
+
+                // Determine file extension from mimetype
+                const extMap: Record<string, string> = {
+                    'image/jpeg': '.jpg',
+                    'image/jpg': '.jpg',
+                    'image/png': '.png',
+                    'image/gif': '.gif',
+                    'image/webp': '.webp',
+                    'video/mp4': '.mp4',
+                    'video/webm': '.webm',
+                };
+                const ext = extMap[req.file.mimetype] || '.bin';
+                const localFilePath = path.join(localMediaDir, `${mediaResult.hash}${ext}`);
+
+                await fs.promises.writeFile(localFilePath, req.file.buffer);
+                console.log(`[POST CREATE] ✅ Saved local copy: ${mediaResult.hash}${ext}`);
+            } catch (localSaveError) {
+                console.error('[POST CREATE] ⚠️ Failed to save local copy:', localSaveError);
+                // Don't fail the request if local save fails - media is already on 0G Storage
             }
         }
 

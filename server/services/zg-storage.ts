@@ -112,8 +112,8 @@ class ZGStorageService {
       console.log('[0G Storage] Initializing indexer with URL:', this.indexerRpc);
       this.indexer = new Indexer(this.indexerRpc);
 
-      console.log('[0G Storage] Galileo Testnet - RPC:', this.rpcUrl);
-      console.log('[0G Storage] Galileo Testnet - Indexer:', this.indexerRpc);
+      console.log('[0G Storage] 0G Mainnet - RPC:', this.rpcUrl);
+      console.log('[0G Storage] 0G Mainnet - Indexer:', this.indexerRpc);
       console.log('[0G Storage] Wallet address:', this.signer.address);
 
       // Test wallet balance
@@ -236,7 +236,7 @@ class ZGStorageService {
       }
 
       console.log('[0G Storage] ✅ Using REAL 0G Storage with wallet:', this.signer?.address);
-      console.log('[0G Storage] ✅ Uploading to 0G Galileo Testnet with real transaction');
+      console.log('[0G Storage] ✅ Uploading to 0G Mainnet with real transaction');
 
       // Create temporary file for 0G Storage upload
       const tempDir = path.join(process.cwd(), 'temp');
@@ -375,9 +375,9 @@ Wallet: ${this.signer?.address || 'Unknown'}
 Issue: Not enough 0G tokens to pay for transaction gas fees
 
 Solution:
-1. Visit 0G Faucet: https://faucet.0g.ai
-2. Connect your wallet and request testnet tokens
-3. Wait a few minutes for tokens to arrive
+1. Ensure you have A0GI tokens in your wallet
+2. Check your wallet balance on 0G Mainnet
+3. If needed, bridge tokens to 0G Mainnet
 4. Try posting again
 
 Your post has been saved locally and will sync to 0G Storage once you have sufficient tokens.`;
@@ -386,7 +386,7 @@ Your post has been saved locally and will sync to 0G Storage once you have suffi
         isRetryable = true;
         userFriendlyMessage = `0G Storage network temporarily unavailable.
 
-Network Status: Galileo Testnet experiencing connectivity issues
+Network Status: 0G Mainnet experiencing connectivity issues
 Issue: Cannot connect to 0G Storage indexer or storage nodes
 Infrastructure: Services may be under maintenance
 
@@ -397,7 +397,7 @@ Your post has been created in your feed and will automatically retry uploading t
         userFriendlyMessage = `0G Storage service error encountered.
 
 Error: ${errorMessage}
-Network: Galileo Testnet 
+Network: 0G Mainnet
 Issue: 0G Storage service returned an error (not balance-related)
 
 Your post has been saved locally. The upload will retry automatically when the service is available.`;
@@ -431,7 +431,7 @@ Your post is saved locally. Please check your connection or try again later.`;
     console.error('[0G Storage] Simulation mode called - this should not happen with real configuration');
     return {
       success: false,
-      error: 'Simulation mode disabled - user requires real Galileo testnet storage only',
+      error: 'Simulation mode disabled - user requires real 0G Mainnet storage only',
       retryable: false
     };
   }
@@ -502,7 +502,7 @@ Your post is saved locally. Please check your connection or try again later.`;
    * Real 0G Storage retrieval only - simulation mode disabled per user requirement
    */
   private async simulateRetrieval(hash: string): Promise<{ content?: string; metadata?: Record<string, any>; error?: string }> {
-    throw new Error('Simulation mode disabled: User requires authentic 0G Galileo testnet storage only. No fallback allowed.');
+    throw new Error('Simulation mode disabled: User requires authentic 0G Mainnet storage only. No fallback allowed.');
   }
 
   /**

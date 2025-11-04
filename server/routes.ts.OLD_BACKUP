@@ -8,7 +8,6 @@ import { storage } from "./storage";
 import { insertUserSchema, insertPostSchema, insertFollowSchema, insertLikeSchema, insertCommentSchema, insertRepostSchema, updateUserProfileSchema, insertCommunitySchema, insertBookmarkSchema, insertCollectionSchema, insertTipSchema, insertHashtagSchema, insertShareSchema, insertCommentLikeSchema, insertConversationSchema, insertMessageSchema, type Notification, type Conversation, type Message, users, posts, likes, comments, follows, conversations, messages } from "@shared/schema";
 import { eq, desc, gte, isNotNull, and, sql } from "drizzle-orm";
 import { db } from "./db";
-import { z } from "zod";
 import { ObjectStorageService } from "./objectStorage";
 import { generateAIInsights, generateTrendingTopics, generatePersonalizedRecommendations } from "./services/ai";
 import multer from "multer";
@@ -23,7 +22,7 @@ import { zgDAService } from "./services/zg-da";
 import { zgChainService } from "./services/zg-chain";
 import { nftService } from "./services/nft-service";
 import { badgeService } from "./services/badge-service";
-import { ethers, verifyMessage } from "ethers";
+import { ethers } from "ethers";
 import crypto from "crypto";
 
 // Helper functions for content categorization and discovery
@@ -3019,6 +3018,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const items: any[] = [];
 
       // Pagination
+      const offset = (pageNum - 1) * limitNum;
       const totalItems = items.length;
       const paginatedItems = items.slice(offset, offset + limitNum);
       const totalPages = Math.ceil(totalItems / limitNum);

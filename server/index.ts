@@ -10,6 +10,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { InputSanitizer } from "./security/input-sanitizer";
 import { CSRFProtection } from "./security/csrf-protection";
 import { RateLimiter } from "./security/rate-limiter";
+import { HTTPSEnforcer } from "./security/https-enforcer";
 
 const app = express();
 
@@ -31,6 +32,21 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false, // Required for some 0G Chain interactions
   crossOriginResourcePolicy: { policy: "cross-origin" },
 }));
+
+// Security: HTTPS Enforcement (production only)
+app.use(HTTPSEnforcer.middleware({
+  enabled: process.env.ENFORCE_HTTPS === 'true',
+  trustProxy: true,
+  excludePaths: ['/health', '/health/live', '/health/ready']
+}));
+
+// Security: Warn about sensitive endpoints over HTTP
+app.use(HTTPSEnforcer.warnInsecure([
+  '/api/auth',
+  '/api/users',
+  '/api/messages',
+  '/api/web3/connect'
+]));
 
 // Security: Rate limiting (excluding avatar and frequently accessed endpoints)
 app.use('/api/', (req, res, next) => {
@@ -216,8 +232,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// Security: CSRF Protection (disabled for now to avoid breaking existing functionality)
-// app.use(CSRFProtection.middleware());
+// Security: CSRF Protection for state-changing requests
+app.use(CSRFProtection.middleware());
 
 // CSRF token endpoint
 app.get('/api/csrf-token', CSRFProtection.getTokenEndpoint);

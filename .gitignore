@@ -26,6 +26,15 @@ tests/
 *.spec.tsx
 __tests__/
 
+# 0G Compute test scripts
+init-compute-simple.mjs
+init-testnet-compute.mjs
+check-compute-balance.mjs
+debug-0g-compute.mjs
+test-0g-compute-testnet.mjs
+test-backend-ai.mjs
+initialize-compute.mjs
+
 # Temporary files and folders
 tmp/
 temp/

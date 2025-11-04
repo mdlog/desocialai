@@ -66,16 +66,32 @@ function ProgressiveImage({ src, alt, className, ...props }: React.ImgHTMLAttrib
           loading="lazy"
           className={`${className} transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'
             }`}
-          onLoad={() => setImageLoading(false)}
-          onError={() => {
+          onLoad={() => {
+            console.log('[IMAGE] ✅ Loaded successfully:', src);
+            setImageLoading(false);
+          }}
+          onError={(e) => {
+            console.error('[IMAGE] ❌ Failed to load:', {
+              src,
+              error: e,
+              currentSrc: (e.target as HTMLImageElement)?.currentSrc
+            });
             setImageLoading(false);
             setImageError(true);
           }}
           {...props}
         />
       ) : (
-        <div className={`${className} bg-gray-100 dark:bg-gray-800 flex items-center justify-center`}>
-          <span className="text-gray-500 text-sm">Failed to load image</span>
+        <div className={`${className} bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-col gap-2 p-4`}>
+          <div className="text-yellow-600 dark:text-yellow-400 text-center">
+            <svg className="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <p className="text-sm font-medium">Image Syncing to 0G Network</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              This image is being uploaded to the decentralized storage network. Please check back in a few moments.
+            </p>
+          </div>
         </div>
       )}
     </div>

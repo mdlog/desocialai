@@ -1,27 +1,42 @@
 import { Router } from 'express';
 import { storage } from '../storage.js';
 import { generateAIInsights, generateTrendingTopics, generatePersonalizedRecommendations } from '../services/ai.js';
+import { contentGenerationService } from '../services/content-generation.js';
 
 const router = Router();
 
 /**
  * POST /api/ai/content/generate-post
- * Generate AI post content
+ * Generate AI post content using 0G Compute (primary) or OpenAI (fallback)
  */
 router.post('/content/generate-post', async (req, res) => {
     try {
-        const { prompt, category } = req.body;
+        // Accept both 'prompt' and 'content' for backward compatibility
+        const { prompt, content, category, tone, platform } = req.body;
+        const inputContent = prompt || content;
 
-        if (!prompt) {
-            return res.status(400).json({ message: "Prompt is required" });
+        if (!inputContent) {
+            return res.status(400).json({ message: "Prompt or content is required" });
         }
 
-        // TODO: Implement AI content generation
-        const generatedContent = `AI-generated content based on: ${prompt}`;
+        console.log('[AI Generate Post] Using 0G Compute Network (primary) with OpenAI fallback');
+        console.log('[AI Generate Post] Input:', inputContent.substring(0, 50) + '...');
+
+        // Use content generation service (0G Compute primary, OpenAI fallback)
+        const result = await contentGenerationService.generatePost({
+            type: 'post',
+            content: inputContent,
+            tone: tone || 'professional',
+            platform: platform || 'general'
+        });
+
+        console.log('[AI Generate Post] Result source:', result.source);
 
         res.json({
-            content: generatedContent,
-            category: category || 'General'
+            content: result.content,
+            category: category || 'General',
+            source: result.source, // '0G-Compute', 'OpenAI', or 'simulation'
+            metadata: result.metadata
         });
     } catch (error: any) {
         console.error('[AI Generate Post] Error:', error);
@@ -31,24 +46,34 @@ router.post('/content/generate-post', async (req, res) => {
 
 /**
  * POST /api/ai/content/hashtags
- * Generate hashtags for content
+ * Generate hashtags for content using 0G Compute (primary) or OpenAI (fallback)
  */
 router.post('/content/hashtags', async (req, res) => {
     try {
-        const { content } = req.body;
+        const { content, platform } = req.body;
 
         if (!content) {
             return res.status(400).json({ message: "Content is required" });
         }
 
-        // Simple hashtag extraction
-        const words = content.toLowerCase().split(/\s+/);
-        const hashtags = words
-            .filter((word: string) => word.length > 3)
-            .slice(0, 5)
-            .map((word: string) => `#${word}`);
+        console.log('[AI Hashtags] Using 0G Compute Network (primary) with OpenAI fallback');
 
-        res.json({ hashtags });
+        // Use content generation service (0G Compute primary, OpenAI fallback)
+        const result = await contentGenerationService.generateHashtags({
+            type: 'hashtags',
+            content,
+            platform: platform || 'general'
+        });
+
+        // Parse hashtags from result
+        const hashtags = result.metadata?.suggestions ||
+            result.content.split(' ').filter(tag => tag.startsWith('#'));
+
+        res.json({
+            hashtags,
+            source: result.source,
+            metadata: result.metadata
+        });
     } catch (error: any) {
         console.error('[AI Hashtags] Error:', error);
         res.status(500).json({ message: error.message });
@@ -57,7 +82,7 @@ router.post('/content/hashtags', async (req, res) => {
 
 /**
  * POST /api/ai/content/translate
- * Translate content to another language
+ * Translate content to another language using 0G Compute (primary) or OpenAI (fallback)
  */
 router.post('/content/translate', async (req, res) => {
     try {
@@ -67,13 +92,21 @@ router.post('/content/translate', async (req, res) => {
             return res.status(400).json({ message: "Content and target language are required" });
         }
 
-        // TODO: Implement translation
-        const translatedContent = `[Translated to ${targetLanguage}] ${content}`;
+        console.log('[AI Translate] Using 0G Compute Network (primary) with OpenAI fallback');
+
+        // Use content generation service (0G Compute primary, OpenAI fallback)
+        const result = await contentGenerationService.translateContent({
+            type: 'translate',
+            content,
+            targetLanguage
+        });
 
         res.json({
-            translatedContent,
-            sourceLanguage: 'en',
-            targetLanguage
+            translatedContent: result.content,
+            sourceLanguage: 'auto-detected',
+            targetLanguage,
+            source: result.source,
+            metadata: result.metadata
         });
     } catch (error: any) {
         console.error('[AI Translate] Error:', error);

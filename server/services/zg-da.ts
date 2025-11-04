@@ -318,7 +318,7 @@ class ZGDataAvailabilityService {
   private prepareBlobData(transaction: DATransaction): Uint8Array {
     const jsonData = JSON.stringify({
       version: '1.0',
-      network: '0g-galileo-testnet',
+      network: '0g-mainnet',
       type: transaction.type,
       userId: transaction.userId,
       targetId: transaction.targetId,

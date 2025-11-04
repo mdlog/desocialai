@@ -130,6 +130,8 @@ export interface IStorage {
   getMessages(conversationId: string, userId: string): Promise<any[]>;
   sendMessage(senderId: string, receiverId: string, conversationId: string | undefined, content: string, metadata?: any): Promise<any>;
   markMessagesAsRead(conversationId: string, userId: string): Promise<void>;
+  markConversationAsRead(conversationId: string, userId: string): Promise<void>;
+  getUnreadMessageCount(userId: string): Promise<number>;
   startConversation(userId: string, recipientId: string): Promise<any>;
 
   // User Stats
@@ -2208,6 +2210,105 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('[Mark Messages As Read Error]', error);
       throw error;
+    }
+  }
+
+  async markConversationAsRead(conversationId: string, userId: string): Promise<void> {
+    try {
+      console.log(`[Mark Conversation As Read] Starting - Conversation: ${conversationId}, User: ${userId}`);
+
+      // First, check current state
+      const [conversation] = await db.select()
+        .from(conversations)
+        .where(eq(conversations.id, conversationId));
+
+      if (!conversation) {
+        console.error(`[Mark Conversation As Read] Conversation ${conversationId} not found!`);
+        return;
+      }
+
+      const isParticipant1 = conversation.participant1Id === userId;
+      const currentUnreadCount = isParticipant1 ? conversation.unreadCount1 : conversation.unreadCount2;
+
+      console.log(`[Mark Conversation As Read] Current state:`, {
+        conversationId,
+        userId,
+        isParticipant1,
+        participant1Id: conversation.participant1Id,
+        participant2Id: conversation.participant2Id,
+        unreadCount1: conversation.unreadCount1,
+        unreadCount2: conversation.unreadCount2,
+        currentUnreadCount
+      });
+
+      // Update all unread messages in the conversation for this user
+      const updateResult = await db.update(messages)
+        .set({ read: true })
+        .where(
+          and(
+            eq(messages.conversationId, conversationId),
+            eq(messages.receiverId, userId),
+            eq(messages.read, false)
+          )
+        );
+
+      console.log(`[Mark Conversation As Read] Updated messages to read: true`);
+
+      // Update conversation unread count
+      const updateData = isParticipant1
+        ? { unreadCount1: 0 }
+        : { unreadCount2: 0 };
+
+      await db.update(conversations)
+        .set(updateData)
+        .where(eq(conversations.id, conversationId));
+
+      console.log(`[Mark Conversation As Read] Updated conversation unreadCount to 0:`, updateData);
+
+      // Verify the update
+      const [updatedConversation] = await db.select()
+        .from(conversations)
+        .where(eq(conversations.id, conversationId));
+
+      console.log(`[Mark Conversation As Read] After update:`, {
+        unreadCount1: updatedConversation.unreadCount1,
+        unreadCount2: updatedConversation.unreadCount2,
+        expectedZero: isParticipant1 ? updatedConversation.unreadCount1 : updatedConversation.unreadCount2
+      });
+
+      console.log(`[Mark Conversation As Read] ✅ Successfully marked conversation as read`);
+    } catch (error) {
+      console.error('[Mark Conversation As Read Error]', error);
+      throw error;
+    }
+  }
+
+  async getUnreadMessageCount(userId: string): Promise<number> {
+    try {
+      console.log(`[Get Unread Count] Getting unread message count for user ${userId}`);
+
+      // Get all conversations for this user
+      const userConversations = await db.select()
+        .from(conversations)
+        .where(
+          or(
+            eq(conversations.participant1Id, userId),
+            eq(conversations.participant2Id, userId)
+          )
+        );
+
+      // Sum up unread counts
+      let totalUnread = 0;
+      for (const conv of userConversations) {
+        const isParticipant1 = conv.participant1Id === userId;
+        totalUnread += isParticipant1 ? (conv.unreadCount1 || 0) : (conv.unreadCount2 || 0);
+      }
+
+      console.log(`[Get Unread Count] Total unread messages: ${totalUnread}`);
+      return totalUnread;
+    } catch (error) {
+      console.error('[Get Unread Count Error]', error);
+      return 0;
     }
   }
 
