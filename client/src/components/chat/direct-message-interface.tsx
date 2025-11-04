@@ -13,6 +13,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Send, MessageCircle, Users, Search, MoreVertical, Phone, Video, Shield, Lock, UserPlus } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { simpleE2EEncryption } from '@/lib/e2e-encryption';
+import { fetchWithCsrf } from '@/lib/csrf';
 
 interface DirectMessage {
     id: string;
@@ -89,12 +90,11 @@ export function DirectMessageInterface({ initialConversationId, targetUserId }: 
         try {
             console.log('[DM] Creating conversation with user:', targetUserId);
 
-            const response = await fetch('/api/messages/start-conversation', {
+            const response = await fetchWithCsrf('/api/messages/start-conversation', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                credentials: 'include', // Important: include session cookie
                 body: JSON.stringify({
                     recipientId: targetUserId,
                 }),
@@ -151,7 +151,9 @@ export function DirectMessageInterface({ initialConversationId, targetUserId }: 
         },
         enabled: !!currentUser?.id,
         retry: 1,
-        staleTime: 30000, // 30 seconds
+        staleTime: 0, // Always fetch fresh data
+        refetchInterval: 3000, // Refresh every 3 seconds
+        refetchOnWindowFocus: true, // Refresh when window gains focus
     });
 
     console.log('[DM] Conversations query state:', {
@@ -353,12 +355,11 @@ export function DirectMessageInterface({ initialConversationId, targetUserId }: 
                     encryptedDataSample: encryptedResult.encryptedData.substring(0, 20) + '...'
                 });
 
-                const response = await fetch('/api/messages/send', {
+                const response = await fetchWithCsrf('/api/messages/send', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    credentials: 'include',
                     body: JSON.stringify({
                         conversationId,
                         content: encryptedResult.encryptedData,
@@ -380,6 +381,8 @@ export function DirectMessageInterface({ initialConversationId, targetUserId }: 
                         throw new Error('Not authenticated. Please reconnect your wallet.');
                     } else if (response.status === 400) {
                         throw new Error('Invalid message data. Please try again.');
+                    } else if (response.status === 403) {
+                        throw new Error('Security check failed. Please refresh the page and try again.');
                     } else if (response.status === 500) {
                         throw new Error('Server error. Please try again later.');
                     }
@@ -403,6 +406,8 @@ export function DirectMessageInterface({ initialConversationId, targetUserId }: 
             setMessageInput('');
             queryClient.invalidateQueries({ queryKey: ['/api/messages', selectedConversation] });
             queryClient.invalidateQueries({ queryKey: ['/api/messages/conversations'] });
+            // Update unread count in sidebar
+            queryClient.invalidateQueries({ queryKey: ['/api/messages/unread-count'] });
             toast({
                 title: "Message sent",
                 description: "Your encrypted message has been sent successfully",
@@ -422,7 +427,8 @@ export function DirectMessageInterface({ initialConversationId, targetUserId }: 
     // Mark messages as read mutation
     const markAsReadMutation = useMutation({
         mutationFn: async (conversationId: string) => {
-            const response = await fetch(`/api/messages/${conversationId}/read`, {
+            console.log('[DM] Marking conversation as read:', conversationId);
+            const response = await fetchWithCsrf(`/api/messages/${conversationId}/read`, {
                 method: 'POST',
             });
 
@@ -432,8 +438,24 @@ export function DirectMessageInterface({ initialConversationId, targetUserId }: 
 
             return response.json();
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['/api/messages/conversations'] });
+        onSuccess: async (data, conversationId) => {
+            console.log('[DM] Conversation marked as read successfully:', conversationId);
+
+            // Immediately update local cache to remove unread count
+            queryClient.setQueryData<Conversation[]>(['/api/messages/conversations'], (oldData) => {
+                if (!oldData) return oldData;
+                return oldData.map(conv =>
+                    conv.id === conversationId
+                        ? { ...conv, unreadCount: 0 }
+                        : conv
+                );
+            });
+
+            // Then invalidate to fetch fresh data from server
+            await queryClient.invalidateQueries({ queryKey: ['/api/messages/conversations'] });
+            await queryClient.invalidateQueries({ queryKey: ['/api/messages/unread-count'] });
+
+            console.log('[DM] Queries invalidated, unread count should be updated');
         },
     });
 
@@ -447,12 +469,13 @@ export function DirectMessageInterface({ initialConversationId, targetUserId }: 
         }
     }, [messages]);
 
-    // Mark messages as read when conversation is selected
+    // Mark messages as read when conversation is selected or when messages are displayed
     useEffect(() => {
-        if (selectedConversation) {
+        if (selectedConversation && messages.length > 0) {
+            console.log('[DM] Conversation selected with messages, marking as read:', selectedConversation);
             markAsReadMutation.mutate(selectedConversation);
         }
-    }, [selectedConversation]);
+    }, [selectedConversation, messages.length]);
 
     const handleSendMessage = async () => {
         console.log('[DM] handleSendMessage called:', {

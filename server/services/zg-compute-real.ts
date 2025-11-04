@@ -39,10 +39,17 @@ export interface ZGComputeInstance {
 }
 
 // Official 0G Compute providers from documentation
+// Updated based on latest provider list
 const OFFICIAL_PROVIDERS = {
-  'llama-3.3-70b-instruct': '0xf07240Efa67755B5311bc75784a061eDB47165Dd',
-  'deepseek-r1-70b': '0x3feE5a4dd5FDb8a32dDA97Bed899830605dBD9D3'
+  'gpt-oss-120b': '0xf07240Efa67755B5311bc75784a061eDB47165Dd', // State-of-the-art 70B parameter model for general AI tasks (TEE/TeeML)
+  'deepseek-r1-70b': '0x3feE5a4dd5FDb8a32dDA97Bed899830605dBD9D3'  // Advanced reasoning model optimized for complex problem solving (TEE/TeeML)
 } as const;
+
+// Default provider for content generation (general tasks)
+const DEFAULT_PROVIDER = 'gpt-oss-120b';
+
+// Provider for complex reasoning tasks
+const REASONING_PROVIDER = 'deepseek-r1-70b';
 
 class ZGComputeRealService {
   private broker: any = null;
@@ -168,7 +175,7 @@ class ZGComputeRealService {
     }
   }
 
-  async generateContent(prompt: string, options: { maxTokens?: number; temperature?: number } = {}): Promise<{ content: string; success: boolean }> {
+  async generateContent(prompt: string, options: { maxTokens?: number; temperature?: number; useReasoning?: boolean } = {}): Promise<{ content: string; success: boolean; provider?: string }> {
     if (!this.isConfigured || !this.broker) {
       console.log('[0G Compute] Using simulation mode for content generation');
       return {
@@ -180,8 +187,11 @@ class ZGComputeRealService {
     try {
       console.log('[0G Compute] Generating content using real 0G Network');
 
-      // Use official provider for llama-3.3-70b-instruct
-      const providerAddress = OFFICIAL_PROVIDERS['llama-3.3-70b-instruct'];
+      // Choose provider based on task type
+      const providerKey = options.useReasoning ? REASONING_PROVIDER : DEFAULT_PROVIDER;
+      const providerAddress = OFFICIAL_PROVIDERS[providerKey];
+
+      console.log(`[0G Compute] Using provider: ${providerKey} (${providerAddress})`);
 
       // Acknowledge provider if not already done
       if (!this.acknowledgedProviders.has(providerAddress)) {
@@ -226,10 +236,12 @@ class ZGComputeRealService {
       const aiResponse = data.choices[0].message.content;
 
       console.log('[0G Compute] Generated content:', aiResponse.slice(0, 100) + '...');
+      console.log(`[0G Compute] ✅ Content generated using ${providerKey}`);
 
       return {
         content: aiResponse,
-        success: true
+        success: true,
+        provider: providerKey
       };
 
     } catch (error: any) {
@@ -251,8 +263,9 @@ class ZGComputeRealService {
       // Real 0G Compute inference
       console.log('[0G Compute] Generating recommendations using real 0G Network');
 
-      // Use official provider for llama-3.3-70b-instruct
-      const providerAddress = OFFICIAL_PROVIDERS['llama-3.3-70b-instruct'];
+      // Use reasoning provider for complex recommendation logic
+      const providerAddress = OFFICIAL_PROVIDERS[REASONING_PROVIDER];
+      console.log(`[0G Compute] Using ${REASONING_PROVIDER} for recommendations`);
 
       // Acknowledge provider if not already done
       if (!this.acknowledgedProviders.has(providerAddress)) {
@@ -576,7 +589,8 @@ Requirements:
       // Try to add funds using broker.ledger.addLedger
       try {
         console.log('[0G Compute] Calling broker.ledger.addLedger...');
-        const tx = await this.broker.ledger.addLedger(amount);
+        // addLedger expects number, not string
+        const tx = await this.broker.ledger.addLedger(amountFloat);
         console.log(`[0G Compute] ✅ Account created successfully! Transaction:`, tx);
 
         return {

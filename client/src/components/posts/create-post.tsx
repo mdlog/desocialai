@@ -406,8 +406,10 @@ export function CreatePost() {
       } else if (error.message?.includes("timeout after 65 seconds")) {
         errorMessage = "Upload took longer than expected due to 0G network sync delay. Your post may have been created successfully. Please refresh to check.";
         shouldRefresh = true;
+      } else if (error.message?.includes("0G Storage")) {
+        errorMessage = "Failed to upload to 0G Storage network. Please check your connection and try again.";
       } else if (error.message?.includes("Mainnet") || error.message?.includes("0G")) {
-        errorMessage = "0G Mainnet is temporarily unavailable. Your post will still be created.";
+        errorMessage = "0G network error. Please try again.";
       } else {
         errorMessage = error.message || "Failed to create post";
       }
@@ -505,41 +507,21 @@ export function CreatePost() {
   const hasContentOrFile = content.trim() || selectedFile;
   const isDisabled = !hasContentOrFile || createPostMutation.isPending || !isWalletConnected || (!isUserVerified && isOverLimit);
 
-  // If wallet is not connected, show connect wallet prompt
-  if (!isWalletConnected) {
-    return (
-      <Card className="mb-6 border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-800">
-        <CardContent className="p-6">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-800 rounded-full flex items-center justify-center">
-              <Wallet className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-yellow-800 dark:text-yellow-200">
-                Connect Wallet to Post
-              </h3>
-              <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                You need to connect your wallet to create posts on 0G Social. All posts are stored on the decentralized 0G Storage network.
-              </p>
-              <Button
-                className="mt-3 bg-yellow-600 hover:bg-yellow-700 text-white"
-                onClick={() => {
-                  // Scroll to Web3 status section or trigger wallet connection
-                  toast({
-                    title: "Connect your wallet",
-                    description: "Look for the Web3 connection section in the sidebar to connect your wallet.",
-                  });
-                }}
-              >
-                <Wallet className="w-4 h-4 mr-2" />
-                Connect Wallet
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  // Handle submit - show wallet prompt if not connected
+  const handleSubmitWithWalletCheck = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!isWalletConnected) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your wallet to create posts. Use the Web3 connection in the sidebar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    handleSubmit(e);
+  };
 
   return (
     <>
@@ -552,7 +534,7 @@ export function CreatePost() {
 
       <Card className="mb-6">
         <CardContent className="p-6">
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmitWithWalletCheck}>
             <div className="flex space-x-4">
               <Avatar className="w-10 h-10 flex-shrink-0 ring-2 ring-primary/20">
                 <AvatarImage
@@ -751,6 +733,11 @@ export function CreatePost() {
                           <div className="flex items-center space-x-2">
                             <Loader2 className="h-4 w-4 animate-spin" />
                             <span>Posting...</span>
+                          </div>
+                        ) : !isWalletConnected ? (
+                          <div className="flex items-center space-x-2">
+                            <Wallet className="h-4 w-4" />
+                            <span>Connect Wallet</span>
                           </div>
                         ) : (
                           "Sign & Post"

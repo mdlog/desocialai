@@ -78,6 +78,93 @@ router.get('/chain/stats', async (req, res) => {
 });
 
 /**
+ * GET /api/zg/compute/status
+ * Get 0G Compute environment status
+ */
+router.get('/compute/status', async (req, res) => {
+    try {
+        const status = zgComputeService.getEnvironmentStatus();
+        res.json(status);
+    } catch (error: any) {
+        console.error('[0G Compute Status] Error:', error);
+        res.status(500).json({
+            message: error.message,
+            error: 'Failed to fetch compute status'
+        });
+    }
+});
+
+/**
+ * POST /api/zg/compute/initialize
+ * Initialize 0G Compute account with funds
+ */
+router.post('/compute/initialize', async (req, res) => {
+    try {
+        const { amount } = req.body;
+
+        // Validate amount
+        if (!amount) {
+            return res.status(400).json({
+                message: 'Amount is required',
+                details: 'Please provide amount in OG tokens (minimum 10 OG recommended)'
+            });
+        }
+
+        const amountFloat = parseFloat(amount);
+        if (isNaN(amountFloat) || amountFloat < 0.1) {
+            return res.status(400).json({
+                message: 'Invalid amount',
+                details: 'Amount must be at least 0.1 OG (10 OG recommended for production)'
+            });
+        }
+
+        console.log(`[0G Compute Init] Initializing account with ${amount} OG...`);
+
+        // Add funds to create/fund account
+        const result = await zgComputeService.addFunds(amount);
+
+        if (result.success) {
+            res.json({
+                success: true,
+                message: result.message,
+                txHash: result.txHash,
+                amount: amount,
+                note: 'Account initialized successfully. You can now use 0G Compute for AI generation.'
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                message: result.error || 'Failed to initialize account',
+                note: 'You can still use AI features in simulation mode or with OpenAI fallback.'
+            });
+        }
+    } catch (error: any) {
+        console.error('[0G Compute Init] Error:', error);
+        res.status(500).json({
+            message: error.message,
+            error: 'Failed to initialize 0G Compute account'
+        });
+    }
+});
+
+/**
+ * GET /api/zg/compute/connection
+ * Check 0G Compute connection status
+ */
+router.get('/compute/connection', async (req, res) => {
+    try {
+        const connection = await zgComputeService.checkConnection();
+        res.json(connection);
+    } catch (error: any) {
+        console.error('[0G Compute Connection] Error:', error);
+        res.status(500).json({
+            message: error.message,
+            error: 'Failed to check connection'
+        });
+    }
+});
+
+/**
  * GET /api/zg/stats
  * Get all 0G network statistics (combined)
  */

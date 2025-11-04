@@ -191,8 +191,10 @@ router.get('/unread-count', async (req, res) => {
         }
 
         console.log('[MESSAGES] User found:', user.id);
-        // TODO: Implement unread count
-        const count = 0;
+
+        // Get unread count from storage
+        const count = await storage.getUnreadMessageCount(user.id);
+
         console.log('[MESSAGES] Returning count:', count);
         res.json({ count });
     } catch (error: any) {
@@ -254,8 +256,38 @@ router.post('/start-conversation', async (req, res) => {
 });
 
 /**
+ * POST /api/messages/:conversationId/read
+ * Mark all messages in a conversation as read
+ */
+router.post('/:conversationId/read', async (req, res) => {
+    try {
+        const walletData = req.session.walletConnection;
+        if (!walletData?.connected || !walletData?.address) {
+            return res.status(401).json({ message: "Wallet connection required" });
+        }
+
+        const user = await storage.getUserByWalletAddress(walletData.address);
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        const conversationId = req.params.conversationId;
+        console.log('[Mark Read] Marking conversation as read:', conversationId, 'for user:', user.id);
+
+        // Mark all messages in conversation as read
+        await storage.markConversationAsRead(conversationId, user.id);
+
+        console.log('[Mark Read] Conversation marked as read successfully');
+        res.json({ success: true });
+    } catch (error: any) {
+        console.error('[Mark Read] Error:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
+/**
  * POST /api/messages/:messageId/mark-read
- * Mark a message as read
+ * Mark a message as read (legacy endpoint)
  */
 router.post('/:messageId/mark-read', async (req, res) => {
     try {

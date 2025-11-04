@@ -89,13 +89,15 @@ router.get('/zg-media/:storageHash', async (req, res) => {
     try {
         const storageHash = req.params.storageHash;
         console.log(`[ZG MEDIA SERVE] Requesting media: ${storageHash}`);
+        console.log(`[ZG MEDIA SERVE] Hash length: ${storageHash.length}`);
 
         // Try to download from 0G Storage first
         try {
+            console.log(`[ZG MEDIA SERVE] Attempting to download from 0G Storage...`);
             const mediaData = await zgStorageService.downloadFile(storageHash);
 
-            if (mediaData) {
-                console.log(`[ZG MEDIA SERVE] ✅ Retrieved from 0G Storage: ${storageHash}`);
+            if (mediaData && mediaData.length > 0) {
+                console.log(`[ZG MEDIA SERVE] ✅ Retrieved from 0G Storage: ${storageHash.substring(0, 20)}... (${mediaData.length} bytes)`);
 
                 // Determine content type from buffer or default to image/jpeg
                 let contentType = 'image/jpeg';
@@ -121,9 +123,14 @@ router.get('/zg-media/:storageHash', async (req, res) => {
                 res.setHeader('Access-Control-Allow-Origin', '*');
 
                 return res.send(mediaData);
+            } else {
+                console.log(`[ZG MEDIA SERVE] 0G Storage returned empty data`);
             }
-        } catch (zgError) {
-            console.warn(`[ZG MEDIA SERVE] Failed to retrieve from 0G Storage:`, zgError);
+        } catch (zgError: any) {
+            console.error(`[ZG MEDIA SERVE] ❌ Failed to retrieve from 0G Storage:`, {
+                error: zgError.message,
+                stack: zgError.stack?.split('\n')[0]
+            });
         }
 
         // Fallback: Try local storage
@@ -159,11 +166,20 @@ router.get('/zg-media/:storageHash', async (req, res) => {
             }
         }
 
-        console.log(`[ZG MEDIA SERVE] ❌ Media not found: ${storageHash}`);
-        res.status(404).json({ error: "Media not found" });
+        console.log(`[ZG MEDIA SERVE] ❌ Media not found in 0G Storage or local storage: ${storageHash.substring(0, 30)}...`);
+
+        // Return a placeholder image or 404
+        res.status(404).json({
+            error: "Media not found",
+            message: "Image not available in 0G Storage or local cache. It may still be syncing to the network.",
+            storageHash: storageHash.substring(0, 20) + '...'
+        });
     } catch (error: any) {
         console.error('[ZG MEDIA SERVE] Error:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({
+            error: error.message,
+            details: "Failed to retrieve media from storage"
+        });
     }
 });
 

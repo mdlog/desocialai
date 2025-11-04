@@ -1,5 +1,4 @@
-import crypto from 'crypto';
-import { createHash, randomBytes, createCipheriv, createDecipheriv } from 'crypto';
+import { createHash, randomBytes, createCipheriv, createDecipheriv } from 'node:crypto';
 
 export interface EncryptionResult {
     encryptedData: string;
@@ -124,14 +123,14 @@ export class E2EEncryptionService {
         iv: string;
         tag: string;
     } {
-        // For demo purposes, use a simple consistent key
-        // In production, this would use proper ECDH key exchange
-        const demoKey = 'demo_key_123456789012345678901234567890'; // 32 bytes
-        const encrypted = this.encrypt(message, demoKey);
+        // Use environment variable for encryption key
+        // In production, this should use proper ECDH key exchange
+        const encryptionKey = process.env.E2E_ENCRYPTION_KEY || this.generateKey();
+        const encrypted = this.encrypt(message, encryptionKey);
 
         return {
             encryptedMessage: encrypted.encryptedData,
-            sharedSecret: demoKey,
+            sharedSecret: encryptionKey,
             iv: encrypted.iv,
             tag: encrypted.tag
         };
@@ -147,10 +146,10 @@ export class E2EEncryptionService {
         iv: string,
         tag: string
     ): DecryptionResult {
-        // For demo purposes, use the same simple consistent key
-        // In production, this would use proper ECDH key exchange
-        const demoKey = 'demo_key_123456789012345678901234567890'; // 32 bytes
-        return this.decrypt(encryptedMessage, demoKey, iv, tag);
+        // Use environment variable for encryption key
+        // In production, this should use proper ECDH key exchange
+        const encryptionKey = process.env.E2E_ENCRYPTION_KEY || this.generateKey();
+        return this.decrypt(encryptedMessage, encryptionKey, iv, tag);
     }
 }
 
