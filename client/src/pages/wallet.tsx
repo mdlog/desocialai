@@ -4,13 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import {
     Wallet,
     Send,
     Download as Receive,
-    History,
     Copy,
     ExternalLink,
     TrendingUp,
@@ -30,9 +28,6 @@ import {
     BarChart3,
     PieChart,
     Zap,
-    QrCode,
-    Star,
-    Award,
     Target,
     Activity
 } from "lucide-react";
@@ -102,7 +97,7 @@ export function WalletPage() {
         },
     });
 
-    const { data: transactions = [], isLoading: txLoading } = useQuery({
+    const { data: transactions = [] } = useQuery({
         queryKey: ['/api/wallet/transactions'],
         queryFn: async () => {
             const response = await fetch('/api/wallet/transactions');
@@ -112,7 +107,7 @@ export function WalletPage() {
         refetchInterval: 30000,
     });
 
-    const { data: tokens = [], isLoading: tokensLoading } = useQuery({
+    const { data: tokens = [] } = useQuery({
         queryKey: ['/api/wallet/tokens'],
         queryFn: async () => {
             const response = await fetch('/api/wallet/tokens');
@@ -151,14 +146,9 @@ export function WalletPage() {
         // You could add a toast notification here
     };
 
-    const totalValue = displayTokens.reduce((sum, token) => {
-        const value = parseFloat(token.usdValue.replace(/[$,]/g, ''));
-        return sum + (Number.isFinite(value) ? value : 0);
-    }, 0);
-
     // Total native token (0G) amount for real on-chain portfolio
-    const totalOG = displayTokens.reduce((sum, token) => {
-        const bal = parseFloat(token.balance.replace(/[,]/g, ''));
+    const totalOG = displayTokens.reduce((sum: number, token: Token) => {
+        const bal = Number.parseFloat(token.balance.replaceAll(',', ''));
         return sum + (Number.isFinite(bal) ? bal : 0);
     }, 0);
 
@@ -321,8 +311,8 @@ export function WalletPage() {
                             {/* Tokens Tab */}
                             <TabsContent value="overview" className="space-y-4">
                                 <div className="space-y-3">
-                                    {displayTokens.map((token, index) => (
-                                        <Card key={index}>
+                                    {displayTokens.map((token: Token) => (
+                                        <Card key={token.symbol}>
                                             <CardContent className="p-4">
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex items-center gap-3">
@@ -358,49 +348,54 @@ export function WalletPage() {
                             {/* Transactions Tab */}
                             <TabsContent value="transactions" className="space-y-4">
                                 <div className="space-y-3">
-                                    {displayTransactions.map((tx) => (
-                                        <Card key={tx.id}>
-                                            <CardContent className="p-4">
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-3">
-                                                        {getTransactionIcon(tx.type)}
-                                                        <div>
-                                                            <p className="font-semibold capitalize">{tx.type}</p>
-                                                            <p className="text-sm text-gray-500">
-                                                                {tx.description || `${tx.type} ${tx.amount} ${tx.currency}`}
+                                    {displayTransactions.map((tx: Transaction) => {
+                                        const getBadgeVariant = () => {
+                                            if (tx.status === 'completed') return 'default';
+                                            if (tx.status === 'pending') return 'secondary';
+                                            return 'destructive';
+                                        };
+
+                                        return (
+                                            <Card key={tx.id}>
+                                                <CardContent className="p-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            {getTransactionIcon(tx.type)}
+                                                            <div>
+                                                                <p className="font-semibold capitalize">{tx.type}</p>
+                                                                <p className="text-sm text-gray-500">
+                                                                    {tx.description || `${tx.type} ${tx.amount} ${tx.currency}`}
+                                                                </p>
+                                                                <p className="text-xs text-gray-400">
+                                                                    {new Date(tx.timestamp).toLocaleDateString()}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <div className="flex items-center gap-2">
+                                                                {getStatusIcon(tx.status)}
+                                                                <Badge variant={getBadgeVariant()}>
+                                                                    {tx.status}
+                                                                </Badge>
+                                                            </div>
+                                                            <p className="text-sm font-semibold">
+                                                                {tx.type === 'send' ? '-' : '+'}{tx.amount} {tx.currency}
                                                             </p>
-                                                            <p className="text-xs text-gray-400">
-                                                                {new Date(tx.timestamp).toLocaleDateString()}
-                                                            </p>
+                                                            {tx.hash && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    onClick={() => tx.hash && copyToClipboard(tx.hash)}
+                                                                >
+                                                                    <Copy className="w-3 h-3" />
+                                                                </Button>
+                                                            )}
                                                         </div>
                                                     </div>
-                                                    <div className="text-right">
-                                                        <div className="flex items-center gap-2">
-                                                            {getStatusIcon(tx.status)}
-                                                            <Badge variant={
-                                                                tx.status === 'completed' ? 'default' :
-                                                                    tx.status === 'pending' ? 'secondary' : 'destructive'
-                                                            }>
-                                                                {tx.status}
-                                                            </Badge>
-                                                        </div>
-                                                        <p className="text-sm font-semibold">
-                                                            {tx.type === 'send' ? '-' : '+'}{tx.amount} {tx.currency}
-                                                        </p>
-                                                        {tx.hash && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                onClick={() => copyToClipboard(tx.hash!)}
-                                                            >
-                                                                <Copy className="w-3 h-3" />
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    ))}
+                                                </CardContent>
+                                            </Card>
+                                        );
+                                    })}
                                 </div>
                             </TabsContent>
 
@@ -469,8 +464,8 @@ export function WalletPage() {
                                         </CardHeader>
                                         <CardContent>
                                             <div className="space-y-3">
-                                                {displayTokens.map((token) => {
-                                                    const valueOG = parseFloat(token.balance.replace(/[,]/g, ''));
+                                                {displayTokens.map((token: Token) => {
+                                                    const valueOG = Number.parseFloat(token.balance.replaceAll(',', ''));
                                                     const denom = totalOG > 0 ? totalOG : 1;
                                                     const percentage = Math.max(0, Math.min(100, (valueOG / denom) * 100));
                                                     return (
