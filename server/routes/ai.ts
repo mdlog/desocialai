@@ -142,7 +142,7 @@ router.get('/insights', async (req, res) => {
  * GET /api/ai/trending
  * Get trending topics
  */
-router.get('/trending', async (req, res) => {
+router.get('/trending', async (_req, res) => {
     try {
         const topics = await generateTrendingTopics();
         res.json(topics);
@@ -213,10 +213,10 @@ router.post('/agents', async (req, res) => {
  * GET /api/ai/agents
  * Get all AI agents
  */
-router.get('/agents', async (req, res) => {
+router.get('/agents', async (_req, res) => {
     try {
         // TODO: Implement AI agent listing
-        const agents = [];
+        const agents: any[] = [];
         res.json(agents);
     } catch (error: any) {
         console.error('[AI List Agents] Error:', error);
