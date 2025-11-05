@@ -1,9 +1,76 @@
 import { Router } from 'express';
 import fs from 'fs';
 import path from 'path';
+import multer from 'multer';
 import { zgStorageService } from '../services/zg-storage.js';
+import { storage } from '../storage.js';
 
 const router = Router();
+
+// Configure multer for avatar uploads
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit
+    fileFilter: (_req, file, cb) => {
+        // Accept images only
+        if (!file.mimetype.startsWith('image/')) {
+            return cb(new Error('Only image files are allowed'));
+        }
+        cb(null, true);
+    }
+});
+
+/**
+ * POST /api/objects/upload
+ * Upload avatar image
+ */
+router.post('/upload', upload.single('avatar'), async (req, res) => {
+    try {
+        const walletData = req.session.walletConnection;
+        if (!walletData?.connected || !walletData?.address) {
+            return res.status(401).json({ message: "Wallet connection required" });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ message: "No file uploaded" });
+        }
+
+        const user = await storage.getUserByWalletAddress(walletData.address);
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Create storage directory if it doesn't exist
+        const storageDir = path.join(process.cwd(), 'storage', 'avatars');
+        if (!fs.existsSync(storageDir)) {
+            fs.mkdirSync(storageDir, { recursive: true });
+        }
+
+        // Generate unique filename
+        const timestamp = Date.now();
+        const randomId = Math.random().toString(36).substring(7);
+        const fileName = `avatar_${timestamp}_${randomId}.jpg`;
+        const filePath = path.join(storageDir, fileName);
+
+        // Save file to disk
+        fs.writeFileSync(filePath, req.file.buffer);
+
+        // Update user avatar
+        const avatarUrl = `/api/objects/avatar/${fileName}`;
+        await storage.updateUser(user.id, { avatar: avatarUrl });
+
+        console.log(`[AVATAR UPLOAD] ✅ Avatar uploaded for user ${user.id}: ${fileName}`);
+
+        res.json({
+            success: true,
+            avatarUrl,
+            message: "Avatar uploaded successfully"
+        });
+    } catch (error: any) {
+        console.error('[AVATAR UPLOAD] Error:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
 
 /**
  * GET /api/objects/avatar/:objectId
